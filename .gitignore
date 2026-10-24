@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.env
+*.keystore
+*.jks
+android/app/release/
+ios/App/Pods/
+# Personal portal screenshots — never commit
+portel screenshot/
+# Build output and local tooling
+.vercel/
+.gradle/
+local.properties
+app/android/app/build/
+app/android/build/
+app/android/.idea/
+*.log
+new

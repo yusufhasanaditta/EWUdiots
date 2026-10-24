@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>EWUdiots</title>
+  <meta name="description" content="Routine, advising planner, CGPA, deadlines, fees, focus timer and study vault for East West University students. Unofficial.">
+  <meta name="theme-color" content="#7C3AED">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Caveat:wght@600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <a href="#main" class="skip">Skip to content</a>
+  <div class="offline-bar" role="status">You're offline. Everything on this device still works; syncing resumes when you're back online.</div>
+  <div id="root">
+    <div class="app" id="shell">
+      <aside class="sidebar" aria-label="Main navigation">
+        <a class="logo" href="#/home" aria-label="EWUdiots home"><span class="word">EWU<i>diots</i><svg class="spark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9 3 4M11 7l1-5M16 10l5-3" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span><small>Unofficial · not affiliated with EWU</small></a>
+        <nav class="nav" id="side-nav"></nav>
+        <a class="side-user" id="side-user" href="#/profile"></a>
+      </aside>
+      <div class="content">
+        <header class="topbar">
+          <a class="logo mlogo" href="#/home" aria-label="EWUdiots home"><span class="word">EWU<i>diots</i><svg class="spark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9 3 4M11 7l1-5M16 10l5-3" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span><small>Unofficial · not affiliated with EWU</small></a>
+          <button class="searchbar" id="top-search-field" type="button" style="all:unset;flex:1;max-width:560px;cursor:pointer" aria-label="Search courses, notes, rooms, faculty">
+            <span class="searchbar" style="width:100%"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><span class="input" style="display:flex;align-items:center;color:var(--text-3)">Search courses, notes, rooms, faculty…<span class="kbd push d-only">Ctrl K</span></span></span>
+          </button>
+          <span class="spacer"></span>
+          <button class="icon-btn" id="top-search" type="button" aria-label="Search"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
+          <a class="icon-btn" id="top-bell" href="#/notifications" aria-label="Notifications"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></a>
+        </header>
+        <main class="main" id="main" tabindex="-1"></main>
+      </div>
+    </div>
+    <div id="fullscreen" hidden></div>
+  </div>
+  <a class="focus-pill" id="focus-pill" href="#/focus" hidden></a>
+  <nav class="bottom-nav" id="bottom-nav" aria-label="Quick navigation"></nav>
+  <div class="scrim" id="scrim" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal" id="modal"></div></div>
+  <div class="toast-wrap" id="toasts" aria-live="polite"></div>
+  <noscript>EWUdiots needs JavaScript to run.</noscript>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

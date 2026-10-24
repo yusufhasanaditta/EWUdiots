@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "EWUdiots Portal Sync",
+  "short_name": "EWUdiots",
+  "version": "1.2.0",
+  "description": "Sign in with your EWU email and sync your portal (schedule, grades, degree review, advising slip, offered courses) to your EWUdiots account. Academic info only. Unofficial.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://portal.ewubd.edu/*",
+    "https://*.supabase.co/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "EWUdiots Sync",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://portal.ewubd.edu/*"
+      ],
+      "js": [
+        "portal.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}

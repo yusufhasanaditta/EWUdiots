@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- White silhouette for Android status-bar notification icons -->
+  <defs>
+    <mask id="face">
+      <rect width="1024" height="1024" fill="#fff"/>
+      <circle cx="420" cy="602" r="36" fill="#000"/>
+      <path d="M560 604 Q604 566 648 604" fill="none" stroke="#000" stroke-width="36" stroke-linecap="round"/>
+      <path d="M410 694 Q512 790 614 694" fill="none" stroke="#000" stroke-width="38" stroke-linecap="round"/>
+      <g transform="rotate(-9 512 380)"><path d="M140 340 L512 200 L884 340 L512 530 Z" fill="#000"/></g>
+    </mask>
+  </defs>
+  <circle cx="512" cy="600" r="258" fill="#fff" mask="url(#face)"/>
+  <g transform="rotate(-9 512 380)" fill="#fff">
+    <path d="M512 232 L846 362 L512 492 L178 362 Z"/>
+  </g>
+</svg>

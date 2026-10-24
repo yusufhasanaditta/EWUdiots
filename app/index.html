@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>EWUdiots — the EWU student hub</title>
+  <meta name="description" content="Routine from your EWU portal, clash-free advising planner, CGPA, a 3D campus map with room directions, live EWU notices, the full faculty directory and a 3D student pass. Made by East West University students. Unofficial.">
+  <meta name="theme-color" content="#7C3AED">
+  <meta property="og:title" content="EWUdiots — the EWU student hub">
+  <meta property="og:description" content="Your whole EWU life in one app: routine, CGPA, 3D campus map, live notices, faculty directory and study tools.">
+  <meta property="og:image" content="/og-image.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <script>
+    // Inside the Android/iOS app shell, skip the website and open the app.
+    if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) location.replace("/app.html");
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Caveat:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/site.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-sync" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/></symbol>
+      <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+      <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></symbol>
+      <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M20 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h15v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></symbol>
+      <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V21h16"/></symbol>
+      <symbol id="i-door" viewBox="0 0 24 24"><path d="M3 21h18M6 21V3h12v18"/><circle cx="14.5" cy="12" r="1"/></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></symbol>
+      <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+      <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/></symbol>
+      <symbol id="i-exam" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></symbol>
+      <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+      <symbol id="i-checkc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></symbol>
+      <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="11" rx="2"/><path d="M2 19h20"/></symbol>
+      <symbol id="i-puzzle" viewBox="0 0 24 24"><path d="M19.4 13a2 2 0 1 0 0-4H18V6a2 2 0 0 0-2-2h-3V2.6a2 2 0 1 0-4 0V4H6a2 2 0 0 0-2 2v3h1.4a2 2 0 1 1 0 4H4v3a2 2 0 0 0 2 2h3v-1.4a2 2 0 1 1 4 0V18h3a2 2 0 0 0 2-2v-3z"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></symbol>
+      <symbol id="i-share" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></symbol>
+      <symbol id="i-map" viewBox="0 0 24 24"><path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4z"/><path d="M8 2v16M16 6v16"/></symbol>
+      <symbol id="i-mega" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></symbol>
+      <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+      <symbol id="i-id" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="3"/><circle cx="8" cy="12" r="2.5"/><path d="M13 10h5M13 14h3"/></symbol>
+      <symbol id="i-scan" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+      <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+      <symbol id="i-cap" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></symbol>
+    </defs>
+  </svg>
+
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/" aria-label="EWUdiots home"><img src="/icons/icon-192.png" alt="" width="38" height="38"><span><span class="word">EWU<i>diots</i></span><small>Unofficial · not affiliated with EWU</small></span></a>
+      <nav aria-label="Site"><a href="#features">Features</a><a href="#campus">3D Campus</a><a href="#notices">Notices</a><a href="#download">Download</a><a href="#faq">FAQ</a></nav>
+      <a class="btn primary sm" href="/app.html">Open the app</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <div>
+          <a class="chip" href="#campus"><b>NEW</b> 3D campus map, live EWU notices &amp; ID pass <svg class="i inline"><use href="#i-arrow"/></svg></a>
+          <h1>Your whole EWU life, <span class="hl">in one app.<svg viewBox="0 0 300 16" preserveAspectRatio="none" aria-hidden="true"><path d="M4 11c70-8 180-10 292-4" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg></span></h1>
+          <p class="lead">Sync your portal once and EWUdiots builds your routine, CGPA and fee reminders. Find any room in a 3D campus, see official notices the moment they're posted, and look up every teacher.</p>
+          <div class="cta">
+            <a class="btn primary lg" href="/app.html"><svg class="i"><use href="#i-globe"/></svg> Open the web app</a>
+            <a class="btn lg" href="https://play.google.com/store/apps/details?id=com.ewudiots.app" rel="noopener"><svg class="i"><use href="#i-play"/></svg> Google Play</a>
+          </div>
+          <ul class="trust">
+            <li><svg class="i"><use href="#i-checkc"/></svg> Free for every student</li>
+            <li><svg class="i"><use href="#i-checkc"/></svg> No portal password</li>
+            <li><svg class="i"><use href="#i-checkc"/></svg> Works offline</li>
+          </ul>
+          <div class="stats" aria-label="EWUdiots in numbers">
+            <div><b id="stat-fac">400+</b><span>faculty profiles with photos</span></div>
+            <div><b>8</b><span>campus blocks mapped in 3D</span></div>
+            <div><b id="stat-notice">Live</b><span>official EWU notices</span></div>
+          </div>
+        </div>
+        <div class="devices" aria-hidden="true">
+          <div class="phone p2"><img src="/screens/phone-map.webp" alt="" width="390" height="844"></div>
+          <div class="phone p1"><img src="/screens/phone-home.webp" alt="" width="390" height="844" fetchpriority="high"></div>
+          <div class="float f1"><span class="fi violet"><svg class="i"><use href="#i-clock"/></svg></span><div><b>CSE207 in 12 min</b><small>AB2-702 · 3 min walk</small></div></div>
+          <div class="float f2"><span class="fi orange"><svg class="i"><use href="#i-mega"/></svg></span><div><b>New EWU notice</b><small>Pre-advising for Spring 2027</small></div></div>
+          <div class="float f3"><span class="fi lime"><svg class="i"><use href="#i-chart"/></svg></span><div><b>CGPA 3.54</b><small>Target 3.70 reachable</small></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="notices" class="section alt">
+      <div class="wrap live">
+        <div class="reveal">
+          <p class="kicker">Notice board</p>
+          <h2>Never miss an EWU notice again.</h2>
+          <p class="sub">EWUdiots reads the official EWU notice board every half hour. New notices show up in the app with a badge and an alert, sorted into Exams, Advising, Payments, Scholarships and more.</p>
+          <p class="live-dot" id="live-status">Live from ewubd.edu</p>
+          <div class="cta"><a class="btn primary" href="/app.html#/notices">Open the notice board <svg class="i"><use href="#i-arrow"/></svg></a></div>
+        </div>
+        <div class="board reveal" id="board" aria-live="polite"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+      </div>
+    </section>
+
+    <section id="features" class="section">
+      <div class="wrap">
+        <div class="center"><p class="kicker">What's inside</p><h2>Everything the portal doesn't do for you.</h2><p class="sub">Built by EWU students, around how EWU actually works.</p></div>
+
+        <article class="spot reveal" id="campus">
+          <div>
+            <span class="tagline"><span class="ic"><svg class="i"><use href="#i-map"/></svg></span> 3D campus map</span>
+            <h3>Type a room. Walk there in 3D.</h3>
+            <p>Every block, floor, lift lobby and link from the official campus map, to scale. Search 636 or AB2-702 and get turn-by-turn directions with walking time.</p>
+            <ul class="ticks">
+              <li><svg class="i"><use href="#i-check"/></svg> Guided 3D walk-through, walk mode and a 2D view</li>
+              <li><svg class="i"><use href="#i-check"/></svg> Floor-by-floor offices, labs and lecture galleries</li>
+              <li><svg class="i"><use href="#i-check"/></svg> "Only 10 min between classes" warnings on your home screen</li>
+            </ul>
+          </div>
+          <div class="spot-art"><div class="browser"><div class="bar"><i></i><i></i><i></i><span>ewudiots · Campus Map</span></div><img src="/screens/desk-map.webp" alt="EWUdiots 3D campus map with a route to room 805 in Block A" width="1440" height="900" loading="lazy"></div></div>
+        </article>
+
+        <article class="spot flip reveal">
+          <div>
+            <span class="tagline"><span class="ic"><svg class="i"><use href="#i-users"/></svg></span> Faculty directory</span>
+            <h3>Every teacher, one search away.</h3>
+            <p>All EWU faculty with photo, title, office room, extension and email, taken from the official department pages. Tap the room for directions.</p>
+            <ul class="ticks">
+              <li><svg class="i"><use href="#i-check"/></svg> Search by name, department or room</li>
+              <li><svg class="i"><use href="#i-check"/></svg> Your own teachers matched from your class schedule</li>
+              <li><svg class="i"><use href="#i-check"/></svg> Anonymous reviews from verified EWU students only</li>
+            </ul>
+          </div>
+          <div class="spot-art"><div class="phone"><img src="/screens/phone-faculty.webp" alt="Faculty directory with photos" width="390" height="844" loading="lazy"></div></div>
+        </article>
+
+        <article class="spot reveal">
+          <div>
+            <span class="tagline"><span class="ic"><svg class="i"><use href="#i-id"/></svg></span> 3D student pass</span>
+            <h3>Scan your ID card. Sign in in seconds.</h3>
+            <p>Point your camera at your EWU ID card. EWUdiots reads your student ID, sends a code to your EWU email, and makes a 3D pass you can flip and tilt.</p>
+            <ul class="ticks">
+              <li><svg class="i"><use href="#i-check"/></svg> The card photo never leaves your phone</li>
+              <li><svg class="i"><use href="#i-check"/></svg> Verified with your @std.ewubd.edu email</li>
+              <li><svg class="i"><use href="#i-check"/></svg> QR code for your student ID</li>
+            </ul>
+          </div>
+          <div class="spot-art"><div class="phone"><img src="/screens/phone-idcard.webp" alt="3D student pass" width="390" height="844" loading="lazy"></div></div>
+        </article>
+
+        <article class="spot flip reveal">
+          <div>
+            <span class="tagline"><span class="ic"><svg class="i"><use href="#i-grid"/></svg></span> Routine &amp; advising</span>
+            <h3>Your week, sorted. Next semester, planned.</h3>
+            <p>Your class schedule becomes a weekly calendar with reminders before every class. At advising time, pick courses and EWUdiots finds every clash-free routine that fits your rules.</p>
+            <ul class="ticks">
+              <li><svg class="i"><use href="#i-check"/></svg> Next-class countdown with room, faculty and directions</li>
+              <li><svg class="i"><use href="#i-check"/></svg> Clash-free combinations ranked by fewer gaps or earlier finishes</li>
+              <li><svg class="i"><use href="#i-check"/></svg> Export to Google Calendar (.ics)</li>
+            </ul>
+          </div>
+          <div class="spot-art"><div class="browser"><div class="bar"><i></i><i></i><i></i><span>ewudiots · Routine</span></div><img src="/screens/desk-routine.webp" alt="Weekly routine calendar" width="1440" height="900" loading="lazy"></div></div>
+        </article>
+
+        <div class="bento">
+          <article class="tile reveal"><span class="ic t-purple"><svg class="i"><use href="#i-sync"/></svg></span><h3>Portal sync</h3><p>Screenshot, copy-paste, or the Chrome extension with your account.</p></article>
+          <article class="tile reveal"><span class="ic t-blue"><svg class="i"><use href="#i-chart"/></svg></span><h3>CGPA &amp; degree</h3><p>EWU grade scale, retakes, what-if grades and a target forecaster.</p></article>
+          <article class="tile reveal"><span class="ic t-orange"><svg class="i"><use href="#i-wallet"/></svg></span><h3>Fee reminders</h3><p>Installment dates and late-fee steps from your advising slip.</p></article>
+          <article class="tile reveal"><span class="ic t-green"><svg class="i"><use href="#i-door"/></svg></span><h3>Free rooms</h3><p>Empty classrooms right now, with directions.</p></article>
+          <article class="tile reveal"><span class="ic t-pink"><svg class="i"><use href="#i-target"/></svg></span><h3>Focus timer</h3><p>Pomodoro with rain or café sounds, streaks and a heatmap.</p></article>
+          <article class="tile reveal"><span class="ic t-teal"><svg class="i"><use href="#i-layers"/></svg></span><h3>Flashcards</h3><p>Spaced repetition that brings cards back before you forget.</p></article>
+          <article class="tile reveal"><span class="ic t-yellow"><svg class="i"><use href="#i-book"/></svg></span><h3>Study vault</h3><p>Notes, slides and past papers shared by seniors.</p></article>
+          <article class="tile reveal"><span class="ic t-red"><svg class="i"><use href="#i-exam"/></svg></span><h3>Exam planner</h3><p>Revision around your classes, weak topics first.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="how" class="section alt">
+      <div class="wrap center">
+        <p class="kicker">Set up in a minute</p>
+        <h2>Three steps. That's it.</h2>
+        <ol class="steps" style="text-align:left">
+          <li class="reveal"><b>Sign in with your EWU email</b><span>Or scan your ID card. No password, just a 6-digit code.</span></li>
+          <li class="reveal"><b>Sync your portal</b><span>Screenshot a page, paste it, or press Save in the Chrome extension.</span></li>
+          <li class="reveal"><b>Check and save</b><span>Your routine, CGPA, reminders and campus map are ready.</span></li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="download" class="section">
+      <div class="wrap">
+        <div class="center"><p class="kicker">Download</p><h2>Wherever you study.</h2><p class="sub">One account across all your devices, or no account at all: everything also works on your own phone.</p></div>
+        <div class="dl-grid">
+          <article class="dl featured reveal">
+            <img src="/img/mascot-laptop.webp" alt="" width="150" height="150">
+            <span class="dl-ic"><svg class="i"><use href="#i-play"/></svg></span>
+            <h3>Android</h3><p>The full app, with phone alerts for classes, deadlines, fees and new notices.</p>
+            <a class="btn" href="https://play.google.com/store/apps/details?id=com.ewudiots.app" rel="noopener"><svg class="i"><use href="#i-download"/></svg> Google Play</a>
+          </article>
+          <article class="dl reveal"><span class="dl-ic"><svg class="i"><use href="#i-globe"/></svg></span><h3>Web app</h3><p>Use it right now in any browser. Nothing to install.</p><a class="btn" href="/app.html"><svg class="i"><use href="#i-arrow"/></svg> Open in browser</a></article>
+          <article class="dl reveal" id="install-card"><span class="dl-ic"><svg class="i"><use href="#i-laptop"/></svg></span><h3>Windows &amp; Mac</h3><p id="install-text">Install it from Chrome or Edge. It gets its own window and works offline.</p>
+            <button class="btn" id="install-btn" type="button" hidden><svg class="i"><use href="#i-download"/></svg> Install on this computer</button><p class="hint" id="install-hint">In Chrome or Edge, click the install icon in the address bar.</p></article>
+          <article class="dl reveal"><span class="dl-ic"><svg class="i"><use href="#i-phone"/></svg></span><h3>iPhone</h3><p>Open the web app in Safari, tap <b>Share</b> <svg class="i inline"><use href="#i-share"/></svg>, then <b>Add to Home Screen</b>.</p><a class="btn" href="/app.html">Open in Safari</a></article>
+          <article class="dl reveal"><span class="dl-ic"><svg class="i"><use href="#i-puzzle"/></svg></span><h3>Chrome extension</h3><p>Sign in with your EWU email, browse the portal, press Save. The app imports it on every device.</p><span class="btn soon">Chrome Web Store · soon</span></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy" class="section dark">
+      <div class="wrap privacy-wrap">
+        <div class="reveal">
+          <p class="kicker">Private by design</p>
+          <h2>Your data stays yours.</h2>
+          <p class="sub">EWUdiots is local-first. Your phone is the main copy; the cloud is only a backup you choose.</p>
+          <a class="more" href="/privacy.html">Read the privacy policy <svg class="i"><use href="#i-arrow"/></svg></a>
+        </div>
+        <div class="privacy reveal">
+          <p><span class="tick" aria-hidden="true"></span>We never ask for your portal password.</p>
+          <p><span class="tick" aria-hidden="true"></span>We never read your phone number, address, NID, date of birth or blood group.</p>
+          <p><span class="tick" aria-hidden="true"></span>Your ID card photo stays on your phone. Only your ID and name go to your account.</p>
+          <p><span class="tick" aria-hidden="true"></span>Reviews are anonymous, and only verified @std.ewubd.edu students can post.</p>
+          <p><span class="tick" aria-hidden="true"></span>Delete your account and every byte of data in two taps.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq" class="section">
+      <div class="wrap">
+        <div class="center"><p class="kicker">FAQ</p><h2>Questions, answered.</h2></div>
+        <div class="faq">
+          <details><summary>Is this the official EWU app?</summary><p>No. EWUdiots is an independent app made by students. It is not affiliated with, endorsed by or connected to East West University. Always confirm important information on the official portal and notice board.</p></details>
+          <details><summary>Where do the notices and faculty details come from?</summary><p>From EWU's own public pages: the notice board at ewubd.edu and each department's faculty pages. Every notice and profile links back to the original. Faculty members can ask us to update or remove a listing.</p></details>
+          <details><summary>How accurate is the 3D map?</summary><p>Blocks, floor counts, lift lobbies and links between blocks come from the official campus map, to within about 3 metres. Room positions are worked out from the room number and EWU's office lists, and each one shows how sure we are. Students can add rooms and floor plans to make it better.</p></details>
+          <details><summary>Is it free?</summary><p>Yes. Every feature is free.</p></details>
+          <details><summary>Do I need an account?</summary><p>No. Everything works on your device. Signing in with your EWU email adds backup, sync across devices, reviews, the shared study vault and the Chrome extension.</p></details>
+          <details><summary>How do I delete my data?</summary><p>App → Profile &amp; Settings → Delete account. Or see <a href="/delete-account.html">delete account</a>.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <div class="wrap">
+      <section class="cta-band reveal">
+        <img class="m" src="/img/mascot-thumbs.webp" alt="" width="120" height="120">
+        <div><h2>Same campus. Smarter you.</h2><p>Set up in a minute. Free for every EWU student.</p></div>
+        <a class="btn lime lg" href="/app.html">Start now <svg class="i"><use href="#i-arrow"/></svg></a>
+      </section>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/icons/icon-192.png" alt="" width="30" height="30"><span class="word" style="font-size:20px">EWU<i>diots</i></span></a>
+      <p>Unofficial student project. Not affiliated with East West University.</p>
+      <nav aria-label="Legal"><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="/delete-account.html">Delete account</a><a href="mailto:civicframe01@gmail.com">Contact</a></nav>
+    </div>
+  </footer>
+  <script type="module" src="/src/site.js"></script>
+</body>
+</html>

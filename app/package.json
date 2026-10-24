@@ -1,0 +1,38 @@
+{
+  "name": "ewudiots",
+  "private": true,
+  "version": "2.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.js",
+    "test:ext": "vite build && node scripts/ext-e2e.mjs",
+    "test:app": "vite build && node scripts/e2e.mjs",
+    "shots": "vite build && node scripts/shots.mjs",
+    "icons": "node scripts/build-icons.mjs",
+    "android": "vite build && npx cap sync android && npx cap open android",
+    "test:campus": "vite build && node scripts/campus-e2e.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/share": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4",
+    "@supabase/supabase-js": "^2.117.2",
+    "qrcode-generator": "^1.4.4",
+    "tesseract.js": "^7.0.0",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "puppeteer-core": "^25.12.0",
+    "sharp": "^0.35.5",
+    "vite": "^8.3.2"
+  }
+}

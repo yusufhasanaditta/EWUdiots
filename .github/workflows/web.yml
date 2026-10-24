@@ -1,0 +1,20 @@
+# Tests and builds the website + web app on every push. Upload app/dist to any static host
+# (Cloudflare Pages, Netlify, Vercel, Firebase Hosting) or connect the host to this repo directly.
+name: Web build
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: app } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: app/package-lock.json }
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      - uses: actions/upload-artifact@v4
+        with: { name: website, path: app/dist }

@@ -1,0 +1,45 @@
+# Builds a signed Android App Bundle (.aab) for the Play Store, no Android Studio needed.
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+#   ANDROID_KEYSTORE_BASE64  (base64 of your upload keystore .jks)
+#   ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+name: Android release
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: app } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: app/package-lock.json }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm ci
+      - run: npm test
+      - name: Build web app
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      - run: npx cap sync android
+      - name: Decode keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/upload.jks"
+      - name: Build signed bundle
+        working-directory: app/android
+        run: |
+          VERSION_CODE=$(( $(date +%s) / 60 ))
+          ./gradlew bundleRelease \
+            -Pandroid.injected.version.code=$VERSION_CODE \
+            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/upload.jks" \
+            -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ewudiots-release-aab
+          path: app/android/app/build/outputs/bundle/release/*.aab

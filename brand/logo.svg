@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="EWUdiots logo">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7457FF"/>
+      <stop offset="1" stop-color="#4A27DB"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#bg)"/>
+  <!-- face -->
+  <circle cx="512" cy="600" r="258" fill="#C8F04A"/>
+  <!-- eyes: one open, one winking -->
+  <circle cx="420" cy="602" r="32" fill="#15122E"/>
+  <path d="M560 604 Q604 566 648 604" fill="none" stroke="#15122E" stroke-width="30" stroke-linecap="round"/>
+  <!-- grin -->
+  <path d="M410 694 Q512 790 614 694" fill="none" stroke="#15122E" stroke-width="32" stroke-linecap="round"/>
+  <!-- graduation cap, tilted -->
+  <g transform="rotate(-9 512 380)">
+    <path d="M362 392 L362 470 Q512 540 662 470 L662 392 Z" fill="#15122E"/>
+    <path d="M512 232 L846 362 L512 492 L178 362 Z" fill="#15122E"/>
+    <path d="M512 362 L770 392 L770 520" fill="none" stroke="#C8F04A" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="770" cy="540" r="28" fill="#C8F04A"/>
+    <circle cx="512" cy="362" r="22" fill="#C8F04A"/>
+  </g>
+</svg>
