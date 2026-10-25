@@ -30,7 +30,9 @@ const browser = await puppeteer.launch({ executablePath: CHROME, headless: true,
 const p = await browser.newPage();
 p.on("pageerror", (e) => errors.push(e.message));
 p.on("console", (m) => { if (m.type() === "error" && !/fonts\.g|favicon|Failed to load resource|overrides\.json/.test(m.text())) errors.push(m.text()); });
-const go = async (h, ms = 450) => { await p.evaluate((x) => { location.hash = x; }, h); await wait(ms); };
+// Screen changes animate (View Transitions), so wait until the new screen is painted before reading it.
+const painted = (h) => p.waitForFunction((x) => { const id = x.replace(/^#\/?/, "").split("?")[0] || "home"; const pg = document.querySelector("[data-page]")?.dataset.page; return pg === id || ["off", "welcome", "notfound", "profile"].includes(pg); }, { timeout: 4000 }, h).catch(() => {});
+const go = async (h, ms = 450) => { await p.evaluate((x) => { location.hash = x; }, h); await painted(h); await wait(ms); };
 const click = async (sel, ms = 350) => { await p.$eval(sel, (el) => el.click()); await wait(ms); };
 const text = () => p.$eval("body", (b) => b.innerText);
 const state = () => p.evaluate(() => JSON.parse(localStorage.getItem("ewudiots.v2") || "{}"));

@@ -10,14 +10,14 @@ export function install(ctx) {
   // Native builds load from the device, so they need the website's address for the API.
   const API = (ctx.native.isNative ? import.meta.env.VITE_SITE_URL || "" : "") + "/api/notices";
   let feed = (() => { try { return JSON.parse(localStorage.getItem(CACHE)) || null; } catch { return null; } })(); // { at, notices }
-  let loading = null, error = "", tab = "All", q = "";
+  let loading = null, error = "", tab = "All", q = "", failedAt = 0;
   const seen = () => (S().noticeSeen = S().noticeSeen || { ids: [], since: null });
   const list = () => feed?.notices || [];
   const isNew = (n) => !seen().ids.includes(n.id);
 
   async function refresh({ force = false } = {}) {
     if (loading) return loading;
-    if (!force && feed && Date.now() - feed.at < POLL) return feed;
+    if (!force && ((feed && Date.now() - feed.at < POLL) || Date.now() - failedAt < 60e3)) return feed; // fresh, or failed < 1 min ago
     loading = (async () => {
       try {
         if (ctx.native.isNative && !import.meta.env.VITE_SITE_URL) throw new Error("This build doesn't know the website address yet (VITE_SITE_URL).");
@@ -27,12 +27,12 @@ export function install(ctx) {
         const first = !seen().since;
         feed = { at: Date.now(), notices: j.notices };
         try { localStorage.setItem(CACHE, JSON.stringify(feed)); } catch { /* storage full */ }
-        error = "";
+        error = ""; failedAt = 0;
         // First run: only the 3 newest notices from the last month count as new, so you aren't flooded.
         if (first) { const month = Date.now() - 30 * 864e5, fresh = new Set(j.notices.filter((n) => n.date && new Date(n.date) >= month).slice(0, 3).map((n) => n.id)); seen().ids = j.notices.filter((n) => !fresh.has(n.id)).map((n) => n.id); seen().since = new Date().toISOString(); ctx.save({ silent: true }); }
         else alertNew(j.notices.filter(isNew));
         if (["notices", "home", "notifications"].includes(ctx.route())) ctx.rerender();
-      } catch (e) { error = navigator.onLine ? e.message : "You're offline. Showing saved notices."; if (ctx.route() === "notices") ctx.rerender(); }
+      } catch (e) { error = navigator.onLine ? e.message : "You're offline. Showing saved notices."; failedAt = Date.now(); if (ctx.route() === "notices") ctx.rerender(); }
       finally { loading = null; }
       return feed;
     })();
@@ -62,6 +62,7 @@ export function install(ctx) {
       ${error ? `<div class="alert amber" style="margin-bottom:12px"><span class="a-ic">${icon("wifioff")}</span><div class="grow"><b>Couldn't refresh</b><p>${esc(error)}</p></div><button class="btn sm" id="nb-retry">Try again</button></div>` : ""}
       <div class="row nowrap"><div class="searchbar grow">${icon("search")}<input class="input" id="nb-q" type="search" placeholder="Search notices" value="${esc(q)}" aria-label="Search notices"></div><button class="icon-btn" id="nb-refresh" aria-label="Refresh">${icon("sync")}</button></div>
       ${cats.length > 2 ? `<div class="seg mt">${cats.map((c) => `<button data-ncat="${esc(c)}" aria-selected="${tab === c}">${esc(c)}${c === "All" && unseen ? ` <span class="cnt">${unseen}</span>` : ""}</button>`).join("")}</div>` : ""}
+      ${ctx.content.posts("announcement").map((p) => `<div class="alert purple mt fx-rise"><span class="a-ic">${icon("megaphone")}</span><div class="grow"><b>${esc(p.title)}</b><p>${esc(p.body)}</p></div>${p.link ? `<a class="btn sm" href="${esc(p.link)}" target="_blank" rel="noopener">Open</a>` : ""}</div>`).join("")}
       <section class="card mt">${!feed ? [1, 2, 3].map(() => '<div class="skel" style="height:74px;margin-bottom:10px"></div>').join("") : shown.length ? shown.map(row).join("") : ctx.empty("icon:bell", "No notices match", "Try another category or search.")}</section>
       <p class="xs mt">From <a href="https://www.ewubd.edu/notice-board" target="_blank" rel="noopener">ewubd.edu/notice-board</a>${feed ? ` · checked ${new Date(feed.at).toLocaleString("en-GB", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}` : ""}. EWUdiots is unofficial; the original notice is always the one that counts.</p>`;
   };

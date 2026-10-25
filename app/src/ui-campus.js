@@ -200,7 +200,7 @@ export function install(ctx) {
           ${r.course ? `<p class="xs mt-s">${esc(r.course)}</p>` : ""}${r.body ? `<p class="small mt-s">${esc(r.body)}</p>` : ""}${r.tags?.length ? `<div class="row mt-s" style="gap:6px">${r.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
           ${C.user && !r.mine && r.id ? `<button class="btn sm ghost mt-s" data-report="${r.id}">${icon("flag")} Report</button>` : ""}</div>`).join("")
         : ctx.empty("icon:star", "No reviews yet", "Be the first to share how their classes are.")}</div>
-      <button class="btn primary lg block mt sticky-bottom" id="rv-rate">${icon("star")} Rate ${esc((f.name || f.init).split(" ").slice(0, 2).join(" "))}</button></div>`;
+      <button class="btn primary lg block mt sticky-bottom" id="rv-rate" ${ctx.content.feature("reviews") ? "" : "hidden"}>${icon("star")} Rate ${esc((f.name || f.init).split(" ").slice(0, 2).join(" "))}</button></div>`;
   };
   pages.prof.mount = (el) => {
     const init = (ctx.qparam("i") || "").toUpperCase(), f = ctx.facBy(init); if (!f) return;

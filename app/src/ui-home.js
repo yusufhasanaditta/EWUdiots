@@ -23,7 +23,7 @@ export function install(ctx) {
     const TILES = [["routine", "calendar", "purple", "Routine", "View your classes"], ["planner", "listcheck", "green", "Planner", "Plan next semester"], ["grades", "bars", "blue", "CGPA", "Track your progress"], ["focus", "target", "pink", "Focus", "Study timer"],
       ["map", "map", "purple", "Campus Map", "Find any room"], ["vault", "vault", "yellow", "Vault", "Notes, past papers"], ["rooms", "building", "blue", "Free Rooms", "Find empty classrooms"], ["fees", "wallet", "orange", "Fees", "Payments & installments"]];
     const prof = nc ? ctx.facName(nc.faculty) : "";
-    const ncCard = nc ? `<a class="next-card" href="#/course?c=${encodeURIComponent(nc.code)}" aria-live="polite">
+    const ncCard = nc ? `<a class="next-card" href="#/course?c=${encodeURIComponent(nc.code)}" aria-live="polite"><span class="fluid" aria-hidden="true"><i></i><i></i><i></i></span>
         <div class="top"><span class="row" style="gap:8px">${icon("school", "sm")} ${nc.live ? "Happening now" : "Next Class"} ${icon("chevR", "sm")}</span>${nc.live ? "" : `<span class="starts">Starts in</span>`}</div>
         <h2>${esc(nc.code)}</h2><div class="t">${esc(nc.title || (nc.lab ? "Lab session" : ""))}</div>
         ${nc.live ? `<div class="cd"><div class="ring sm" style="--p:${Math.round(100 * (1 - nc.mins / (nc.e - nc.s)))};--rc:var(--accent);background:conic-gradient(var(--accent) calc(var(--p)*1%), rgba(255,255,255,.25) 0)"><div><b style="color:#fff">${nc.mins}</b><span style="color:#fff">min left</span></div></div></div>` :
@@ -43,7 +43,7 @@ export function install(ctx) {
       : `<a class="card tint-green" href="#/marks" style="display:block"><div class="row nowrap" style="gap:8px"><span style="color:var(--success)">${icon("checkc")}</span><b>Attendance</b></div><p class="small muted mt-s">${avgAtt !== null ? "Average across courses" : "Track it per course"}</p><b style="font-size:28px">${avgAtt !== null ? avgAtt + "%" : "—"}</b></a>`;
 
     const desktop = `<div class="d-only">
-      <section class="hero-banner"><span class="date">${now.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })} ${icon("star", "sm")}</span>
+      <section class="hero-banner"><span class="fluid" aria-hidden="true"><i></i><i></i><i></i></span><span class="date">${now.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })} ${icon("star", "sm")}</span>
         <h1><small>${ctx.greeting()},</small>${first}!</h1><p>Small steps. Big progress.</p></section>
       <div class="dtiles mt">${[["routine", "calendar", "purple", "Routine", "View your classes"], ["planner", "listcheck", "green", "Advising Planner", "Plan next semester"], ["map", "map", "blue", "Campus Map", "Rooms, routes & 3D walk"], ["grades", "bars", "purple", "CGPA", "Track your progress"],
         ["tasks", "clipboard", "red", "Deadlines", "Assignments & exams"], ["fees", "wallet", "orange", "Fees", "Payments & installments"], ["vault", "vault", "blue", "Study Vault", "Notes, past papers"], ["rooms", "door", "purple", "Free Rooms", "Find empty classrooms"]]
@@ -68,7 +68,9 @@ export function install(ctx) {
       <div class="qgrid mt">${TILES.map(([id, ic, tone, t]) => `<a class="qtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span>${t}</a>`).join("")}</div>
       <div class="mt">${deadlines}</div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}
       <div class="g2m mt">${streakCard}${attCard}</div></div>`;
-    return `${ctx.demoBanner()}${mobile}${desktop}`;
+    const b = ctx.content.banner();
+    const banner = b ? `<div class="alert ${b.tone || "purple"} admin-banner fx-rise"><span class="a-ic">${icon(b.tone === "red" ? "alert" : "megaphone")}</span><div class="grow"><b>${esc(b.title || "From the EWUdiots team")}</b><p>${esc(b.text)}</p></div>${b.link ? `<a class="btn sm" href="${esc(b.link)}" ${/^https:/.test(b.link) ? 'target="_blank" rel="noopener"' : ""}>${esc(b.cta || "Open")}</a>` : ""}</div>` : "";
+    return `${banner}${ctx.demoBanner()}${mobile}${desktop}${ctx.community.homeNews()}`;
   };
   /* Faculty / alumni home: campus tools only. */
   function homeLite() {
@@ -105,7 +107,7 @@ export function install(ctx) {
   pages.more = () => {
     const role = S().role;
     const tiles = [
-      ["me", "award", "purple", "Achievements", "View your badges and stats", "sf"], ["vault", "vault", "blue", "Study Vault", "Notes, past papers, slides", "sfa"], ["notices", "megaphone", "orange", "Notice Board", "Official EWU notices", "sfa"], ["map", "map", "purple", "Campus Map", "Find rooms, walk in 3D", "sfa"], ["idcard", "user", "teal", "My ID Card", "Your 3D student pass", "s"], ["rooms", "building", "purple", "Free Rooms", "Find empty classrooms", "sfa"],
+      ["me", "award", "purple", "Achievements", "View your badges and stats", "sf"], ["vault", "vault", "blue", "Study Vault", "Notes, past papers, slides", "sfa"], ["notices", "megaphone", "orange", "Notice Board", "Official EWU notices", "sfa"], ["news", "globe", "blue", "Campus News", "Stories from EWU", "sfa"], ["alumni", "community", "green", "Alumni", "Where graduates are now", "sfa"], ["map", "map", "purple", "Campus Map", "Find rooms, walk in 3D", "sfa"], ["idcard", "user", "teal", "My ID Card", "Your 3D student pass", "s"], ["rooms", "building", "purple", "Free Rooms", "Find empty classrooms", "sfa"],
       ["planner", "calcheck", "green", "Advising Planner", "Plan your next semester", "s"], ["marks", "notes", "blue", "Marks Estimator", "Predict your grades", "s"], ["fees", "receipt", "red", "Fees & Deadlines", "Track payments and tasks", "s"],
       ["courses", "book", "teal", "My Courses", "Course hubs and notes", "s"], ["cards", "cards", "pink", "Flashcards", "Spaced repetition decks", "sf"], ["exams", "exam", "orange", "Exam Planner", "Revision plan for exams", "s"],
       ["faculty", "users", "purple", "Faculty & Reviews", "Contacts and ratings", "sfa"], ["focus", "target", "pink", "Focus Timer", "Pomodoro and analytics", "sf"], ["cover", "file", "green", "Cover Page", "Assignment cover PDF", "sa"],

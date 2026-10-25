@@ -1,0 +1,107 @@
+/* ===== Fluid motion: one spring curve for the whole app, view transitions between screens, staggered entrances,
+   tactile presses and slow "liquid" colour blobs. Everything stops under prefers-reduced-motion. ===== */
+:root {
+  --spring: linear(0, .009, .035 2.1%, .141 4.4%, .723 12.9%, .938 16.7%, 1.017 19.4%, 1.067, 1.099 24.3%, 1.104 26.2%, 1.091 29.1%, 1.012 38.1%, .995 42.6%, .992 47.4%, 1.001 63.6%, 1);
+  --spring-soft: linear(0, .06 3%, .23 7%, .62 15%, .86 22%, .97 30%, 1.01 38%, 1.005 50%, 1);
+  --out: cubic-bezier(.16, 1, .3, 1);
+}
+
+/* Screen-to-screen: the old screen fades and drifts up while the new one rises in. Taps go straight through. */
+::view-transition { pointer-events: none; }
+::view-transition-old(root) { animation: vt-out .18s var(--out) both; }
+::view-transition-new(root) { animation: vt-in .42s var(--spring-soft) both; }
+@keyframes vt-out { to { opacity: 0; transform: translateY(-6px) scale(.995); } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(12px) scale(.99); } }
+/* Shell parts stay put while the content changes. */
+.sidebar { view-transition-name: sidebar; } .topbar { view-transition-name: topbar; } .bottom-nav { view-transition-name: bottomnav; }
+::view-transition-old(sidebar), ::view-transition-new(sidebar), ::view-transition-old(topbar), ::view-transition-new(topbar), ::view-transition-old(bottomnav), ::view-transition-new(bottomnav) { animation: none; }
+
+/* Staggered entrance for cards and rows (set --i for an explicit order). */
+.fx-rise { animation: fx-rise .6s var(--spring-soft) both; animation-delay: calc(var(--i, 0) * 45ms); }
+@keyframes fx-rise { from { opacity: 0; transform: translateY(14px) scale(.985); } }
+[data-page] > .grid > *, [data-page] > .card, [data-page] .mtiles > *, [data-page] .qgrid > *, [data-page] .dtiles > * { animation: fx-rise .55s var(--spring-soft) both; }
+[data-page] .mtiles > :nth-child(2), [data-page] .qgrid > :nth-child(2), [data-page] .dtiles > :nth-child(2) { animation-delay: 40ms; }
+[data-page] .mtiles > :nth-child(3), [data-page] .qgrid > :nth-child(3), [data-page] .dtiles > :nth-child(3) { animation-delay: 80ms; }
+[data-page] .mtiles > :nth-child(4), [data-page] .qgrid > :nth-child(4), [data-page] .dtiles > :nth-child(4) { animation-delay: 120ms; }
+[data-page] .mtiles > :nth-child(n+5), [data-page] .qgrid > :nth-child(n+5), [data-page] .dtiles > :nth-child(n+5) { animation-delay: 160ms; }
+
+/* Tactile presses + hover lift with the spring. */
+.btn, .chip, .qtile, .mtile, .dtile, .icon-btn, .lcard, .seg button, .fab-btn, .news-card, .alum, .news-mini { transition: transform .45s var(--spring), box-shadow .3s var(--out), background-color .2s, color .2s, border-color .2s; }
+.btn:active, .chip:active, .icon-btn:active, .seg button:active { transform: scale(.95); transition-duration: .12s; }
+.qtile:active, .mtile:active, .dtile:active, .lcard:active { transform: scale(.97); transition-duration: .12s; }
+@media (hover: hover) {
+  .mtile:hover, .dtile:hover, .lcard:hover, .news-card:hover, .alum:hover { transform: translateY(-3px); box-shadow: var(--sh-lg); }
+  .qtile:hover .itile { transform: translateY(-2px) rotate(-4deg); }
+}
+.itile { transition: transform .5s var(--spring); }
+.fab-btn:active { transform: scale(.9) rotate(45deg); }
+
+/* Sheets and toasts arrive on the spring. */
+.scrim.open .modal { animation: sheet-in .55s var(--spring-soft) both; }
+@keyframes sheet-in { from { transform: translateY(40px); opacity: 0; } }
+@media (min-width: 961px) { @keyframes sheet-in { from { transform: translateY(16px) scale(.97); opacity: 0; } } }
+.toast { animation: toast-in .5s var(--spring) both; }
+@keyframes toast-in { from { transform: translateY(16px) scale(.95); opacity: 0; } }
+
+/* Liquid colour blobs behind hero areas (transform-only animation, GPU friendly). */
+.fluid { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; border-radius: inherit; }
+.fluid i { position: absolute; width: 60%; aspect-ratio: 1; border-radius: 50%; filter: blur(40px); opacity: .55; will-change: transform; mix-blend-mode: screen; }
+.fluid i:nth-child(1) { background: #8b5cf6; left: -10%; top: -20%; animation: blob1 18s ease-in-out infinite alternate; }
+.fluid i:nth-child(2) { background: #06b6d4; right: -15%; top: 10%; animation: blob2 22s ease-in-out infinite alternate; }
+.fluid i:nth-child(3) { background: #a3e635; left: 30%; bottom: -35%; opacity: .35; animation: blob3 26s ease-in-out infinite alternate; }
+@keyframes blob1 { 50% { transform: translate(25%, 15%) scale(1.15); } 100% { transform: translate(10%, 30%) scale(.9); } }
+@keyframes blob2 { 50% { transform: translate(-20%, 20%) scale(.85); } 100% { transform: translate(-35%, -5%) scale(1.1); } }
+@keyframes blob3 { 50% { transform: translate(-15%, -20%) scale(1.2); } 100% { transform: translate(20%, -10%) scale(.95); } }
+.next-card, .hero-banner { position: relative; isolation: isolate; }
+.next-card > :not(.fluid), .hero-banner > :not(.fluid) { position: relative; z-index: 1; }
+
+/* Skeletons shimmer instead of sitting still. */
+.skel { background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+  .fx-rise, [data-page] > .grid > *, [data-page] > .card, [data-page] .mtiles > *, [data-page] .qgrid > *, [data-page] .dtiles > *, .scrim.open .modal, .toast, .skel, .fluid i { animation: none !important; }
+  .btn, .chip, .qtile, .mtile, .dtile, .icon-btn, .lcard, .itile, .news-card, .alum { transition: none; }
+}
+
+/* ===== News ===== */
+.news-lead { position: relative; overflow: hidden; border-radius: var(--r24); min-height: 320px; display: flex; align-items: flex-end; background: var(--grad); color: #fff; box-shadow: var(--sh-lg); }
+.news-lead img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.news-lead::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(15, 10, 40, .05) 20%, rgba(15, 10, 40, .88)); }
+.nl-body { position: relative; z-index: 1; padding: 24px; max-width: 760px; display: grid; gap: 10px; }
+.nl-body h2 { font-size: clamp(20px, 3vw, 28px); color: #fff; }
+.nl-body p { color: rgba(255, 255, 255, .88); font-size: 15px; }
+.nl-body .xs { color: rgba(255, 255, 255, .8); }
+.pill.white { background: rgba(255, 255, 255, .2); color: #fff; }
+.news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.news-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r16); overflow: hidden; box-shadow: var(--sh-md); display: flex; flex-direction: column; }
+.nc-img { aspect-ratio: 16 / 9; background: var(--surface-2); overflow: hidden; display: grid; place-items: center; color: var(--text-3); }
+.nc-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .8s var(--out); }
+.news-card:hover .nc-img img { transform: scale(1.05); }
+.nc-body { padding: 14px 16px 16px; display: grid; gap: 8px; }
+.nc-body h3 { font-size: 15.5px; line-height: 1.35; }
+.news-strip { gap: 12px; }
+.news-mini { flex: none; width: 240px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r16); overflow: hidden; color: inherit; display: grid; gap: 6px; padding-bottom: 12px; box-shadow: var(--sh-sm); }
+.news-mini:hover { text-decoration: none; }
+.news-mini img, .news-mini .nm-ph { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--surface-2); display: grid; place-items: center; color: var(--text-3); }
+.news-mini b, .news-mini .xs { padding: 0 12px; } .news-mini b { font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.admin-banner { margin-bottom: 14px; }
+
+/* ===== Alumni ===== */
+.stat-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.stat-row > div { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r16); padding: 14px 16px; box-shadow: var(--sh-md); }
+.stat-row b { display: block; font-size: 28px; font-weight: 900; letter-spacing: -.03em; font-variant-numeric: tabular-nums; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.stat-row span { font-size: 13px; color: var(--text-3); }
+@media (max-width: 720px) { .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.geo-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 6px; border: 0; background: none; border-radius: 10px; cursor: pointer; text-align: left; font-size: 14px; }
+.geo-row:hover, .geo-row.on { background: var(--primary-ll); }
+.geo-bar { width: 42%; height: 8px; border-radius: 6px; background: var(--surface-2); overflow: hidden; }
+.geo-bar i { display: block; height: 100%; border-radius: 6px; background: var(--grad); transform-origin: left; animation: grow .9s var(--spring-soft) both; }
+@keyframes grow { from { transform: scaleX(0); } }
+.alum-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.alum { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r16); padding: 16px; box-shadow: var(--sh-md); display: flex; flex-direction: column; gap: 4px; }
+.alum .avatar { width: 46px; height: 46px; font-size: 16px; }
+.al-role { font-weight: 700; margin-top: 8px; font-size: 14.5px; line-height: 1.35; }
+.al-org { font-size: 14px; color: var(--primary); font-weight: 600; display: flex; gap: 6px; align-items: center; }
+@media (prefers-reduced-motion: reduce) { .geo-bar i { animation: none; } .nc-img img { transition: none; } }

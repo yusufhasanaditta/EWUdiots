@@ -66,6 +66,21 @@ Test on a real phone first (optional): install Android Studio → `cd app && npm
 - In the app, go to Campus Map → **Rooms & plans**. Add rooms you know, and upload a plan for each floor (crop it to the building outline, north at the top). Pin rooms on the plans.
 - Tap **Export**, rename the file to `overrides.json` and put it at `app/public/campus/overrides.json`. Every student then gets those rooms (shown as "Verified") and plans on their next visit.
 - Block shapes, floors and links come from the official campus map and live in `app/src/campus-data.js`. Update `BLOCKS` or `LINKS` there if EWU changes them.
+- Or add shared rooms directly in the admin panel → Campus rooms (it can import the same export file).
+
+## 8. Admin panel (`/admin.html`)
+1. In Supabase → SQL Editor, run every file in `supabase/migrations/` in order (0001 → 0004).
+2. Invite yourself as the first owner (any email, it doesn't have to be an EWU one):
+   `insert into public.admin_invites (email, role) values ('you@example.com', 'owner');`
+3. Open `https://YOUR-SITE/admin.html`, enter that email and the 6-digit code. You're now the owner.
+4. From then on, invite other admins from the panel (Admins → Invite an admin).
+- What you can do there: announcements and news posts (with schedule and pinning), the Home banner, switching sections off for everyone, approving alumni profiles, hiding or correcting faculty listings, shared campus rooms, moderating reported reviews and files, and the activity log.
+- **Demo mode** (button on the sign-in screen, or `/admin.html#demo`) lets you try everything before the server is connected. It saves only in that browser and never reaches students.
+
+## 9. News, notices, faculty and alumni data
+- News and notices are read live from ewubd.edu by `app/api/news.js` and `app/api/notices.js` (Vercel functions, cached 1 h and 30 min).
+- Faculty directory: re-run `cd app && node scripts/scrape-faculty.mjs` each semester.
+- Alumni: `app/public/data/alumni.json` comes from the "Alumni Success Stories" in EWU newsletters. When a new issue comes out, read it with `node scripts/pdf-text.mjs <newsletter.pdf> "Alumni Success"` and add the new people. Alumni can also add themselves in the app; you approve them in the admin panel.
 
 ---
 

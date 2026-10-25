@@ -1,0 +1,43 @@
+/* Admin console layout (uses the app's tokens and components from styles.css). */
+body { background: var(--bg); }
+.adm { min-height: 100dvh; display: flex; }
+.adm-side { position: sticky; top: 0; height: 100dvh; width: 268px; flex: none; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); padding: 16px 12px; z-index: 40; }
+.adm-brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 14px; }
+.adm-brand b { display: block; font-size: 19px; font-weight: 900; letter-spacing: -.03em; } .adm-brand b i { font-style: normal; color: var(--primary); }
+.adm-logo { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--grad); color: #fff; flex: none; }
+.adm-nav { flex: 1; overflow-y: auto; }
+.adm-group { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); margin: 14px 10px 6px; }
+.adm-nav a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; color: var(--text-2); font-weight: 600; font-size: 14px; text-decoration: none; transition: background .2s, color .2s, transform .4s var(--spring); }
+.adm-nav a:hover { background: var(--surface-2); color: var(--text); }
+.adm-nav a[aria-current="page"] { background: var(--primary-l); color: var(--primary); }
+.adm-nav a:active { transform: scale(.97); }
+.adm-me { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--border); padding: 12px 6px 0; }
+.adm-main { flex: 1; min-width: 0; }
+.adm-top { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 12px; padding: 12px 24px; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+.adm-search { all: unset; display: flex; align-items: center; gap: 10px; min-width: 260px; padding: 9px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text-3); font-size: 14px; cursor: pointer; }
+.adm-search .kbd { margin-left: auto; }
+.adm-menu { display: none; }
+.adm-body { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.adm-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; } .adm-head h1 { font-size: 26px; }
+.kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.kpi { all: unset; cursor: pointer; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r16); padding: 14px; display: grid; gap: 6px; box-shadow: var(--sh-md); transition: transform .45s var(--spring), box-shadow .3s; }
+.kpi:hover { transform: translateY(-3px); box-shadow: var(--sh-lg); } .kpi:focus-visible { outline: 3px solid var(--primary); }
+.kpi b { font-size: 28px; font-weight: 900; letter-spacing: -.03em; font-variant-numeric: tabular-nums; } .kpi > span:last-child { font-size: 13px; color: var(--text-3); }
+.adm-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.sw-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-weight: 500; cursor: pointer; }
+.adm-code { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; font-size: 12.5px; white-space: pre-wrap; word-break: break-all; margin: 10px 0; }
+.adm-login { min-height: 100dvh; width: 100%; display: grid; place-items: center; padding: 20px; background: radial-gradient(circle at 20% 10%, rgba(139, 92, 246, .18), transparent 40%), radial-gradient(circle at 80% 90%, rgba(6, 182, 212, .14), transparent 40%), var(--bg); }
+.adm-login .card { width: min(440px, 100%); padding: 26px; }
+.adm-scrim { display: none; }
+@media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) {
+  .adm-side { position: fixed; inset: 0 auto 0 0; transform: translateX(-105%); transition: transform .55s var(--spring-soft); box-shadow: var(--sh-xl); }
+  .adm.drawer .adm-side { transform: none; }
+  .adm.drawer .adm-scrim { display: block; position: fixed; inset: 0; background: rgba(15, 23, 42, .4); z-index: 35; animation: fade .2s both; }
+  .adm-menu { display: grid; } .adm-search { min-width: 0; } .adm-search span:not(.kbd) { display: none; } .adm-top { padding: 10px 14px; } .adm-body { padding: 16px; }
+  .adm-top .btn.outline { display: none; }
+}
+@media (max-width: 560px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@keyframes fade { from { opacity: 0; } }
+
+button.lnk { background: none; border: 0; padding: 0; color: var(--primary); font-weight: 600; cursor: pointer; font: inherit; }

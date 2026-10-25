@@ -24,7 +24,9 @@ const p = await browser.newPage(); await p.setViewport(phone);
 p.on("pageerror", (e) => errors.push(e.message));
 p.on("console", (m) => { if (m.type() === "error" && !/fonts\.g|favicon|Failed to load resource/.test(m.text())) errors.push(m.text()); });
 p.on("dialog", (d) => d.dismiss());
-const go = async (h) => { await p.evaluate((x) => { location.hash = x; }, h); await wait(350); };
+// Screen changes animate (View Transitions), so wait until the new screen is painted before reading it.
+const painted = (h) => p.waitForFunction((x) => { const id = x.replace(/^#\/?/, "").split("?")[0] || "home"; const pg = document.querySelector("[data-page]")?.dataset.page; return pg === id || ["off", "welcome", "notfound", "profile"].includes(pg); }, { timeout: 4000 }, h).catch(() => {});
+const go = async (h) => { await p.evaluate((x) => { location.hash = x; }, h); await painted(h); await wait(350); };
 const click = async (sel) => { await p.$eval(sel, (el) => el.click()); await wait(300); };
 const text = () => p.$eval("body", (b) => b.innerText);
 const state = () => p.evaluate(() => JSON.parse(localStorage.getItem("ewudiots.v2") || "{}"));

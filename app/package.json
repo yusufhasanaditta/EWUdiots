@@ -1,7 +1,7 @@
 {
   "name": "ewudiots",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,8 @@
     "shots": "vite build && node scripts/shots.mjs",
     "icons": "node scripts/build-icons.mjs",
     "android": "vite build && npx cap sync android && npx cap open android",
-    "test:campus": "vite build && node scripts/campus-e2e.mjs"
+    "test:campus": "vite build && node scripts/campus-e2e.mjs",
+    "test:community": "vite build && node scripts/community-e2e.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.2",
+    "pdfjs-dist": "^4.10.38",
     "puppeteer-core": "^25.12.0",
     "sharp": "^0.35.5",
     "vite": "^8.3.2"

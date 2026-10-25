@@ -9,7 +9,8 @@ export function install(ctx) {
   const S = () => ctx.S;
   const C = () => (S().campus = S().campus || { rooms: [], from: "E1" });
   let team = { rooms: [], plans: {} }; // shipped with the app in /campus/overrides.json
-  const userRooms = () => [...C().rooms.map((r) => ({ ...r, conf: "user" })), ...team.rooms.map((r) => ({ ...r, conf: r.conf || "verified", source: r.source || "EWUdiots campus team" }))];
+  const shared = () => [...ctx.content.data.rooms, ...team.rooms];
+  const userRooms = () => [...C().rooms.map((r) => ({ ...r, conf: "user" })), ...shared().map((r) => ({ ...r, conf: r.conf || "verified", source: r.source || "EWUdiots campus team" }))];
   const where = (code) => resolveRoom(code, userRooms());
   const plans = new Map(); // "CS|5" → data URL or /campus/… path
   const planKey = (b, f) => `${b}|${f}`;

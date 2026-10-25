@@ -8,7 +8,8 @@ const CATS = [
 ];
 export const categoryOf = (t) => (CATS.find(([, re]) => re.test(t)) || ["General"])[0];
 const NAMED = { nbsp: " ", quot: '"', ldquo: '"', rdquo: '"', rsquo: "'", lsquo: "'", apos: "'", ndash: "–", mdash: "—", hellip: "…", lt: "<", gt: ">", amp: "&" };
-const decode = (s) => s.replace(/&(#\d+|#x[\da-f]+|[a-z]+);/gi, (m, e) => (e[0] === "#" ? String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : Number(e.slice(1))) : NAMED[e.toLowerCase()] ?? " ")); // one pass, so "&amp;lt;" stays "&lt;"
+const safeChar = (n) => (Number.isInteger(n) && n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : "");
+const decode = (s) => s.replace(/&(#\d+|#x[\da-f]+|[a-z]+);/gi, (m, e) => (e[0] === "#" ? safeChar(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : Number(e.slice(1))) : NAMED[e.toLowerCase()] ?? " ")); // one pass, so "&amp;lt;" stays "&lt;"
 const text = (h) => decode(h.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
 const MONTHS = "january february march april may june july august september october november december".split(" ");
 function isoDate(s) {

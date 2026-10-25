@@ -36,6 +36,14 @@ export async function pushData(userId, data) {
   ok(await sb.from("user_data").upsert({ user_id: userId, data, updated_at: new Date().toISOString() }));
 }
 
+/* ---------- Alumni profile (reviewed by an admin before it shows) ---------- */
+export async function submitAlumni(p) {
+  need();
+  const { data } = await sb.auth.getUser(); if (!data.user) throw new Error("Sign in first.");
+  const row = { user_id: data.user.id, status: "pending", name: p.name.trim(), role: p.role.trim(), org: p.org.trim(), country: (p.country || "Bangladesh").trim(), dept: (p.dept || "").trim(), grad_year: p.grad_year || null, sector: p.sector || "", note: (p.note || "").trim(), linkedin: (p.linkedin || "").trim() };
+  ok(await sb.from("alumni_profiles").upsert(row, { onConflict: "user_id" }));
+}
+
 /* ---------- Portal pages sent by the Chrome extension (table portal_inbox, own rows only) ---------- */
 export async function fetchInbox() {
   if (!sb) return [];

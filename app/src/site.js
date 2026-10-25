@@ -40,6 +40,30 @@ if (board) fetch("/api/notices").then((r) => r.json()).then((j) => {
   board.innerHTML = `<p class="empty">The live board loads on the deployed site. <a href="https://www.ewubd.edu/notice-board" target="_blank" rel="noopener">See EWU notices on ewubd.edu</a>.</p>`;
   const st = $("#live-status"); if (st) st.textContent = "Updates every 30 minutes";
 });
+// Campus news cards and alumni numbers (same data the app uses).
+const lnews = $("#lnews");
+if (lnews) fetch("/api/news").then((r) => r.json()).then((j) => {
+  const list = (j.news || []).slice(0, 3); if (!list.length) throw new Error("empty");
+  lnews.innerHTML = list.map((n, i) => `<a class="ncard reveal in" style="--d:${i * 80}ms" href="${esc(n.url)}" target="_blank" rel="noopener">${n.image ? `<span class="nimg"><img src="${esc(n.image)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>` : ""}<span class="nbody"><span class="ntag">${esc(n.tag)} · ${fmt(n.date)}</span><b>${esc(n.title)}</b></span></a>`).join("");
+}).catch(() => { lnews.innerHTML = `<p class="empty">News loads on the live site. <a href="https://www.ewubd.edu/news" target="_blank" rel="noopener">Read EWU news on ewubd.edu</a>.</p>`; });
+fetch("/data/alumni.json").then((r) => r.json()).then((j) => {
+  const a = j.alumni || [], F = j.fields || [], col = (k) => a.map((r) => r[F.indexOf(k)]);
+  const set = (id, n) => { const el = $(id); if (el) { el.dataset.to = n; el.textContent = n; } };
+  set("#al-n", a.length); set("#al-c", new Set(col("country")).size); set("#al-o", new Set(col("org")).size);
+  countUp(document.querySelector(".alumni-stats"));
+}).catch(() => {});
+// Numbers count up once they scroll into view.
+function countUp(box) {
+  if (!box || matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) return;
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (!e.isIntersecting) return; io.disconnect();
+    box.querySelectorAll(".count").forEach((el) => { const to = Number(el.dataset.to), t0 = performance.now(); const step = (t) => { const k = Math.min(1, (t - t0) / 1100); el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); }); }), { threshold: .4 });
+  io.observe(box);
+}
+// The hero's liquid blobs drift toward the pointer a little.
+const liquid = $(".hero .liquid");
+if (liquid && !matchMedia("(prefers-reduced-motion: reduce)").matches) addEventListener("pointermove", (e) => {
+  liquid.style.setProperty("--px", (e.clientX / innerWidth - .5).toFixed(3)); liquid.style.setProperty("--py", (e.clientY / innerHeight - .5).toFixed(3));
+}, { passive: true });
 fetch("/data/faculty.json").then((r) => r.json()).then((j) => { const s = $("#stat-fac"); if (s && j.count) s.textContent = String(j.count); }).catch(() => {});
 
 // Sticky header shadow after scrolling.

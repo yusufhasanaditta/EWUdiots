@@ -60,13 +60,14 @@
   <header class="top">
     <div class="wrap">
       <a class="brand" href="/" aria-label="EWUdiots home"><img src="/icons/icon-192.png" alt="" width="38" height="38"><span><span class="word">EWU<i>diots</i></span><small>Unofficial · not affiliated with EWU</small></span></a>
-      <nav aria-label="Site"><a href="#features">Features</a><a href="#campus">3D Campus</a><a href="#notices">Notices</a><a href="#download">Download</a><a href="#faq">FAQ</a></nav>
+      <nav aria-label="Site"><a href="#features">Features</a><a href="#campus">3D Campus</a><a href="#notices">Notices</a><a href="#alumni">Alumni</a><a href="#download">Download</a><a href="#faq">FAQ</a></nav>
       <a class="btn primary sm" href="/app.html">Open the app</a>
     </div>
   </header>
 
   <main>
     <section class="hero">
+      <div class="liquid" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       <div class="wrap">
         <div>
           <a class="chip" href="#campus"><b>NEW</b> 3D campus map, live EWU notices &amp; ID pass <svg class="i inline"><use href="#i-arrow"/></svg></a>
@@ -179,6 +180,31 @@
           <article class="tile reveal"><span class="ic t-teal"><svg class="i"><use href="#i-layers"/></svg></span><h3>Flashcards</h3><p>Spaced repetition that brings cards back before you forget.</p></article>
           <article class="tile reveal"><span class="ic t-yellow"><svg class="i"><use href="#i-book"/></svg></span><h3>Study vault</h3><p>Notes, slides and past papers shared by seniors.</p></article>
           <article class="tile reveal"><span class="ic t-red"><svg class="i"><use href="#i-exam"/></svg></span><h3>Exam planner</h3><p>Revision around your classes, weak topics first.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="news" class="section">
+      <div class="wrap">
+        <div class="news-head reveal"><div><p class="kicker">Campus news</p><h2>What's happening at EWU.</h2></div><a class="btn" href="/app.html#/news">All news <svg class="i"><use href="#i-arrow"/></svg></a></div>
+        <div class="lnews" id="lnews"><div class="skel-card"></div><div class="skel-card"></div><div class="skel-card"></div></div>
+      </div>
+    </section>
+
+    <section id="alumni" class="section dark alumni-band">
+      <div class="liquid dim" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="wrap alumni-wrap">
+        <div class="reveal">
+          <p class="kicker">Alumni</p>
+          <h2>See where EWU can take you.</h2>
+          <p class="sub">Graduates at Amazon Web Services, Intel, the University of Cambridge, Max Planck, BRAC, bKash, Square and many more. Every story comes from EWU's own newsletters, and alumni can add themselves.</p>
+          <div class="cta"><a class="btn lime lg" href="/app.html#/alumni">Explore alumni <svg class="i"><use href="#i-arrow"/></svg></a></div>
+        </div>
+        <div class="alumni-stats reveal">
+          <div><b class="count" id="al-n" data-to="100">100+</b><span>alumni stories</span></div>
+          <div><b class="count" id="al-c" data-to="15">15</b><span>countries</span></div>
+          <div><b class="count" id="al-o" data-to="80">80+</b><span>organisations</span></div>
+          <ul class="orbit" id="al-orgs"><li>AWS</li><li>Intel</li><li>Cambridge</li><li>Max Planck</li><li>BRAC</li><li>bKash</li><li>Square</li><li>UNESCO</li></ul>
         </div>
       </div>
     </section>

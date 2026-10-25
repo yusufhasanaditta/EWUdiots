@@ -2,6 +2,7 @@
    This file holds state, shared helpers, the app shell and the router. Screens live in ui-*.js and study.js. */
 import "./styles.css";
 import "./campus.css";
+import "./fx.css";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";
 import * as cloud from "./cloud.js";
@@ -16,8 +17,10 @@ import { install as installCampus } from "./ui-campus.js";
 import { install as installMap } from "./ui-map.js";
 import { install as installIdCard } from "./ui-idcard.js";
 import { install as installNotices } from "./ui-notices.js";
+import { install as installCommunity } from "./ui-community.js";
+import { createContent, FEATURES } from "./content.js";
 
-const APP_VERSION = "2.1.0";
+const APP_VERSION = "2.2.0";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -55,7 +58,8 @@ const loadDirectory = () => (dirP = dirP || fetch("/data/faculty.json").then((r)
 // A faculty photo that fails to load falls back to the initials underneath it.
 addEventListener("error", (e) => { const t = e.target; if (t.tagName === "IMG" && t.closest(".face")) t.remove(); }, true);
 let study = null; // study-mode API, installed at boot (src/study.js)
-let campus = null, idcard = null, notices = null; // campus map + ID card APIs (src/ui-map.js, src/ui-idcard.js)
+let campus = null, idcard = null, notices = null, community = null;
+const content = createContent(cloud); // admin-managed posts, settings, overrides // campus map + ID card APIs (src/ui-map.js, src/ui-idcard.js)
 async function pushNow() {
   if (!C.user) return false;
   try { C.syncing = true; const { theme, ...data } = S; await cloud.pushData(C.user.id, data); S.lastSync = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(S)); return true; }
@@ -140,6 +144,17 @@ const empty = (img, title, text, btn = "") => `<div class="empty">${img.startsWi
 const demoBanner = () => S.demo ? `<div class="alert purple" style="margin-bottom:14px"><span class="a-ic">${icon("sparkle")}</span><div class="grow"><b>You're exploring demo data</b><p><a href="#/sync">Sync your real portal</a> to replace it.</p></div></div>` : "";
 const bar = (pct, cls = "") => `<div class="bar ${cls}" role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100"><span style="width:${Math.max(0, Math.min(100, pct))}%"></span></div>`;
 
+/* Numbers that count up when a stats row appears. */
+function countUp(root) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  root.querySelectorAll(".count[data-to]").forEach((el) => {
+    const to = Number(el.dataset.to); if (!to) return;
+    const t0 = performance.now(), dur = 900;
+    const step = (t) => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = Math.round(to * e).toLocaleString("en-US"); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+}
+
 /* ───────────── Theme ───────────── */
 const isDark = () => S.theme === "dark" || (S.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
 function applyTheme() {
@@ -157,18 +172,23 @@ const NAV = [
   { id: "grades", label: "CGPA", icon: "grid", roles: "s" },
   { id: "tasks", label: "Deadlines", icon: "clipboard", roles: "s" },
   { id: "fees", label: "Fees", icon: "wallet", roles: "s" },
-  { id: "vault", label: "Study Vault", icon: "vault", roles: "sfa" },
-  { id: "notices", label: "Notice Board", icon: "megaphone", roles: "sfa" },
-  { id: "map", label: "Campus Map", icon: "map", roles: "sfa" },
+  { id: "vault", label: "Study Vault", icon: "vault", roles: "sfa", feature: "vault" },
+  { id: "notices", label: "Notice Board", icon: "megaphone", roles: "sfa", feature: "notices" },
+  { id: "news", label: "Campus News", icon: "globe", roles: "sfa", feature: "news" },
+  { id: "alumni", label: "Alumni", icon: "community", roles: "sfa", feature: "alumni" },
+  { id: "map", label: "Campus Map", icon: "map", roles: "sfa", feature: "map" },
   { id: "rooms", label: "Free Rooms", icon: "door", roles: "sfa" },
   { id: "faculty", label: "Faculty", icon: "users", roles: "fa" },
-  { id: "focus", label: "Focus", icon: "focus", roles: "sf" },
+  { id: "focus", label: "Focus", icon: "focus", roles: "sf", feature: "focus" },
   { id: "me", label: "Achievements", icon: "award", roles: "sf" },
   { id: "more", label: "More", icon: "more", roles: "sfa" }
 ];
 const roleKey = () => ({ faculty: "f", alumni: "a" }[S.role] || "s");
-const navFor = () => NAV.filter((n) => n.roles.includes(roleKey()));
+const navFor = () => NAV.filter((n) => n.roles.includes(roleKey()) && (!n.feature || content.feature(n.feature)));
+// Pages an admin switched off (Settings → Features) are closed for everyone.
+const PAGE_FEATURE = { notices: "notices", news: "news", alumni: "alumni", map: "map", vault: "vault", file: "vault", idcard: "idcard", focus: "focus", cards: "focus", exams: "focus" };
 const SUB = { course: "courses", marks: "courses", degree: "grades", whatif: "grades", plan: "planner", combos: "planner", fee: "fees", prof: "faculty", file: "vault", cards: "focus", exams: "tasks", account: "more", profile: "more", notifications: "home", help: "more", about: "more", cover: "more", sync: "more", idcard: "more" };
+const prefersReduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 function renderNav(route) {
   const active = SUB[route] || route;
   const dueSoon = S.tasks.filter((t) => !t.done && new Date(t.due) - Date.now() < 3 * 864e5 && new Date(t.due) > Date.now()).length;
@@ -225,7 +245,7 @@ function inbox() {
 /* ───────────── Command palette (Ctrl+K / search) ───────────── */
 const PAGES_SEARCH = [["home", "Home", "home"], ["routine", "My routine", "calendar"], ["planner", "Advising planner", "calcheck"], ["courses", "My courses", "book"], ["grades", "CGPA", "bars"], ["degree", "Degree progress", "cap"],
   ["whatif", "What-if calculator", "calc"], ["marks", "Marks & attendance estimator", "percent"], ["tasks", "Deadlines", "clipboard"], ["exams", "Exam planner", "exam"], ["fees", "Fees & payments", "wallet"], ["vault", "Study vault", "vault"],
-  ["rooms", "Free rooms", "door"], ["map", "Campus map & directions", "map"], ["notices", "EWU notice board", "megaphone"], ["idcard", "My ID card", "user"], ["faculty", "Faculty & reviews", "users"], ["focus", "Focus timer", "focus"], ["cards", "Flashcards", "cards"], ["me", "Achievements", "award"], ["cover", "Cover page", "file"],
+  ["rooms", "Free rooms", "door"], ["map", "Campus map & directions", "map"], ["notices", "EWU notice board", "megaphone"], ["news", "Campus news", "globe"], ["alumni", "Alumni: where are they now", "community"], ["idcard", "My ID card", "user"], ["faculty", "Faculty & reviews", "users"], ["focus", "Focus timer", "focus"], ["cards", "Flashcards", "cards"], ["me", "Achievements", "award"], ["cover", "Cover page", "file"],
   ["sync", "Sync portal", "sync"], ["notifications", "Notifications", "bell"], ["profile", "Profile & settings", "settings"]];
 function palette() {
   loadDirectory();
@@ -269,11 +289,13 @@ document.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.
 /* ───────────── Router ───────────── */
 const pages = {};
 const FULLSCREEN = new Set(["welcome", "login", "role", "setup"]);
-let currentRoute = null;
-function route() {
+let currentRoute = null, lastPainted = null, paintSeq = 0;
+// animate: only real navigation (links, back button) morphs between screens; internal re-renders paint at once.
+function route({ animate = false } = {}) {
   facCache = null;
   const r = location.hash.replace(/^#\/?/, "").split("?")[0] || "home";
   let id = pages[r] ? r : r === "account" ? "profile" : "notfound";
+  if (PAGE_FEATURE[id] && !content.feature(PAGE_FEATURE[id])) id = "off";
   if (!S.onboarded && !FULLSCREEN.has(id) && id !== "sync") id = "welcome";
   const changed = id !== currentRoute;
   currentRoute = id;
@@ -281,14 +303,25 @@ function route() {
   $("#shell").hidden = full; $("#bottom-nav").hidden = full; $("#fullscreen").hidden = !full;
   const target = full ? $("#fullscreen") : $("#main");
   if (!full) renderNav(id);
-  target.innerHTML = `<div class="${changed ? "page-in" : ""}" data-page="${id}">${pages[id]()}</div>`;
-  (pages[id].mount || (() => {}))(target);
+  // A later render wins: a transition that hasn't painted yet skips its now-stale paint.
+  const seq = ++paintSeq;
+  const paint = () => { if (seq !== paintSeq) return; target.innerHTML = `<div class="${changed && !viewTx ? "page-in" : ""}" data-page="${id}">${pages[id]()}</div>`; (pages[id].mount || (() => {}))(target); };
+  // Background tabs throttle animation frames, so a transition there could hold taps for seconds; skip it.
+  const viewTx = animate && changed && document.startViewTransition && !prefersReduced() && !modalOpen() && lastPainted !== null && document.visibilityState === "visible";
+  if (viewTx) {
+    const t = document.startViewTransition(paint);
+    [t.ready, t.finished, t.updateCallbackDone].forEach((p) => p?.catch(() => {})); // a skipped transition rejects these; that's expected
+    let done = false; t.finished?.then(() => { done = true; }, () => { done = true; });
+    setTimeout(() => { if (!done) t.skipTransition?.(); }, 700);
+  } else paint();
+  lastPainted = id;
   study && study.paintTimer();
   if (changed) { window.scrollTo(0, 0); target.focus?.({ preventScroll: true }); }
 }
-window.addEventListener("hashchange", route);
+window.addEventListener("hashchange", () => route({ animate: true }));
 const rerender = () => route();
 const qparam = (k) => new URLSearchParams(location.hash.split("?")[1] || "").get(k);
+pages.off = () => `<div class="card mt-l">${empty("mascot-reading", "This section is taking a break", "The EWUdiots team has switched it off for now. Please check back soon.", `<a class="btn primary" href="#/home">Go Home</a>`)}</div>`;
 pages.notfound = () => `<div class="card mt-l">${empty("mascot-confused", "Oops! Page not found", "The page you're looking for doesn't exist.", `<a class="btn primary" href="#/home">Go Home</a>`)}</div>`;
 
 /* ───────────── Shared computations ───────────── */
@@ -318,8 +351,11 @@ function facultyIndex() {
   Object.values(S.faculty).forEach((f) => { const p = map.get(f.init) || {}; map.set(f.init, { ...f, ...Object.fromEntries(Object.entries(p).filter(([, v]) => v)), source: p.source || "mine" }); });
   // Official profiles: matched to a known initial by work email, otherwise keyed by their profile slug ("@HOSNEY.JAHAN").
   const byEmail = new Map([...map.values()].filter((f) => f.email).map((f) => [f.email.toLowerCase(), f.init]));
-  (C.directory || []).forEach((d) => {
-    const k = (d.email && byEmail.get(d.email)) || "@" + d.url.split("/").pop().toUpperCase(), p = map.get(k) || {};
+  const ov = new Map(content.data.faculty.map((o) => [o.slug, o]));
+  (C.directory || []).forEach((d0) => {
+    const o = ov.get(d0.url.split("/").pop()); if (o?.hidden) return;
+    const d = o ? { ...d0, room: o.room || d0.room } : d0;
+    const k = (o?.init && map.has(o.init) ? o.init : null) || (d.email && byEmail.get(d.email)) || (o?.init || "@" + d.url.split("/").pop().toUpperCase()), p = map.get(k) || {};
     map.set(k, { ...p, init: k, name: d.name, dept: d.dept, deptName: d.deptName, designation: d.designation, email: d.email || p.email, room: d.room ? `Room ${d.room}` : p.room, roomCode: d.room, ext: d.ext, photo: d.photo, degree: d.degree, bio: d.bio, url: d.url, official: true, source: p.source || "official" });
   });
   return map;
@@ -459,7 +495,7 @@ async function restoreOrBackup(user) {
 /* ───────────── Boot ───────────── */
 const ctx = {
   get S() { return S; }, resetState, pages, save, rerender, route: () => currentRoute, go, qparam, toast, openModal, closeModal, modalHead, confirmModal, modalOpen, busy,
-  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get idcard() { return idcard; }, APP_VERSION, pushNow, logEvent,
+  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, pushNow, logEvent,
   afterSignIn: () => signInDone, LETTER, toMin, fmt12, fmtShort, dayIdx, expand, overlaps, toneFor, colorFor, HEX, TONES, gradePoint, cgpaOf, fmtMoney, fmtCountdown, daysUntil, fmtDate, firstName, initials, greeting,
   nextClass, nextPayment, markAttendance, facultyIndex, facBy, facName, offered, sectionBlocks, roomData, freeRoomsAt, baseRoom, enableNotifications, taskLine, duePill, TASK_IC, inbox, loadDemo, onSignedIn,
   isDark, applyTheme, palette, roleLabel, navFor, nextSemesterGuess, DAY_NAMES, WEEK, SLOTS, GRADES, NON_GPA, DEMO, parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey
@@ -472,6 +508,10 @@ installCampus(ctx);
 campus = installMap(ctx);
 idcard = installIdCard(ctx);
 notices = installNotices(ctx);
+community = installCommunity(ctx);
+content.onChange(() => { facCache = null; rerender(); });
+content.refresh();
+setInterval(() => { if (document.visibilityState === "visible") content.refresh(); }, 10 * 60e3);
 
 $("#top-search").addEventListener("click", palette);
 $("#top-search-field").addEventListener("click", palette);
