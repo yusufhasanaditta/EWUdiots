@@ -44,12 +44,15 @@
     #status { font-size: 13px; margin-top: 10px; min-height: 18px; }
     #status.err { color: var(--err); } #status.ok { color: var(--ok); }
     details { margin-top: 12px; font-size: 13px; } summary { cursor: pointer; color: var(--muted); }
+    .update { display: block; margin-bottom: 12px; padding: 10px 12px; border-radius: 12px; background: var(--grad); color: #fff; font-weight: 700; font-size: 13px; text-decoration: none; }
+    .update small { display: block; font-weight: 500; opacity: .9; }
     [hidden] { display: none !important; }
   </style>
 </head>
 <body>
   <header><img src="icons/icon-48.png" alt=""><div><h1>EWU<i>diots</i> Portal Sync</h1><p class="sub">Unofficial · not affiliated with East West University</p></div></header>
 
+  <a class="update" id="update" href="#" hidden></a>
   <section class="card" id="auth-out">
     <h2>Sign in to your EWUdiots account</h2>
     <p>Same account and password as the app. Your portal pages go to your private account, and the app imports them on any device.</p>

@@ -53,12 +53,15 @@ const ocrAssets = () => {
   };
 };
 
-/* /version.json: the phone app compares it with its own version and offers the new APK when the site is ahead. */
+/* /version.json: what's newest. The phone app offers the new APK, an open web app offers a refresh, and the Chrome
+   extension offers its new zip. Notes and the required minimum version come from release.json. */
+const readJSON = (p) => JSON.parse(readFileSync(resolve(import.meta.dirname, p), "utf8"));
 const versionFile = () => ({
   name: "version-file",
   writeBundle: (opts) => {
-    const { version } = JSON.parse(readFileSync(resolve(import.meta.dirname, "package.json"), "utf8"));
-    writeFileSync(resolve(opts.dir, "version.json"), JSON.stringify({ version, apk: "/download/android", at: new Date().toISOString() }));
+    const { notes = [], minVersion = "0.0.0" } = readJSON("release.json");
+    writeFileSync(resolve(opts.dir, "version.json"), JSON.stringify({ version: readJSON("package.json").version, minVersion, notes, apk: "/download/android",
+      extension: readJSON("../extension/manifest.json").version, extensionZip: "/download/extension", at: new Date().toISOString() }));
   }
 });
 

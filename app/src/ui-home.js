@@ -78,7 +78,7 @@ export function install(ctx) {
       <div class="g2m mt">${streakCard}${attCard}</div></div>`;
     const b = ctx.content.banner();
     const banner = b ? `<div class="alert ${b.tone || "purple"} admin-banner fx-rise"><span class="a-ic">${icon(b.tone === "red" ? "alert" : "megaphone")}</span><div class="grow"><b>${esc(b.title || "From the EWUdiots team")}</b><p>${esc(b.text)}</p></div>${b.link ? `<a class="btn sm" href="${esc(b.link)}" ${/^https:/.test(b.link) ? 'target="_blank" rel="noopener"' : ""}>${esc(b.cta || "Open")}</a>` : ""}</div>` : "";
-    const up = ctx.C.update ? `<a class="alert green update-card" href="${esc(ctx.C.update.url)}" target="_blank" rel="noopener"><span class="a-ic">${icon("download")}</span><div class="grow"><b>Update available: EWUdiots ${esc(ctx.C.update.version)}</b><p>Tap to download, then install over this app. Your data stays.</p></div>${icon("chevR")}</a>` : "";
+    const up = ctx.C.update && ctx.native.isNative ? `<a class="alert green update-card" href="${esc(ctx.C.update.url)}" target="_blank" rel="noopener"><span class="a-ic">${icon("download")}</span><div class="grow"><b>Update available: EWUdiots ${esc(ctx.C.update.version)}</b><p>Tap to download, then install over this app. Your data stays.</p></div>${icon("chevR")}</a>` : "";
     return `${up}${banner}${ctx.demoBanner()}${mobile}${desktop}${ctx.community.homeNews()}`;
   };
   /* Faculty / alumni home: campus tools only. */

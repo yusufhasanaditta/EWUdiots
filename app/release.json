@@ -1,0 +1,10 @@
+{
+  "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
+  "notes": [
+    "Update prompts: the app tells you when a new version is out",
+    "Sign in with a password, and reset it if you forget",
+    "Ask EWUdiots: a free assistant for classes, rooms and teachers",
+    "Class alarms: get warned 30 minutes or 1 hour before class"
+  ],
+  "minVersion": "2.3.0"
+}

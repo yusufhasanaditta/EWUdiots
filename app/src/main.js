@@ -155,7 +155,8 @@ function openModal(html, onMount, { center = false } = {}) {
   first && first.focus({ preventScroll: true });
   onMount && onMount(m);
 }
-function closeModal() { $("#scrim").classList.remove("open"); $("#modal").innerHTML = ""; lastFocus && lastFocus.focus && lastFocus.focus({ preventScroll: true }); }
+function closeModal() { if (C.update?.required && native.isNative && $("#modal .upd-sheet")) return; // a required update stays on screen
+  $("#scrim").classList.remove("open"); $("#modal").innerHTML = ""; lastFocus && lastFocus.focus && lastFocus.focus({ preventScroll: true }); }
 const modalOpen = () => $("#scrim").classList.contains("open");
 $("#scrim").addEventListener("click", (e) => { if (e.target.id === "scrim" || e.target.closest("[data-close]")) closeModal(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modalOpen()) closeModal(); });
@@ -613,10 +614,58 @@ route();
 // Web: keep the browser's install offer so More → "Install EWUdiots" can show it (Windows, Mac, Android Chrome).
 addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); C.install = e; if (currentRoute === "more") rerender(); });
 addEventListener("appinstalled", () => { C.install = null; toast("EWUdiots installed", "success", "Open it from your apps. Your account is the same everywhere."); });
-/* Phone app: offer the newer APK when the website has moved ahead (Home shows an Update card). */
+/* ───────────── Update prompts ─────────────
+   /version.json says what's newest (see vite.config.js and release.json). Checked at start, when the app comes back to
+   the front and every 30 minutes.
+   · Phone app: a sheet with what's new and "Update now" (downloads the APK); Home also keeps an Update card.
+   · Web app / installed desktop app: a bar "New version available · Refresh" (the new files load on reload).
+   · Below minVersion the update is required: the prompt can't be dismissed. */
 const newer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
-if (native.isNative) fetch(SITE + "/version.json", { cache: "no-store" }).then((r) => r.json())
-  .then((j) => { if (newer(j.version, APP_VERSION)) { C.update = { version: j.version, url: SITE + (j.apk || "/download/android") }; if (currentRoute === "home") rerender(); } }).catch(() => {});
+const UPD_KEY = "ewudiots.updateSeen";
+let checkingUpdate = false;
+async function checkUpdate() {
+  if (checkingUpdate || !navigator.onLine) return;
+  checkingUpdate = true;
+  try {
+    const j = await (await fetch((native.isNative ? SITE : "") + "/version.json", { cache: "no-store" })).json();
+    if (!newer(j.version, APP_VERSION)) return;
+    const required = newer(j.minVersion || "0", APP_VERSION);
+    C.update = { version: j.version, notes: (j.notes || []).slice(0, 6), required, url: native.isNative ? SITE + (j.apk || "/download/android") : "" };
+    if (currentRoute === "home") rerender();
+    showUpdate();
+  } catch { /* offline or no version file (dev) */ }
+  finally { checkingUpdate = false; }
+}
+function showUpdate() {
+  const u = C.update; if (!u) return;
+  if (!native.isNative) {
+    // Web: one quiet bar; a required update reloads as soon as nothing is being edited.
+    // Only once per version, so a lagging cache can never cause a reload loop.
+    let tried = ""; try { tried = sessionStorage.getItem("ewudiots.reloadedFor") || ""; } catch { /* storage blocked */ }
+    if (u.required && !modalOpen() && tried !== u.version) { try { sessionStorage.setItem("ewudiots.reloadedFor", u.version); } catch { /* storage blocked */ } location.reload(); return; }
+    let bar = $("#upd-bar");
+    if (!bar) { bar = document.createElement("div"); bar.id = "upd-bar"; bar.className = "upd-bar"; bar.setAttribute("role", "status"); document.body.appendChild(bar); }
+    bar.innerHTML = `<span class="upd-dot" aria-hidden="true"></span><span class="grow"><b>New version available</b> <span class="xs">EWUdiots ${esc(u.version)}</span></span><button class="btn sm primary" id="upd-go">${icon("reset", "sm")} Refresh</button>${u.required ? "" : `<button class="icon-btn sm" id="upd-x" aria-label="Later">${icon("x", "sm")}</button>`}`;
+    $("#upd-go", bar).addEventListener("click", () => location.reload());
+    $("#upd-x", bar)?.addEventListener("click", () => bar.remove());
+    return;
+  }
+  // Phone: a sheet once per version (always when required); afterwards the Home card stays.
+  let seen = ""; try { seen = localStorage.getItem(UPD_KEY) || ""; } catch { /* storage blocked */ }
+  if ((!u.required && seen === u.version) || modalOpen()) return;
+  try { localStorage.setItem(UPD_KEY, u.version); } catch { /* storage blocked */ }
+  openModal(`<div class="upd-sheet"><div class="upd-ill" aria-hidden="true">${icon("download")}</div><p class="xs">${u.required ? "Required update" : "Update available"}</p>
+    <h2 id="modal-title">EWUdiots ${esc(u.version)}</h2><p class="small muted">You have ${esc(APP_VERSION)}.${u.required ? " This update fixes something important, so please install it to keep using the app." : ""}</p>
+    ${u.notes.length ? `<ul class="upd-notes">${u.notes.map((n) => `<li>${icon("check", "sm")}<span>${esc(n)}</span></li>`).join("")}</ul>` : ""}
+    <a class="btn primary lg block" id="upd-now" href="${esc(u.url)}" target="_blank" rel="noopener">${icon("download")} Update now</a>
+    <p class="xs mt-s">Open the downloaded file and tap Install. Your data stays.</p>
+    ${u.required ? "" : `<button class="btn ghost block" data-close>Later</button>`}</div>`, (m) => {
+    if (u.required) { const head = m.querySelector(".grabber"); head && head.remove(); }
+  }, { center: true });
+}
+checkUpdate();
+setInterval(checkUpdate, 30 * 60e3);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 sync.takeExtHandoff();
 scheduleReminders();
 if (cloud.enabled) {

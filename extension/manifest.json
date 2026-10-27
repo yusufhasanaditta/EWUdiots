@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "EWUdiots Portal Sync",
   "short_name": "EWUdiots",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Sign in with your EWU email and sync your portal (schedule, grades, degree review, advising slip, offered courses) to your EWUdiots account. Academic info only. Unofficial.",
   "icons": {
     "16": "icons/icon-16.png",

@@ -107,3 +107,10 @@ Test on a real phone first (optional): install Android Studio → `cd app && npm
 - **Class alarms** (`#/alarms`): any number of minutes/hours before each class, per course too. Android rings through the "Class alarms" notification channel.
 - **Admin:** Users (suspend, sign out everywhere, reset code, message), Messages to users, Feedback inbox, Security centre, sign-up chart, alerts bell, post trash with restore, bulk actions, CSV export, maintenance mode.
 - Database changes are in `supabase/migrations/0006_accounts_admin_tools.sql`; apply with `node scripts/setup-supabase.mjs` (needs `.secrets/`).
+
+## 13. Update prompts (v2.6)
+Before each release, bump `version` in `app/package.json` (and `extension/manifest.json` if the extension changed) and write 2–5 short lines in `app/release.json` → `notes`. After deploying:
+- **Phone app:** a sheet "Update available" with your notes and **Update now** (downloads the new APK); Home keeps an Update card.
+- **Web / installed desktop app:** a bar "New version available · Refresh".
+- **Chrome extension:** an "Update available" banner in the popup with the download link.
+For an important fix, set `minVersion` in `release.json` to the new version: older phone apps then can't dismiss the prompt, and open web apps reload once by themselves.

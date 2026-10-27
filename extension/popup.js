@@ -148,4 +148,18 @@ $("#clear").addEventListener("click", async () => {
   status("Cleared."); render();
 });
 chrome.storage.onChanged.addListener((c) => { if (Object.keys(c).some((k) => k.startsWith("page:") || k === "backendOverride")) render(); });
+/* Update check: the website's /version.json lists the newest extension version and where to download it. */
+async function checkUpdate() {
+  try {
+    const { appUrl = CFG.appUrl } = await chrome.storage.local.get("appUrl");
+    if (!validUrl(appUrl)) return;
+    const site = new URL(appUrl).origin, j = await (await fetch(site + "/version.json", { cache: "no-store" })).json();
+    const newer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
+    if (!newer(j.extension || "0", chrome.runtime.getManifest().version)) return;
+    const a = $("#update"); a.hidden = false; a.href = site + (j.extensionZip || "/download/extension");
+    a.textContent = "Update available: version " + j.extension; const sm = document.createElement("small"); sm.textContent = "Download, unzip over the old folder, then press Reload in chrome://extensions."; a.appendChild(sm);
+    a.onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: a.href }); };
+  } catch { /* offline */ }
+}
 render();
+checkUpdate();
