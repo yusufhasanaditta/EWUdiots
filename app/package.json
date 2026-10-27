@@ -1,20 +1,20 @@
 {
   "name": "ewudiots",
   "private": true,
-  "version": "2.3.1",
+  "version": "2.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test tests/*.test.js",
-    "test:ext": "vite build && node scripts/ext-e2e.mjs",
-    "test:app": "vite build && node scripts/e2e.mjs",
-    "shots": "vite build && node scripts/shots.mjs",
+    "test:ext": "vite build --mode test && node scripts/ext-e2e.mjs",
+    "test:app": "vite build --mode test && node scripts/e2e.mjs",
+    "shots": "vite build --mode test && node scripts/shots.mjs",
     "icons": "node scripts/build-icons.mjs",
     "android": "vite build && npx cap sync android && npx cap open android",
-    "test:campus": "vite build && node scripts/campus-e2e.mjs",
-    "test:community": "vite build && node scripts/community-e2e.mjs"
+    "test:campus": "vite build --mode test && node scripts/campus-e2e.mjs",
+    "test:community": "vite build --mode test && node scripts/community-e2e.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",

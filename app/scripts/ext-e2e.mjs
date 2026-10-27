@@ -78,7 +78,10 @@ check("slip token not kept in key", !Object.keys(st.pages || {}).some((k) => k.i
 await popup.reload(); await wait(300);
 const done = await popup.$$eval("#pages li.done", (l) => l.length);
 check("popup checklist shows 8 saved pages", done === 8, `${done} saved`);
-check("without accounts: one-click open button ready", await popup.$eval("#open", (b) => !b.disabled && /8 pages/.test(b.textContent)) && await popup.$eval("#send", (b) => b.hidden));
+// With accounts configured (extension/config.js), nothing leaves the extension until you sign in.
+const hasAccounts = await popup.evaluate(() => Boolean(self.EWUD_CONFIG?.supabaseUrl));
+if (hasAccounts) check("with accounts: sign-in required before sending", await popup.$eval("#auth-out", (s) => !s.hidden) && await popup.$eval("#send", (b) => b.disabled) && await popup.$eval("#open", (b) => b.disabled));
+else check("without accounts: one-click open button ready", await popup.$eval("#open", (b) => !b.disabled && /8 pages/.test(b.textContent)) && await popup.$eval("#send", (b) => b.hidden));
 
 // 4. Sign in (EWU email + 6-digit code) against a mock Supabase, then save the pages to the account inbox.
 const SB = "https://mock-ewud.supabase.co", sent = [];
