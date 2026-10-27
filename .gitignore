@@ -16,3 +16,6 @@ app/android/build/
 app/android/.idea/
 *.log
 new
+
+# Signing keys and passwords (back these up somewhere safe)
+.secrets/

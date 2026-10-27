@@ -278,3 +278,8 @@ img { max-width: 100%; height: auto; display: block; }
 @keyframes chipfloat { 50% { transform: translateY(-4px); } }
 @media (max-width: 900px) { .alumni-wrap { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .liquid i, .phone.p1, .phone.p2, .orbit li, .skel-card { animation: none; } .liquid i { transition: none; } }
+
+/* Direct downloads: install steps under each button */
+.dl-how { margin-top: 10px; font-size: 13.5px; text-align: left; }
+.dl-how summary { cursor: pointer; font-weight: 600; color: var(--primary, #7c3aed); }
+.dl-how ol { margin: 8px 0 0; padding-left: 18px; line-height: 1.6; }

@@ -50,7 +50,7 @@ async function render() {
   $("#auto").checked = auto; $("#app-url").value = appUrl || "";
   $("#auth-off").hidden = Boolean(b); $("#auth-out").hidden = !b || Boolean(s); $("#auth-in").hidden = !s;
   $("#mail-form").hidden = Boolean(pendingEmail); $("#code-form").hidden = !pendingEmail; $("#code-to").textContent = pendingEmail;
-  if (s) { $("#me-mail").textContent = s.user.email; $("#me-av").textContent = s.user.email.slice(0, 2).toUpperCase(); }
+  if (s) { $("#me-mail").textContent = s.user.email; $("#me-av").textContent = s.user.email.slice(0, 2).toUpperCase(); showAccount(s); }
   const list = $("#pages"); list.innerHTML = "";
   const known = new Set(PAGES.map((p) => p[0]));
   const rows = PAGES.map(([kind, name, path, hint]) => ({ name, path, hint, saved: pages[kind] }))
@@ -69,6 +69,21 @@ async function render() {
   // With accounts connected, sending needs a signed-in student; without them the old one-click hand-off stays.
   $("#send").hidden = !b; $("#send").disabled = !n || !s; $("#send").textContent = !s ? "Sign in to save pages" : n ? `Save ${label} to my account` : "Save to my account";
   $("#open").disabled = !n || (b && !s); $("#open").className = b ? "" : "primary"; $("#open").textContent = n ? `Open ${label} in EWUdiots now` : "Open in EWUdiots now";
+}
+
+/* The same account backup the app uses (table user_data, own row only), so the popup shows what every device sees. */
+async function showAccount(s) {
+  const box = $("#acct");
+  try {
+    const [row] = (await api(`/rest/v1/user_data?select=data,updated_at&user_id=eq.${encodeURIComponent(s.user.id)}`, { method: "GET", token: s.access_token })) || [];
+    const d = row?.data; if (!d?.profile) { box.hidden = true; return; }
+    const courses = new Set((d.routine || []).map((r) => r.code)).size, cgpa = Number(d.profile.cgpa);
+    box.replaceChildren(...[[d.profile.name || "Student", d.profile.id || ""], [courses || "—", "courses"], [cgpa ? cgpa.toFixed(2) : "—", "CGPA"]].map(([v, l]) => {
+      const c = document.createElement("div"), b = document.createElement("b"), m = document.createElement("small");
+      b.textContent = v; m.textContent = l; c.append(b, m); return c;
+    }), Object.assign(document.createElement("p"), { textContent: `Account backup updated ${ago(row.updated_at)}` }));
+    box.hidden = false;
+  } catch { box.hidden = true; }
 }
 
 $("#mail-form").addEventListener("submit", async (e) => {

@@ -1,5 +1,7 @@
 /* Portal sync: choose a method → scanning progress → review & confirm ("Data Sync Flow" board).
    Also the Chrome-extension bridge and the #ext= hand-off from the extension popup. */
+import { readText, isImageFile } from "./ocr.js";
+
 export function install(ctx) {
   const { pages, icon, esc, uid, $, $$, toast, openModal, closeModal, modalHead, busy } = ctx;
   const S = () => ctx.S;
@@ -10,7 +12,8 @@ export function install(ctx) {
     ["txt", "paste", "green", "Paste Data", "Copy and paste directly from the portal."],
     ["ext", "chrome", "blue", "Use Chrome Extension", "Sync with one click using our browser extension."]
   ];
-  const brandHead = (back) => `<div class="sub-head" style="margin-bottom:6px"><a class="icon-btn" href="${back}" aria-label="Back">${icon("chevL")}</a><div style="text-align:center"><span class="logo" style="padding:0;align-items:center"><span class="word" style="font-size:24px">EWU<i>diots</i></span></span><div><span class="unoff" style="margin-top:4px;font-size:12px">Unofficial · not affiliated with EWU</span></div></div><div></div></div>`;
+  const brandHead = (back) => ctx.subHead("Sync portal", "Unofficial · not affiliated with EWU", back);
+  const TIPS = [["reset", "Turn your phone sideways", "or tap Desktop site in your browser so the whole table fits."], ["search", "One table per screenshot", "Zoom until the text is sharp. Several screenshots are fine."], ["shield", "Crop out private info", "We skip NID, phone and address anyway."]];
 
   pages.sync = () => {
     if (pending) return reviewView();
@@ -33,7 +36,9 @@ export function install(ctx) {
       <h1 style="font-size:30px;margin-top:8px">Sync your data<br>from the <span class="hl">EWU portal</span></h1>
       <p class="muted" style="margin:8px 0 18px">Choose a method to import your routine, courses, marks and more.</p>
       ${METHODS.map(([k, ic, tone, t, d]) => `<button class="method" data-m="${k}" aria-pressed="${method === k}"><span class="itile ${tone}">${icon(ic)}</span><span class="grow"><b>${t}</b><span>${d}</span></span>${icon("chevR")}</button>`).join("")}
-      <input type="file" id="file-in" accept="image/png,image/jpeg,image/webp" multiple class="sr-only">
+      <input type="file" id="file-in" accept="image/*" multiple class="sr-only">
+      <details class="card soft mt shot-tips"><summary><span class="itile sm yellow">${icon("bulb")}</span><b>Tips for screenshots that read well</b></summary>
+        <div class="stack mt-s">${TIPS.map(([ic, t, d]) => `<div class="row nowrap top"><span class="itile sm purple">${icon(ic)}</span><div><b class="small">${t}</b><p class="xs">${d}</p></div></div>`).join("")}</div></details>
       ${ctx.cloud.enabled && ctx.C.user ? `<label class="row small mt-s"><input type="checkbox" class="check" id="smart" checked> ${icon("sparkle", "sm")} <b>Smart scan</b> (AI) reads tables more accurately</label>` : ""}
       <div class="privacy">${icon("shield")}<div><b>Your Privacy, Our Priority</b><p>We never read your NID, address, phone or password. Your data stays on your device and is used only to make your experience better.</p></div></div>
       <div class="row nowrap mt" style="align-items:flex-end"><div class="mascot-card" style="background:none;padding:0;min-height:0;flex:1"><img src="/img/mascot-thumbs.webp" alt="" style="width:120px;margin:0"><span class="scribble" style="font-size:22px;transform:rotate(-8deg)">Easy and<br>Secure!${ctx.swoosh}</span></div>
@@ -71,7 +76,7 @@ export function install(ctx) {
     }
     if (stage === "ext") { $("#ext-pull", el).addEventListener("click", requestExtension); window.postMessage({ type: "EWUD_APP_PING" }, location.origin); return; }
     $$("[data-m]", el).forEach((b) => b.addEventListener("click", () => { method = b.dataset.m; $$("[data-m]", el).forEach((x) => x.setAttribute("aria-pressed", x === b)); if (method === "img") $("#file-in", el).click(); }));
-    $("#file-in", el).addEventListener("change", (e) => readImages([...e.target.files]));
+    $("#file-in", el).addEventListener("change", (e) => { const files = [...e.target.files]; e.target.value = ""; readImages(files); });
     $("#sy-go", el).addEventListener("click", () => { if (method === "img") $("#file-in", el).click(); else { stage = method === "txt" ? "paste" : "ext"; ctx.rerender(); } });
     const demo = $("#sy-demo", el); demo && demo.addEventListener("click", (e) => { e.preventDefault(); ctx.loadDemo(); });
   };
@@ -81,15 +86,6 @@ export function install(ctx) {
     if (files.length) { e.preventDefault(); readImages(files); }
   });
 
-  let tesseract = null;
-  async function ocr(file, onProgress) {
-    if (!tesseract) {
-      const T = await import("tesseract.js");
-      tesseract = await T.createWorker("eng", 1, { logger: (m) => m.status === "recognizing text" && onProgress(m.progress) });
-    }
-    const { data } = await tesseract.recognize(file);
-    return data.text;
-  }
   /* Normalise Smart-scan output to the on-device parser's shape. */
   function fromSmart(j) {
     const clean = (o) => Object.fromEntries(Object.entries(o || {}).filter(([, v]) => v !== "" && v !== 0 && v !== null));
@@ -100,8 +96,8 @@ export function install(ctx) {
   }
   const paint = () => { if (ctx.route() === "sync") ctx.rerender(); };
   async function readImages(files) {
-    files = files.filter((f) => /^image\//.test(f.type));
-    if (!files.length) return toast("Choose PNG or JPG screenshots", "warn");
+    files = files.filter(isImageFile);
+    if (!files.length) return toast("Choose a screenshot (PNG or JPG)", "warn", "Pick the picture from your gallery or files.");
     const smart = $("#smart")?.checked;
     stage = "scan"; scan = { up: 1, ocr: 0, id: 0, prep: 0, cur: "ocr", found: "" }; paint();
     const results = [], raws = [];
@@ -109,7 +105,7 @@ export function install(ctx) {
       try {
         if (smart) { results.push(fromSmart(await ctx.cloud.smartScan(f))); }
         else {
-          const t = await ocr(f, (pr) => { scan.ocr = (i + pr) / files.length; const b = $(".steps .sp:nth-child(2) .bar span"); if (b) b.style.width = Math.round(scan.ocr * 100) + "%"; });
+          const t = await readText(f,(pr) => { scan.ocr = (i + pr) / files.length; const b = $(".steps .sp:nth-child(2) .bar span"); if (b) b.style.width = Math.round(scan.ocr * 100) + "%"; });
           raws.push(t); results.push(ctx.parsePortalText(t));
         }
       } catch (err) { scan.error = `${err.message || "The file might be scanned or low quality."} Try a sharper screenshot, or paste the text instead.`; scan.cur = ""; paint(); return; }

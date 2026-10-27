@@ -69,7 +69,7 @@ Test on a real phone first (optional): install Android Studio → `cd app && npm
 - Or add shared rooms directly in the admin panel → Campus rooms (it can import the same export file).
 
 ## 8. Admin panel (`/admin.html`)
-1. In Supabase → SQL Editor, run every file in `supabase/migrations/` in order (0001 → 0004).
+1. In Supabase → SQL Editor, run every file in `supabase/migrations/` in order (0001 → 0005).
 2. Invite yourself as the first owner (any email, it doesn't have to be an EWU one):
    `insert into public.admin_invites (email, role) values ('you@example.com', 'owner');`
 3. Open `https://YOUR-SITE/admin.html`, enter that email and the 6-digit code. You're now the owner.
@@ -77,7 +77,18 @@ Test on a real phone first (optional): install Android Studio → `cd app && npm
 - What you can do there: announcements and news posts (with schedule and pinning), the Home banner, switching sections off for everyone, approving alumni profiles, hiding or correcting faculty listings, shared campus rooms, moderating reported reviews and files, and the activity log.
 - **Demo mode** (button on the sign-in screen, or `/admin.html#demo`) lets you try everything before the server is connected. It saves only in that browser and never reaches students.
 
-## 9. News, notices, faculty and alumni data
+## 9. Direct downloads (no Play Store)
+- Every push to `main` that touches `app/` or `extension/` runs **Android release** on GitHub Actions. It builds a signed `EWUdiots.apk`, the Play Store `EWUdiots.aab` and `EWUdiots-extension.zip`, and publishes them as the latest GitHub Release.
+- The website's **Download APK** and **Download extension** buttons go to `/download/android` and `/download/extension` (redirects in `app/vercel.json`) → the latest release files.
+- The signing key is in `.secrets/` (not in git) and in the repo secrets. **Back up `.secrets/`**: phones only accept updates signed with the same key.
+- Repo secrets the build reads: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SITE_URL`, plus the four `ANDROID_*` signing secrets.
+
+## 10. Sign-in codes to student email
+- Sign-in needs both sides of the ID card; the 6-digit code goes to `<student id>@std.ewubd.edu`.
+- Supabase's built-in mailer only delivers to your own team's addresses, so set a custom SMTP (Authentication → SMTP). Easiest: a Gmail account with 2-step verification → App password → host `smtp.gmail.com`, port 465, user = the Gmail address, password = the app password.
+- Email template (Magic Link): `Your EWUdiots code is <b>{{ .Token }}</b>. It expires in 10 minutes.`
+
+## 11. News, notices, faculty and alumni data
 - News and notices are read live from ewubd.edu by `app/api/news.js` and `app/api/notices.js` (Vercel functions, cached 1 h and 30 min).
 - Faculty directory: re-run `cd app && node scripts/scrape-faculty.mjs` each semester.
 - Alumni: `app/public/data/alumni.json` comes from the "Alumni Success Stories" in EWU newsletters. When a new issue comes out, read it with `node scripts/pdf-text.mjs <newsletter.pdf> "Alumni Success"` and add the new people. Alumni can also add themselves in the app; you approve them in the admin panel.

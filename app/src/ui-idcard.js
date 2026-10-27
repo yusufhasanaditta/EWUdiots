@@ -2,6 +2,7 @@
    student's EWU email (login), and a 3D "student pass" lives in the account. Card images stay on this device. */
 import qrcode from "qrcode-generator";
 import { getBlob, setBlob, delBlob, fileToDataURL } from "./blobstore.js";
+import { readText, isImageFile } from "./ocr.js";
 
 const ID_RE = /(\d{4})\s*[-–—_.]\s*(\d)\s*[-–—_.]\s*(\d{2})\s*[-–—_.]\s*(\d{3})/;
 const SKIP = /\b(EAST|WEST|UNIVERSITY|STUDENT|IDENTITY|CARD|VALID|DEPT|DEPARTMENT|BLOOD|PROGRAM|ISSUE|EXPIRE|SIGNATURE|REGISTRAR|DHAKA|AFTABNAGAR|WWW|EWUBD|ID\b|NO\b)/i;
@@ -25,56 +26,78 @@ export function parseCardText(text) {
 export function install(ctx) {
   const { pages, icon, esc, $, $$, toast, openModal, closeModal, modalHead, confirmModal } = ctx;
   const S = () => ctx.S;
-  const imgs = { scan: null, photo: null, loaded: false };
-  const loadImgs = async () => { imgs.scan = await getBlob("id:scan"); imgs.photo = await getBlob("id:photo"); imgs.loaded = true; };
-  let worker = null;
-  async function ocr(dataUrl, onProgress) {
-    if (!worker) { const T = await import("tesseract.js"); worker = await T.createWorker("eng", 1, { logger: (m) => m.status === "recognizing text" && onProgress(m.progress) }); }
-    const { data } = await worker.recognize(dataUrl);
-    return data.text || "";
+  const imgs = { scan: null, back: null, photo: null, loaded: false };
+  const KINDS = { scan: "front", back: "back", photo: "photo" }; // blob "id:<key>" ↔ cloud file "<uid>/<name>.jpg"
+  /* Card images live on this device; signed-in students also keep a private copy in their account,
+     so the pass shows up on every device they sign in on. */
+  async function loadImgs() {
+    for (const k of Object.keys(KINDS)) imgs[k] = await getBlob("id:" + k);
+    imgs.loaded = true;
+    const c = S().idcard, user = ctx.C.user;
+    if (!c || !user || !ctx.cloud.enabled) return;
+    for (const [k, name] of Object.entries(KINDS)) {
+      if (imgs[k]) continue;
+      const url = await ctx.cloud.downloadCard(user.id, name).catch(() => null);
+      if (url) { imgs[k] = url; await setBlob("id:" + k, url); }
+    }
+  }
+  async function backupImgs(keys = Object.keys(KINDS)) {
+    const user = ctx.C.user; if (!user || !ctx.cloud.enabled) return;
+    for (const k of keys) if (imgs[k]) await ctx.cloud.uploadCard(user.id, KINDS[k], imgs[k]).catch((e) => console.warn("Card backup failed", e));
   }
 
-  /* ── Scan flow: pick/take photo → read → confirm. Resolves with the card details or null. ── */
+  /* ── Scan flow: photo of the front → photo of the back → confirm. Both sides are required.
+     Resolves with the card details (and both images) or null if cancelled. ── */
   function scan({ title = "Scan your EWU ID card", cta = "Continue" } = {}) {
     return new Promise((resolve) => {
       let done = false; const finish = (v) => { if (done) return; done = true; resolve(v); };
-      const stage1 = () => `${modalHead(title)}<div class="stack">
-        <div class="id-guide" aria-hidden="true"><div class="id-frame"><span></span><span></span><span></span><span></span>${icon("user")}<i></i><i></i><i></i></div></div>
-        <p class="small muted">Lay the card flat in good light so the ID number is sharp. We read it on your device; the photo is never uploaded.</p>
-        <div class="row"><label class="btn primary grow" style="cursor:pointer">${icon("scan")} Take a photo<input type="file" id="id-cam" accept="image/*" capture="environment" hidden></label>
-          <label class="btn outline grow" style="cursor:pointer">${icon("upload")} Upload image<input type="file" id="id-file" accept="image/*" hidden></label></div>
-        <button class="btn ghost block" id="id-manual">Type my details instead</button></div>`;
-      openModal(stage1(), (m) => {
-        const confirm = (scanUrl, got) => {
-          m.innerHTML = `<div class="grabber" aria-hidden="true"></div>${modalHead("Check your details")}<form id="id-form" class="stack" novalidate>
-            ${scanUrl ? `<img class="id-scan-prev" src="${scanUrl}" alt="Your scanned card">` : ""}
-            ${scanUrl && !got.id ? `<div class="alert amber">${icon("alert")}<div><b>We couldn't read the ID number</b><p>Type it below, or retake the photo closer and sharper.</p></div></div>` : ""}
+      const sides = { front: null, back: null };
+      let got = null, reading = null; // OCR of the front runs while you photograph the back
+      const steps = () => `<ol class="id-steps" aria-label="Steps">${[["front", "Front"], ["back", "Back"], ["check", "Check"]].map(([k, l], i) => `<li class="${(k === "check" ? sides.front && sides.back : sides[k]) ? "done" : ""}">${sides[k] ? icon("check", "sm") : `<span>${i + 1}</span>`}${l}</li>`).join("")}</ol>`;
+      const pickHTML = (side) => `${modalHead(title)}${steps()}<div class="stack">
+        <div class="id-guide ${side}" aria-hidden="true"><div class="id-frame"><span></span><span></span><span></span><span></span>${side === "front" ? `${icon("user")}<i></i><i></i><i></i>` : `<em></em><i></i><i></i>`}</div></div>
+        <div><b>${side === "front" ? "Photo of the front side" : "Now the back side"}</b><p class="small muted">${side === "front" ? "The side with your photo and student ID. Lay it flat in good light so the number is sharp." : "Turn the card over. Both sides are needed to add your card."}</p></div>
+        <div class="row"><label class="btn primary grow" style="cursor:pointer">${icon("scan")} Take a photo<input type="file" data-side="${side}" accept="image/*" capture="environment" hidden></label>
+          <label class="btn outline grow" style="cursor:pointer">${icon("upload")} Upload image<input type="file" data-side="${side}" accept="image/*" hidden></label></div>
+        ${side === "back" ? `<div class="row nowrap small muted" style="gap:10px"><img class="id-thumb" src="${sides.front}" alt="Front side"><span class="grow">Front side added.</span><button type="button" class="btn ghost sm" id="id-redo-front">${icon("reset")} Retake front</button></div>` : ""}
+        <p class="xs">${icon("shield", "sm")} Your card pictures are private: they stay on this device${ctx.cloud.enabled ? " and in your own account, never shown to anyone else" : ""}.</p></div>`;
+      openModal(pickHTML("front"), (m) => {
+        const show = (html) => { m.innerHTML = `<div class="grabber" aria-hidden="true"></div>${html}`; bind(); };
+        const confirm = async () => {
+          show(`${modalHead("Reading your card…")}${steps()}<div class="stack" style="align-items:center;text-align:center"><img class="id-scan-prev" src="${sides.front}" alt=""><div class="bar" style="width:100%"><span id="id-prog" style="width:30%"></span></div><p class="xs">Reading your ID and name…</p></div>`);
+          got = await reading;
+          show(`${modalHead("Check your details")}${steps()}<form id="id-form" class="stack" novalidate>
+            <div class="id-pair"><figure><img src="${sides.front}" alt="Front of your card"><figcaption>Front</figcaption></figure><figure><img src="${sides.back}" alt="Back of your card"><figcaption>Back</figcaption></figure></div>
+            ${!got.id ? `<div class="alert amber">${icon("alert")}<div><b>We couldn't read the ID number</b><p>Type it below, or retake the front closer and sharper.</p></div></div>` : ""}
             <label class="field">Student ID<input class="input" name="id" inputmode="numeric" value="${esc(got.id)}" placeholder="2024-1-60-123" required><span class="err" id="id-err" hidden></span></label>
             <label class="field">Full name<input class="input" name="name" value="${esc(got.name)}" autocomplete="name" placeholder="As printed on the card"></label>
             <div class="grid g2"><label class="field">Department<input class="input" name="dept" value="${esc(got.dept)}" placeholder="e.g. CSE"></label><label class="field">Valid until<input class="input" name="valid" value="${esc(got.valid)}" placeholder="optional"></label></div>
-            ${scanUrl ? `<label class="row nowrap small" style="gap:8px"><input type="checkbox" name="usephoto" checked> Crop my photo from the card for the pass</label>` : ""}
-            <div class="row"><button type="button" class="btn neutral grow" id="id-retake">${icon("reset")} Retake</button><button class="btn primary grow">${cta}</button></div></form>`;
-          $("#id-retake", m).addEventListener("click", () => { m.innerHTML = `<div class="grabber"></div>${stage1()}`; bind(); });
+            <label class="row nowrap small" style="gap:8px"><input type="checkbox" name="usephoto" checked> Crop my photo from the card for the pass</label>
+            <div class="row"><button type="button" class="btn neutral grow" id="id-retake">${icon("reset")} Retake</button><button class="btn primary grow">${cta}</button></div></form>`);
+          $("#id-retake", m).addEventListener("click", () => { sides.front = sides.back = null; reading = null; show(pickHTML("front")); });
           $("#id-form", m).addEventListener("submit", async (e) => {
             e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), err = $("#id-err", m);
             const id = String(f.id).trim().replace(/\s+/g, "");
             if (!/^\d{4}-\d-\d{2}-\d{3}$/.test(id)) { err.hidden = false; err.textContent = "Use the EWU format, e.g. 2024-1-60-123."; e.target.id.setAttribute("aria-invalid", "true"); e.target.id.focus(); return; }
-            const out = { id, name: String(f.name || "").trim(), dept: String(f.dept || "").trim(), valid: String(f.valid || "").trim(), scan: scanUrl || null, photo: null };
-            if (scanUrl && f.usephoto) out.photo = await cropModal(scanUrl, m);
+            const out = { id, name: String(f.name || "").trim(), dept: String(f.dept || "").trim(), valid: String(f.valid || "").trim(), scan: sides.front, back: sides.back, photo: null };
+            if (f.usephoto) out.photo = await cropModal(sides.front, m);
             finish(out); closeModal();
           });
         };
-        const read = async (file) => {
+        const take = async (side, file) => {
+          if (!isImageFile(file)) return toast("Choose a photo of your card", "warn");
           let url; try { url = await fileToDataURL(file, 1600, 0.9); } catch (e) { return toast(e.message, "error"); }
-          m.innerHTML = `<div class="grabber"></div>${modalHead("Reading your card…")}<div class="stack" style="align-items:center;text-align:center"><img class="id-scan-prev" src="${url}" alt=""><div class="bar" style="width:100%"><span id="id-prog" style="width:4%"></span></div><p class="xs" id="id-stat">Loading the reader (first time only)…</p></div>`;
-          try { const text = await ocr(url, (p) => { const b = $("#id-prog", m); if (b) { b.style.width = `${Math.round(5 + p * 95)}%`; $("#id-stat", m).textContent = "Reading text…"; } }); confirm(url, parseCardText(text)); }
-          catch (e) { console.warn(e); toast("Couldn't read the card here", "warn", "Type your details instead."); confirm(url, { id: "", name: "", dept: "", valid: "" }); }
+          sides[side] = url;
+          if (side === "front") {
+            reading = readText(url).then(parseCardText).catch((e) => { console.warn(e); return { id: "", name: "", dept: "", valid: "" }; });
+            show(pickHTML("back"));
+          } else confirm();
         };
-        const bind = () => {
-          ["#id-cam", "#id-file"].forEach((s) => $(s, m)?.addEventListener("change", (e) => e.target.files[0] && read(e.target.files[0])));
-          $("#id-manual", m)?.addEventListener("click", () => { const p = S().profile || {}; confirm(null, { id: p.id || "", name: p.name || "", dept: p.department || "", valid: "" }); });
+        function bind() {
+          $$("input[data-side]", m).forEach((i) => i.addEventListener("change", (e) => e.target.files[0] && take(i.dataset.side, e.target.files[0])));
+          $("#id-redo-front", m)?.addEventListener("click", () => { sides.front = null; reading = null; show(pickHTML("front")); });
           $$("[data-close]", m).forEach((b) => b.addEventListener("click", () => finish(null)));
-        };
+        }
         bind();
       });
       // Closing the sheet any other way (scrim, Esc) cancels the scan.
@@ -114,9 +137,10 @@ export function install(ctx) {
     St.idcard = { id: res.id, name: res.name, dept: res.dept, valid: res.valid, verified: verified || Boolean(St.idcard?.verified && St.idcard.id === res.id), email: email || St.idcard?.email || "", scannedAt: new Date().toISOString() };
     // A rescan without a photo (typed details, skipped crop) keeps the images you already have.
     if (!imgs.loaded) await loadImgs();
-    if (res.scan) { await setBlob("id:scan", res.scan); imgs.scan = res.scan; }
-    if (res.photo) { await setBlob("id:photo", res.photo); imgs.photo = res.photo; }
-    St.idcard.hasScan = Boolean(imgs.scan); St.idcard.hasPhoto = Boolean(imgs.photo);
+    const changed = ["scan", "back", "photo"].filter((k) => res[k]);
+    for (const k of changed) { await setBlob("id:" + k, res[k]); imgs[k] = res[k]; }
+    St.idcard.hasScan = Boolean(imgs.scan); St.idcard.hasBack = Boolean(imgs.back); St.idcard.hasPhoto = Boolean(imgs.photo);
+    backupImgs(verified ? Object.keys(KINDS) : changed);
     const p = St.profile || {};
     St.profile = Object.assign({ creditsTotal: 140, semester: ctx.currentSemester() }, p, { id: res.id, name: p.name || res.name, department: p.department || res.dept });
     ctx.logEvent("System", "user", "purple", "ID card added", `${res.id}${St.idcard.verified ? " · verified with your EWU email" : ""}`, "#/idcard");
@@ -138,8 +162,8 @@ export function install(ctx) {
         <div class="idc-foot"><span class="idc-chip" aria-hidden="true"></span>${c.verified ? `<span class="idc-ver">${icon("checkc", "sm")} EWU email verified</span>` : `<span class="idc-ver un">${icon("alert", "sm")} Not verified</span>`}<span class="grow"></span><span class="idc-unoff">Unofficial · not an EWU-issued ID</span></div>
       </div>
       <div class="idc-face back">
-        ${imgs.scan ? `<img class="idc-scan" src="${imgs.scan}" alt="Your scanned EWU ID card">` : `<div class="idc-noscan">${icon("scan")}<span>No card scan saved</span></div>`}
-        <div class="idc-back-foot"><span>${imgs.scan ? "Your scan · stored only on this device" : "Scan your card to keep a copy here"}</span><span class="num">${esc(c.id)}</span></div></div>
+        ${imgs.back || imgs.scan ? `<img class="idc-scan" src="${imgs.back || imgs.scan}" alt="Your scanned EWU ID card">` : `<div class="idc-noscan">${icon("scan")}<span>No card scan saved</span></div>`}
+        <div class="idc-back-foot"><span>${imgs.back ? "Back of your card · private to you" : imgs.scan ? "Rescan to add the back side" : "Scan your card to keep a copy here"}</span><span class="num">${esc(c.id)}</span></div></div>
       <div class="idc-sheen" aria-hidden="true"></div></div></div>`;
   };
   let flip = false, onOrient = null;
@@ -147,16 +171,17 @@ export function install(ctx) {
     const c = S().idcard;
     if (!imgs.loaded) loadImgs().then(() => ctx.route() === "idcard" && ctx.rerender());
     const head = ctx.subHead("My ID Card", "Your student pass, always in your pocket", "#/more");
-    if (!c) return `${head}<div style="max-width:620px;margin:0 auto"><section class="card">${ctx.empty("scan", "Add your ID card", "Scan your EWU student ID card. We read your ID and name on this device and turn it into a 3D pass you can show any time.", `<button class="btn primary" id="idc-scan">${icon("scan")} Scan my ID card</button>`)}</section>
-      <div class="privacy mt">${icon("shield")}<div><b>Private by design</b><p>The card photo never leaves your phone. Only your ID and name are saved to your account. This pass is not an official EWU ID.</p></div></div></div>`;
-    return `${head}<div style="max-width:620px;margin:0 auto">${cardHTML(c, flip)}
+    if (!c) return `${head}<div style="max-width:620px;margin:0 auto"><section class="card">${ctx.empty("scan", "Add your ID card", "Take a photo of the front and the back of your EWU student ID card. We read your ID and name on this device and turn it into a 3D pass you can show any time.", `<button class="btn primary" id="idc-scan">${icon("scan")} Scan my ID card</button>`)}</section>
+      <div class="privacy mt">${icon("shield")}<div><b>Private by design</b><p>Card pictures are read on this device. If you sign in, a private copy is kept in your own account so the pass appears on all your devices; nobody else can see it. This pass is not an official EWU ID.</p></div></div></div>`;
+    const missing = imgs.loaded && (!imgs.scan || !imgs.back);
+    return `${head}<div style="max-width:620px;margin:0 auto">${missing ? `<div class="alert amber" style="margin-bottom:12px"><span class="a-ic">${icon("alert")}</span><div class="grow"><b>Add both sides of your card</b><p>Your pass needs a photo of the front and the back. Tap Rescan card below.</p></div></div>` : ""}${cardHTML(c, flip)}
       <p class="xs" style="text-align:center;margin-top:10px">Tap the card to flip it. Tilt your phone or move your mouse over it.</p>
       <div class="row mt" style="justify-content:center"><button class="btn primary" id="idc-flip">${icon("reset")} Flip</button><button class="btn outline" id="idc-full">${icon("eye")} Show full screen</button><button class="btn outline" id="idc-copy">${icon("copy")} Copy ID</button></div>
       <section class="card settings-list mt">
-        <button class="lrow" id="idc-scan"><span class="itile purple">${icon("scan")}</span><span class="body"><b>Rescan card</b><span>Update your photo or details</span></span>${icon("chevR", "chev")}</button>
+        <button class="lrow" id="idc-scan"><span class="itile purple">${icon("scan")}</span><span class="body"><b>Rescan card</b><span>Front and back, or update your details</span></span>${icon("chevR", "chev")}</button>
         <button class="lrow" id="idc-photo"><span class="itile blue">${icon("image")}</span><span class="body"><b>Change pass photo</b><span>Use any picture of you</span></span>${icon("chevR", "chev")}</button>
         ${!c.verified && ctx.cloud.enabled && !ctx.C.user ? `<a class="lrow" href="#/login?from=profile"><span class="itile green">${icon("mail")}</span><span class="body"><b>Verify with your EWU email</b><span>Code goes to ${esc(c.id)}@std.ewubd.edu</span></span>${icon("chevR", "chev")}</a>` : ""}
-        <button class="lrow" id="idc-del"><span class="itile red">${icon("trash")}</span><span class="body"><b style="color:var(--error-t)">Remove ID card</b><span>Deletes the pass and the scan from this device</span></span></button></section>
+        <button class="lrow" id="idc-del"><span class="itile red">${icon("trash")}</span><span class="body"><b style="color:var(--error-t)">Remove ID card</b><span>Deletes the pass and both card pictures</span></span></button></section>
       <p class="xs mt">EWUdiots is unofficial. Use your real EWU ID card for exams, the library and security checks.</p></div>`;
   };
   pages.idcard.mount = (el) => {
@@ -179,10 +204,16 @@ export function install(ctx) {
     on("#idc-copy", async () => { try { await navigator.clipboard.writeText(S().idcard.id); toast("ID copied", "info"); } catch { toast("Couldn't copy", "error"); } });
     on("#idc-photo", () => openModal(modalHead("Pass photo") + `<label class="btn primary block" style="cursor:pointer">${icon("upload")} Choose a photo<input type="file" accept="image/*" id="ph-in" hidden></label>`, (m) => $("#ph-in", m).addEventListener("change", async (e) => {
       const f = e.target.files[0]; if (!f) return; const url = await fileToDataURL(f, 1200).catch(() => null); if (!url) return toast("That file isn't an image", "error");
-      const cropped = await cropModal(url, m); if (cropped) { await setBlob("id:photo", cropped); imgs.photo = cropped; S().idcard.hasPhoto = true; ctx.save({ silent: true }); toast("Photo updated"); } closeModal(); ctx.rerender(); })));
-    on("#idc-del", () => confirmModal("Remove ID card?", "Deletes the pass and the card scan from this device. Your profile stays.", "Remove", async () => { await delBlob("id:scan"); await delBlob("id:photo"); imgs.scan = imgs.photo = null; S().idcard = null; ctx.save(); ctx.rerender(); toast("ID card removed", "info"); }, true));
+      const cropped = await cropModal(url, m); if (cropped) { await setBlob("id:photo", cropped); imgs.photo = cropped; S().idcard.hasPhoto = true; backupImgs(["photo"]); ctx.save({ silent: true }); toast("Photo updated"); } closeModal(); ctx.rerender(); })));
+    on("#idc-del", () => confirmModal("Remove ID card?", `Deletes the pass and both card pictures from this device${ctx.C.user ? " and your account" : ""}. Your profile stays.`, "Remove", async () => {
+      for (const k of Object.keys(KINDS)) await delBlob("id:" + k);
+      if (ctx.C.user) await ctx.cloud.deleteCards(ctx.C.user.id).catch(() => {});
+      forget(); imgs.loaded = true; S().idcard = null; ctx.save(); ctx.rerender(); toast("ID card removed", "info");
+    }, true));
   };
 
-  const forget = () => { imgs.scan = imgs.photo = null; imgs.loaded = false; };
-  return { scan, commit, forget, pending: null };
+  const forget = () => { imgs.scan = imgs.back = imgs.photo = null; imgs.loaded = false; };
+  // A card already on this device with both sides photographed can sign in again without rescanning.
+  const savedCard = () => { const c = S().idcard; return c && c.hasScan && c.hasBack ? { id: c.id, name: c.name, dept: c.dept, valid: c.valid } : null; };
+  return { scan, commit, forget, savedCard, pending: null };
 }

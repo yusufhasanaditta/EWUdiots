@@ -186,11 +186,15 @@ try {
       check("phone: joystick shown in walk mode", await p.$eval("#joy", (j) => j.getBoundingClientRect().width > 40));
       await click("#c3-exit", 300);
 
-      // ID card: scan synthetic card → OCR → confirm → crop → pass.
+      // ID card: front + back (both required) → OCR → confirm → crop → pass.
       await go("#/idcard", 500);
       check("ID card empty state", /Add your ID card/.test(await text()));
       await click("#idc-scan", 400);
-      await (await p.$("#id-file")).uploadFile(cardPng);
+      check("asks for the front side first", /Photo of the front side/.test(await p.$eval("#modal", (m) => m.innerText)) && !(await p.$("#id-form")));
+      await (await p.$('input[data-side="front"]:not([capture])')).uploadFile(cardPng);
+      await p.waitForSelector('input[data-side="back"]', { timeout: 10000 });
+      check("then requires the back side", /Now the back side/.test(await p.$eval("#modal", (m) => m.innerText)) && !(await p.$("#id-form")));
+      await (await p.$('input[data-side="back"]:not([capture])')).uploadFile(cardPng);
       await p.waitForSelector("#id-form", { timeout: 90000 });
       const got = await p.$eval('#id-form [name="id"]', (i) => i.value);
       check("OCR reads the student ID from the card", got === "2026-1-60-001", got);
@@ -201,7 +205,7 @@ try {
       check("crop step shown", !!(await p.$("#cb-ok")));
       await click("#cb-ok", 900);
       const S = await state();
-      check("ID card saved to account", S.idcard?.id === "2026-1-60-001" && S.idcard.hasScan && S.idcard.hasPhoto);
+      check("ID card saved to account", S.idcard?.id === "2026-1-60-001" && S.idcard.hasScan && S.idcard.hasBack && S.idcard.hasPhoto);
       check("3D pass renders with QR + unofficial label", !!(await p.$(".idc .idc-qr svg")) && /Unofficial · not an EWU-issued ID/.test(await text()));
       await click("#idc-flip", 600);
       check("card flips to the scan side", await p.$eval("#idc", (c) => c.classList.contains("flipped")));
@@ -221,7 +225,7 @@ try {
 
       // Clearing the device must also delete the card scan + photo (IndexedDB), not just localStorage.
       const idKeys = () => p.evaluate(() => new Promise((res) => { const r = indexedDB.open("ewudiots-blobs", 1); r.onsuccess = () => { const q = r.result.transaction("b").objectStore("b").getAllKeys(); q.onsuccess = () => res(q.result.filter((k) => String(k).startsWith("id:"))); }; }));
-      check("card images stored on device", (await idKeys()).length === 2);
+      check("card images (front, back, photo) stored on device", (await idKeys()).length === 3);
       await go("#/profile", 400); await click("#pf-wipe", 400); await click("#cf-go", 900);
       check("Clear Local Data deletes the card scan and photo", (await idKeys()).length === 0);
     }

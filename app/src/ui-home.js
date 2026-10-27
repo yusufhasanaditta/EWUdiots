@@ -61,11 +61,17 @@ export function install(ctx) {
       </div>
       <div class="grid g2 mt">${deadlines}<div class="grid g2">${streakCard}${attCard}</div></div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}</div>`;
 
+    const dueToday = St.tasks.filter((t) => !t.done && new Date(t.due).toDateString() === now.toDateString()).length;
+    const todayStrip = todays.length ? `<div class="today-strip" role="list" aria-label="Today's classes">${todays.map((b) => { const live = b.s <= nowM && nowM < b.e, past = b.e <= nowM;
+      return `<a role="listitem" class="tchip${live ? " live" : ""}${past ? " past" : ""}" href="#/course?c=${encodeURIComponent(b.code)}" style="--cc:${ctx.colorFor(b.code)}"><span class="tt">${ctx.fmtShort(b.s)}</span><b>${esc(b.code)}${b.lab ? " Lab" : ""}</b><span class="tr">${live ? "Now" : esc(ctx.baseRoom(b.room) || "TBA")}</span></a>`; }).join("")}</div>` : "";
     const mobile = `<div class="m-only">
-      <div class="greet"><div class="greet-img" aria-hidden="true"></div><div><p class="hi">${ctx.greeting()},</p><h1>${first} <span aria-hidden="true">👋</span></h1><p class="small muted">Another step closer to your goals!</p></div>
-        <span class="scribble scr" aria-hidden="true">“Same campus,<br>Smarter you.”</span></div>
-      ${ncCard}${navStrip}
-      <div class="qgrid mt">${TILES.map(([id, ic, tone, t]) => `<a class="qtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span>${t}</a>`).join("")}</div>
+      <div class="m-hello"><a class="avatar" href="#/profile" aria-label="Your profile">${esc(ctx.initials(p.name || "EWU Student"))}</a>
+        <div class="grow min0"><p class="hi">${ctx.greeting()}</p><h1 class="ellipsis">${first}</h1></div>
+        <a class="streak-chip" href="#/me" aria-label="${str} day study streak">${icon("flame", "sm")}<b>${str}</b></a></div>
+      <div class="m-summary">${[[todays.length ? `${todays.filter((b) => b.e > nowM).length}` : "0", todays.length === 1 ? "class today" : "classes today", "#/routine"], [dueToday, "due today", "#/tasks"], [shown ? shown.toFixed(2) : "—", "CGPA", "#/grades"]]
+        .map(([v, l, h]) => `<a href="${h}"><b class="num">${v}</b><span>${l}</span></a>`).join("")}</div>
+      ${ncCard}${todayStrip}${navStrip}
+      <h2 class="mgroup-h">Quick access</h2><div class="qgrid">${TILES.map(([id, ic, tone, t]) => `<a class="qtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span>${t}</a>`).join("")}</div>
       <div class="mt">${deadlines}</div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}
       <div class="g2m mt">${streakCard}${attCard}</div></div>`;
     const b = ctx.content.banner();
@@ -106,15 +112,18 @@ export function install(ctx) {
   /* ═════════════ MORE ═════════════ */
   pages.more = () => {
     const role = S().role;
-    const tiles = [
-      ["me", "award", "purple", "Achievements", "View your badges and stats", "sf"], ["vault", "vault", "blue", "Study Vault", "Notes, past papers, slides", "sfa"], ["notices", "megaphone", "orange", "Notice Board", "Official EWU notices", "sfa"], ["news", "globe", "blue", "Campus News", "Stories from EWU", "sfa"], ["alumni", "community", "green", "Alumni", "Where graduates are now", "sfa"], ["map", "map", "purple", "Campus Map", "Find rooms, walk in 3D", "sfa"], ["idcard", "user", "teal", "My ID Card", "Your 3D student pass", "s"], ["rooms", "building", "purple", "Free Rooms", "Find empty classrooms", "sfa"],
-      ["planner", "calcheck", "green", "Advising Planner", "Plan your next semester", "s"], ["marks", "notes", "blue", "Marks Estimator", "Predict your grades", "s"], ["fees", "receipt", "red", "Fees & Deadlines", "Track payments and tasks", "s"],
-      ["courses", "book", "teal", "My Courses", "Course hubs and notes", "s"], ["cards", "cards", "pink", "Flashcards", "Spaced repetition decks", "sf"], ["exams", "exam", "orange", "Exam Planner", "Revision plan for exams", "s"],
-      ["faculty", "users", "purple", "Faculty & Reviews", "Contacts and ratings", "sfa"], ["focus", "target", "pink", "Focus Timer", "Pomodoro and analytics", "sf"], ["cover", "file", "green", "Cover Page", "Assignment cover PDF", "sa"],
-      ["sync", "sync", "teal", "Sync Portal", "Import from the EWU portal", "s"], ["degree", "cap", "yellow", "Degree Progress", "Credits by requirement", "s"]
-    ].filter((t) => t[5].includes({ faculty: "f", alumni: "a" }[role] || "s"));
-    return `<div class="more-banner" role="img" aria-label="East West University campus with the line: More than a university. A vibe."></div>
-      <div class="mtiles mt">${tiles.map(([id, ic, tone, t, d]) => `<a class="mtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span><div class="min0"><b>${t}</b><span>${d}</span></div></a>`).join("")}</div>
+    const rk = { faculty: "f", alumni: "a" }[role] || "s", p = S().profile || {};
+    const GROUPS = [
+      ["Academics", [["courses", "book", "teal", "My Courses", "Course hubs and notes", "s"], ["planner", "calcheck", "green", "Advising Planner", "Plan your next semester", "s"], ["marks", "notes", "blue", "Marks Estimator", "Predict your grades", "s"],
+        ["degree", "cap", "yellow", "Degree Progress", "Credits by requirement", "s"], ["exams", "exam", "orange", "Exam Planner", "Revision plan for exams", "s"], ["fees", "receipt", "red", "Fees & Deadlines", "Track payments and tasks", "s"], ["sync", "sync", "teal", "Sync Portal", "Import from the EWU portal", "s"]]],
+      ["Study", [["focus", "target", "pink", "Focus Timer", "Pomodoro and analytics", "sf"], ["cards", "cards", "pink", "Flashcards", "Spaced repetition decks", "sf"], ["vault", "vault", "blue", "Study Vault", "Notes, past papers, slides", "sfa"], ["me", "award", "purple", "Achievements", "View your badges and stats", "sf"]]],
+      ["Campus", [["map", "map", "purple", "Campus Map", "Find rooms, walk in 3D", "sfa"], ["rooms", "building", "purple", "Free Rooms", "Find empty classrooms", "sfa"], ["idcard", "user", "teal", "My ID Card", "Your 3D student pass", "s"], ["faculty", "users", "purple", "Faculty & Reviews", "Contacts and ratings", "sfa"], ["cover", "file", "green", "Cover Page", "Assignment cover PDF", "sa"]]],
+      ["Community", [["notices", "megaphone", "orange", "Notice Board", "Official EWU notices", "sfa"], ["news", "globe", "blue", "Campus News", "Stories from EWU", "sfa"], ["alumni", "community", "green", "Alumni", "Where graduates are now", "sfa"]]]
+    ].map(([g, list]) => [g, list.filter((t) => t[5].includes(rk) && (!ctx.PAGE_FEATURE[t[0]] || ctx.content.feature(ctx.PAGE_FEATURE[t[0]])))]).filter(([, list]) => list.length);
+    return `<a class="me-card" href="#/profile"><span class="avatar lg">${esc(ctx.initials(p.name || "EWU Student"))}</span><span class="grow min0"><b class="ellipsis">${esc(p.name || "Set up your profile")}</b><span class="ellipsis">${esc([p.id, p.program || p.department].filter(Boolean).join(" · ") || ctx.roleLabel())}</span>
+        <span class="me-sync ${ctx.C.user ? "on" : ""}">${icon(ctx.C.user ? "cloud" : "database", "sm")} ${ctx.C.user ? "Synced on all your devices" : "Saved on this device"}</span></span>${icon("chevR")}</a>
+      ${GROUPS.map(([g, list]) => `<h2 class="mgroup-h">${g}</h2><div class="mtiles">${list.map(([id, ic, tone, t, d]) => `<a class="mtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span><div class="min0"><b>${t}</b><span>${d}</span></div></a>`).join("")}</div>`).join("")}
+      <a class="get-app mt" href="/#download"><span class="itile purple">${icon("download")}</span><span class="grow"><b>Get EWUdiots everywhere</b><span>Android app, Windows and the Chrome extension</span></span>${icon("chevR", "chev")}</a>
       <h2 class="mt-l" style="margin-bottom:10px">Account</h2>
       <section class="card settings-list">
         ${[["profile", "user", "purple", "Profile & Settings", "Manage your account"], ["help", "help", "purple", "Help & Support", "FAQs, contact and feedback"], ["about", "info", "purple", "About EWUdiots", "Unofficial student project"]]
@@ -247,12 +256,16 @@ export function install(ctx) {
     const from = ctx.qparam("from"), back = from === "profile" ? "#/profile" : "#/welcome?s=2";
     if (!ctx.cloud.enabled) return obShell(`<h1>Sign in</h1><p class="muted mt-s">Cloud accounts aren't connected in this build. Everything works on this device.</p>`, { back, foot: `<button class="btn primary lg block" id="lg-skip">Continue</button>` });
     if (ctx.C.user) return obShell(`<div class="empty"><span class="ill">${icon("checkc")}</span><h3>You're signed in</h3><p>${esc(ctx.C.user.email)}</p></div>`, { back, foot: `<button class="btn primary lg block" id="lg-skip">Continue</button>` });
+    const card = ctx.idcard.savedCard();
     return obShell(`<div class="ob-word" style="padding-top:20px"><span class="w" style="font-size:38px">EWU<i>diots</i>${spark}</span><div><span class="unoff">Unofficial · not affiliated with EWU</span></div></div>
-      <h2 class="mt-l" style="text-align:center">Sign in to your account</h2><p class="muted small" style="text-align:center;margin-top:4px">${otpEmail ? `We sent a 6-digit code to <b>${esc(otpEmail)}</b>. Check your EWU mail (and spam).` : "Use your EWU student email. We'll send you a 6-digit code — no password needed."}</p>
-      ${otpEmail ? `<form id="otp-form" class="stack mt"><label class="field">Code<input class="input otp" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="\\d{6}" maxlength="6" required></label><button class="btn primary lg block">Verify &amp; Sign In</button><button type="button" class="btn ghost block" id="otp-back">Use a different email</button></form>`
-        : `<form id="mail-form" class="stack mt" novalidate><label class="field">EWU student email<span class="searchbar">${icon("mail")}<input class="input" name="email" type="email" autocomplete="email" placeholder="2024-1-60-123@std.ewubd.edu" value="${esc(S().profile?.email || "")}" required></span><span class="err" id="mail-err" hidden></span></label><button class="btn primary lg block">Send me a code</button></form>
-          <div class="or-line"><span>or</span></div><button class="btn outline lg block" id="lg-card">${icon("scan")} Sign in with my ID card</button><p class="xs" style="text-align:center;margin-top:6px">We read the student ID on your card and send the code to that student's EWU email.</p>`}
-      <p class="small muted mt" style="text-align:center">Only real EWU students can sign in. Signing in adds backup, reviews and the shared vault.</p>`,
+      <h2 class="mt-l" style="text-align:center">Sign in with your ID card</h2><p class="muted small" style="text-align:center;margin-top:4px">${otpEmail ? `We sent a 6-digit code to <b>${esc(otpEmail)}</b>. Open your EWU student mail (check spam too).` : "Add both sides of your EWU ID card. We send a 6-digit code to your EWU student email — no password needed."}</p>
+      ${otpEmail ? `<form id="otp-form" class="stack mt"><label class="field">Code<input class="input otp" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="\\d{6}" maxlength="6" required></label><button class="btn primary lg block">Verify &amp; Sign In</button>
+          <div class="row"><button type="button" class="btn ghost grow" id="otp-resend">${icon("reset")} Send again</button><button type="button" class="btn ghost grow" id="otp-back">Use another card</button></div></form>`
+        : card ? `<div class="card soft mt row nowrap"><span class="itile purple">${icon("user")}</span><div class="grow min0"><b>${esc(card.name || "Your card")}</b><p class="small muted">${esc(card.id)} · both sides added</p></div></div>
+          <button class="btn primary lg block mt" id="lg-saved">${icon("mail")} Send code to ${esc(card.id)}@std.ewubd.edu</button><button class="btn ghost block" id="lg-card">${icon("scan")} Use a different card</button>`
+        : `<ol class="login-steps mt">${[["scan", "Front of your card", "The side with your photo and ID"], ["reset", "Back of your card", "Turn it over and snap again"], ["mail", "Code to your EWU mail", "<id>@std.ewubd.edu"]].map(([ic, t, d]) => `<li><span class="itile sm purple">${icon(ic)}</span><div><b>${t}</b><span>${esc(d)}</span></div></li>`).join("")}</ol>
+          <button class="btn primary lg block mt" id="lg-card">${icon("scan")} Scan my ID card</button>`}
+      <p class="small muted mt" style="text-align:center">Only real EWU students can sign in. One account works in the app, on the web, on Windows and in the Chrome extension.</p>`,
       { back, foot: from === "profile" ? "" : `<button class="btn ghost block" id="lg-skip">Continue without an account</button>` });
   };
   pages.login.mount = (el) => {
@@ -260,19 +273,18 @@ export function install(ctx) {
     const next = () => ctx.go(from === "profile" ? "#/profile" : "#/role");
     const on = (sel, ev, fn) => { const x = $(sel, el); x && x.addEventListener(ev, fn); };
     on("#lg-skip", "click", next);
-    on("#mail-form", "submit", async (e) => {
-      e.preventDefault(); const btn = e.target.querySelector("button"), input = e.target.email, email = String(input.value).trim();
-      if (!ctx.cloud.EWU_EMAIL.test(email)) { input.setAttribute("aria-invalid", "true"); const er = $("#mail-err", el); er.hidden = false; er.textContent = "Please enter a valid EWU student email, e.g. 2024-1-60-123@std.ewubd.edu"; input.focus(); return; }
-      busy(btn, true, "Sending…");
-      try { await ctx.cloud.sendCode(email); otpEmail = email.toLowerCase(); ctx.rerender(); } catch (err) { busy(btn, false); toast(err.message, "error"); }
-    });
-    on("#otp-back", "click", () => { otpEmail = ""; ctx.idcard.pending = null; ctx.rerender(); });
-    on("#lg-card", "click", async (e) => {
-      const card = await ctx.idcard.scan({ title: "Sign in with your ID card", cta: "Send code to my EWU email" });
-      if (!card) return;
-      const email = `${card.id}@std.ewubd.edu`, btn = $("#lg-card", el);
+    const send = async (card, btn) => {
+      const email = `${card.id}@std.ewubd.edu`;
       busy(btn, true, "Sending code…");
-      try { await ctx.cloud.sendCode(email); ctx.idcard.pending = card; otpEmail = email.toLowerCase(); ctx.rerender(); } catch (err) { busy(btn, false); toast(err.message, "error"); }
+      try { await ctx.cloud.sendCode(email); ctx.idcard.pending = card; otpEmail = email.toLowerCase(); toast("Code sent", "success", `Check ${email}`); ctx.rerender(); }
+      catch (err) { busy(btn, false); toast(/rate|seconds|many/i.test(err.message) ? "Please wait a minute before asking for another code" : err.message, "error"); }
+    };
+    on("#otp-back", "click", () => { otpEmail = ""; ctx.idcard.pending = null; ctx.rerender(); });
+    on("#otp-resend", "click", (e) => { const c = ctx.idcard.pending || ctx.idcard.savedCard(); if (c) send(c, e.currentTarget); });
+    on("#lg-saved", "click", (e) => send(ctx.idcard.savedCard(), e.currentTarget));
+    on("#lg-card", "click", async () => {
+      const card = await ctx.idcard.scan({ title: "Sign in with your ID card", cta: "Send code to my EWU email" });
+      if (card) send(card, $("#lg-card", el));
     });
     on("#otp-form", "submit", async (e) => {
       e.preventDefault(); const btn = e.target.querySelector("button.primary");

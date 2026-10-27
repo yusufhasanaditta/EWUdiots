@@ -1,0 +1,83 @@
+/* v2.3 mobile layer: compact home header, today strip, grouped More launcher, floating tab bar,
+   two-sided ID card capture and the ID-card login. Loaded after styles.css and fx.css. */
+
+/* Next-class card: the countdown stays pinned top-right (fx.css lifts every child to position:relative). */
+.next-card > .cd { position: absolute; z-index: 1; }
+.next-card .ring::before { background: rgba(30, 16, 80, .55); }
+.next-card .ring span { color: #fff; opacity: .9; font-size: 10px; }
+.next-card .cd .ring b { font-size: 18px; color: #fff; }
+.next-card h2, .next-card .t { padding-right: 96px; }
+
+/* Home header */
+.m-hello { display: flex; align-items: center; gap: 12px; margin: 2px 0 12px; }
+.m-hello .avatar { width: 48px; height: 48px; font-size: 16px; text-decoration: none; flex: none; box-shadow: var(--sh-sm); }
+.m-hello .hi { font-size: 13.5px; color: var(--text-3); font-weight: 600; }
+.m-hello h1 { font-size: 26px; line-height: 1.1; }
+.streak-chip { display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; border-radius: 999px; background: color-mix(in srgb, #f97316 14%, var(--surface)); color: #c2410c; text-decoration: none !important; font-weight: 800; min-height: 44px; }
+.streak-chip .icon { color: #f97316; }
+.m-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+.m-summary a { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 10px 12px; text-decoration: none !important; color: inherit; box-shadow: var(--sh-sm); }
+.m-summary b { display: block; font-size: 22px; font-weight: 800; line-height: 1.15; }
+.m-summary span { font-size: 11.5px; color: var(--text-3); font-weight: 500; }
+
+/* Today's classes as a swipeable strip */
+.today-strip { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 12px -16px 0; padding: 2px 16px 6px; scrollbar-width: none; }
+.today-strip::-webkit-scrollbar { display: none; }
+.tchip { flex: none; scroll-snap-align: start; min-width: 104px; padding: 10px 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--cc); text-decoration: none !important; color: inherit; display: grid; gap: 1px; }
+.tchip .tt { font-size: 12px; color: var(--text-3); font-weight: 600; } .tchip b { font-size: 15px; } .tchip .tr { font-size: 11.5px; color: var(--text-3); }
+.tchip.live { background: var(--primary-ll); border-color: var(--primary); } .tchip.live .tr { color: var(--primary); font-weight: 700; }
+.tchip.past { opacity: .55; }
+
+.mgroup-h { font-size: 15px; font-weight: 700; color: var(--text-2); margin: 20px 2px 10px; letter-spacing: .01em; }
+
+/* More: profile card + launcher */
+.me-card { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 22px; background: var(--grad); color: #fff; text-decoration: none !important; box-shadow: var(--glow); position: relative; overflow: hidden; }
+.me-card::after { content: ""; position: absolute; right: -50px; top: -60px; width: 180px; height: 180px; border-radius: 50%; background: rgba(255, 255, 255, .1); }
+.me-card .avatar { background: rgba(255, 255, 255, .2); color: #fff; border: 2px solid rgba(255, 255, 255, .5); }
+.me-card b { display: block; font-size: 18px; } .me-card .ellipsis { display: block; }
+.me-card > .grow > span { font-size: 13px; opacity: .9; }
+.me-sync { display: inline-flex !important; align-items: center; gap: 6px; margin-top: 6px; padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, .16); font-size: 12px !important; }
+.me-sync.on { background: rgba(163, 230, 53, .28); }
+.get-app { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 18px; background: var(--surface); border: 1px dashed color-mix(in srgb, var(--primary) 45%, var(--border)); text-decoration: none !important; color: inherit; }
+.get-app b { display: block; } .get-app .grow > span { font-size: 12.5px; color: var(--text-3); }
+
+@media (max-width: 720px) {
+  .mtiles { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 6px; }
+  .mtile { flex-direction: column; text-align: center; gap: 7px; padding: 0; background: none; border: 0; box-shadow: none; }
+  .mtile .itile { width: 58px; height: 58px; border-radius: 18px; }
+  .mtile .itile .icon { width: 26px; height: 26px; }
+  .mtile b { font-size: 12px; font-weight: 600; line-height: 1.25; }
+  .mtile .min0 span { display: none; }
+  .mtile:hover { transform: none !important; box-shadow: none !important; }
+}
+@media (max-width: 960px) {
+  /* Floating tab bar with a pill behind the current tab */
+  .bottom-nav { left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); padding: 6px; border-radius: 26px; border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 88%, transparent); -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4); box-shadow: 0 10px 30px rgba(15, 23, 42, .14); }
+  .bottom-nav a { border-radius: 20px; min-height: 54px; position: relative; }
+  .bottom-nav a[aria-current="page"] { background: var(--primary-ll); }
+  .bottom-nav a[aria-current="page"] .icon { transform: translateY(-1px) scale(1.08); transition: transform .4s var(--spring, ease); }
+  .fab span.fab-btn { margin-top: -26px; }
+  .main { padding-bottom: calc(120px + env(safe-area-inset-bottom)); }
+  .topbar { padding-bottom: 4px; }
+  .topbar .mlogo small { display: none; }
+  .topbar .mlogo .word { font-size: 24px; }
+}
+
+/* Screenshot tips */
+.shot-tips summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; min-height: 32px; }
+.shot-tips summary::-webkit-details-marker { display: none; }
+
+/* ID card: two sides */
+.id-steps { display: flex; gap: 6px; list-style: none; padding: 0; margin: 0 0 12px; }
+.id-steps li { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 6px; border-radius: 12px; background: var(--surface-2); font-size: 12.5px; font-weight: 600; color: var(--text-3); }
+.id-steps li span { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); font-size: 11px; }
+.id-steps li.done { background: var(--success-s, #dcfce7); color: var(--success-t, #166534); }
+.id-guide.back .id-frame em { position: absolute; left: 10%; right: 10%; top: 18%; height: 14%; border-radius: 4px; background: color-mix(in srgb, var(--primary) 25%, transparent); }
+.id-thumb { width: 64px; height: 42px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
+.id-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.id-pair figure { margin: 0; } .id-pair img { width: 100%; aspect-ratio: 1.58; object-fit: cover; border-radius: 12px; border: 1px solid var(--border); }
+.id-pair figcaption { font-size: 12px; color: var(--text-3); text-align: center; margin-top: 4px; font-weight: 600; }
+.login-steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.login-steps li { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; background: var(--surface-2); }
+.login-steps b { display: block; font-size: 14.5px; } .login-steps span:not(.itile) { font-size: 12.5px; color: var(--text-3); }

@@ -3,6 +3,7 @@
 import "./styles.css";
 import "./campus.css";
 import "./fx.css";
+import "./mobile.css";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";
 import * as cloud from "./cloud.js";
@@ -20,7 +21,7 @@ import { install as installNotices } from "./ui-notices.js";
 import { install as installCommunity } from "./ui-community.js";
 import { createContent, FEATURES } from "./content.js";
 
-const APP_VERSION = "2.2.0";
+const APP_VERSION = "2.3.0";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -62,8 +63,32 @@ let campus = null, idcard = null, notices = null, community = null;
 const content = createContent(cloud); // admin-managed posts, settings, overrides // campus map + ID card APIs (src/ui-map.js, src/ui-idcard.js)
 async function pushNow() {
   if (!C.user) return false;
-  try { C.syncing = true; const { theme, ...data } = S; await cloud.pushData(C.user.id, data); S.lastSync = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(S)); return true; }
+  try { C.syncing = true; const { theme, syncedAt, ...data } = S; const at = await cloud.pushData(C.user.id, data); S.lastSync = at; S.syncedAt = new Date(at).getTime(); localStorage.setItem(KEY, JSON.stringify(S)); return true; }
   catch (e) { console.warn("Backup failed", e); return false; } finally { C.syncing = false; }
+}
+/* One account everywhere (phone app, web, Windows, Chrome): when another device saved a newer backup than the
+   one this device last saw, and nothing newer changed here, take it. Runs on focus and every minute. */
+let pulling = false;
+async function pullNow() {
+  if (!C.user || C.syncing || pulling || Date.now() - (S.updatedAt || 0) < 3000) return; // a backup is about to go out
+  pulling = true;
+  try {
+    const remote = await cloud.pullData(C.user.id);
+    const at = remote ? new Date(remote.updated_at).getTime() : 0;
+    if (!remote?.data?.profile || at <= (S.syncedAt || 0)) return;
+    if ((S.updatedAt || 0) > at) { await pushNow(); return; } // this device has the newer edits
+    adopt(remote.data, at);
+    if (!modalOpen()) rerender();
+    toast("Updated from your other device", "info");
+  } catch (e) { console.warn("Cloud check failed", e); }
+  finally { pulling = false; }
+}
+function adopt(data, at) {
+  const theme = S.theme;
+  S = Object.assign(blank(), data, { theme, syncedAt: at, lastSync: new Date(at).toISOString() });
+  S.study = Object.assign(studyDefaults(), S.study || {});
+  facCache = null; idcard?.forget();
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* storage blocked */ }
 }
 /* Activity log shown in Notifications (sync results, badges…). */
 function logEvent(cat, ic, tone, title, body, href = "") {
@@ -483,9 +508,10 @@ async function restoreOrBackup(user) {
   try {
     const remote = await cloud.pullData(user.id);
     const remoteAt = remote ? new Date(remote.updated_at).getTime() : 0;
-    if (remote && remote.data?.profile && (remoteAt > (S.updatedAt || 0) || !S.profile)) {
-      const theme = S.theme; S = Object.assign(blank(), remote.data, { theme }); S.study = Object.assign(studyDefaults(), S.study || {}); localStorage.setItem(KEY, JSON.stringify(S)); toast("Restored your data from the cloud");
+    if (remote && remote.data?.profile && (remoteAt > (S.updatedAt || 0) || !S.profile || S.demo)) {
+      adopt(remote.data, remoteAt); toast("Your account is ready on this device", "success", "Routine, grades and progress restored.");
     } else if (S.profile && !S.demo) { await pushNow(); }
+    idcard?.forget(); // fetch the card pictures from the account if this device doesn't have them
     sync.checkInbox();
     if (S.routine.length && !S.demo) cloud.contribute({ semester: S.routineSem, rows: S.routine, faculty: Object.values(S.faculty) }).catch(() => {});
   } catch (e) { console.warn(e); }
@@ -495,7 +521,7 @@ async function restoreOrBackup(user) {
 /* ───────────── Boot ───────────── */
 const ctx = {
   get S() { return S; }, resetState, pages, save, rerender, route: () => currentRoute, go, qparam, toast, openModal, closeModal, modalHead, confirmModal, modalOpen, busy,
-  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, pushNow, logEvent,
+  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, pushNow, pullNow, logEvent, PAGE_FEATURE,
   afterSignIn: () => signInDone, LETTER, toMin, fmt12, fmtShort, dayIdx, expand, overlaps, toneFor, colorFor, HEX, TONES, gradePoint, cgpaOf, fmtMoney, fmtCountdown, daysUntil, fmtDate, firstName, initials, greeting,
   nextClass, nextPayment, markAttendance, facultyIndex, facBy, facName, offered, sectionBlocks, roomData, freeRoomsAt, baseRoom, enableNotifications, taskLine, duePill, TASK_IC, inbox, loadDemo, onSignedIn,
   isDark, applyTheme, palette, roleLabel, navFor, nextSemesterGuess, DAY_NAMES, WEEK, SLOTS, GRADES, NON_GPA, DEMO, parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey
@@ -530,5 +556,7 @@ if (cloud.enabled) {
 setInterval(() => { if (currentRoute === "home" && !modalOpen() && document.visibilityState === "visible") rerender(); }, 60000);
 // Pick up pages the extension sends while the app is open (every 2 min, and whenever the app comes back to the front).
 setInterval(() => { if (document.visibilityState === "visible" && !modalOpen()) sync.checkInbox(); }, 120000);
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") sync.checkInbox(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { sync.checkInbox(); pullNow(); } else if (C.user && S.updatedAt > (S.syncedAt || 0)) pushNow(); });
+setInterval(() => { if (document.visibilityState === "visible") pullNow(); }, 60000);
+addEventListener("online", () => pullNow());
 if ("serviceWorker" in navigator && !native.isNative && import.meta.env.PROD) navigator.serviceWorker.register("/sw.js").catch(() => {});

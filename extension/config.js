@@ -3,5 +3,5 @@
 self.EWUD_CONFIG = {
   supabaseUrl: "",
   supabaseKey: "",
-  appUrl: "http://localhost:5500/app.html"
+  appUrl: "https://ewudiots.vercel.app/app.html"
 };

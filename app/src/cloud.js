@@ -33,8 +33,25 @@ export async function pullData(userId) {
 }
 export async function pushData(userId, data) {
   need();
-  ok(await sb.from("user_data").upsert({ user_id: userId, data, updated_at: new Date().toISOString() }));
+  const updated_at = new Date().toISOString();
+  ok(await sb.from("user_data").upsert({ user_id: userId, data, updated_at }));
+  return updated_at;
 }
+
+/* ---------- ID card pictures (private bucket "idcards", one folder per student, owner-only) ---------- */
+const CARD_FILES = ["front", "back", "photo"];
+export async function uploadCard(userId, side, dataUrl) {
+  need();
+  const blob = await (await fetch(dataUrl)).blob();
+  ok(await sb.storage.from("idcards").upload(`${userId}/${side}.jpg`, blob, { contentType: blob.type || "image/jpeg", upsert: true }));
+}
+export async function downloadCard(userId, side) {
+  need();
+  const { data, error } = await sb.storage.from("idcards").download(`${userId}/${side}.jpg`);
+  if (error || !data) return null;
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(data); });
+}
+export async function deleteCards(userId) { need(); ok(await sb.storage.from("idcards").remove(CARD_FILES.map((s) => `${userId}/${s}.jpg`))); }
 
 /* ---------- Alumni profile (reviewed by an admin before it shows) ---------- */
 export async function submitAlumni(p) {
@@ -134,6 +151,7 @@ export async function deleteAccount(userId) {
   need();
   const { data: files } = await sb.storage.from("vault").list(userId, { limit: 1000 });
   if (files?.length) await sb.storage.from("vault").remove(files.map((f) => `${userId}/${f.name}`));
+  await deleteCards(userId).catch(() => {});
   ok(await sb.rpc("delete_my_account"));
   await sb.auth.signOut();
 }

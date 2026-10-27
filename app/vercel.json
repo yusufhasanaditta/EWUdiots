@@ -3,8 +3,13 @@
   "framework": "vite",
   "buildCommand": "vite build",
   "outputDirectory": "dist",
+  "redirects": [
+    { "source": "/download/android", "destination": "https://github.com/yusufhasanaditta/EWUdiots/releases/latest/download/EWUdiots.apk", "permanent": false },
+    { "source": "/download/extension", "destination": "https://github.com/yusufhasanaditta/EWUdiots/releases/latest/download/EWUdiots-extension.zip", "permanent": false }
+  ],
   "headers": [
     { "source": "/data/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" }] },
+    { "source": "/tesseract/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=2592000, immutable" }] },
     { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
   ]
 }

@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
-import { resolve } from "node:path";
-import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { readFileSync, mkdirSync, copyFileSync } from "node:fs";
 import { fetchNotices, parseNotices, NOTICE_SOURCE } from "./src/notices.js";
 import { fetchNews, parseNews, NEWS_SOURCE } from "./src/news.js";
 
@@ -27,8 +27,34 @@ const ewuApi = () => {
   return { name: "ewu-api", configureServer: (s) => { s.middlewares.use(handle); }, configurePreviewServer: (s) => { s.middlewares.use(handle); } };
 };
 
+/* Self-hosted OCR engine (tesseract.js worker, WASM core, English data) under /tesseract/, so screenshot and
+   ID-card scanning work inside the Android app and offline instead of depending on a CDN. */
+const OCR_FILES = [
+  ["tesseract.js/dist/worker.min.js", "worker.min.js"],
+  ...["lstm", "simd-lstm", "relaxedsimd-lstm"].map((v) => [`tesseract.js-core/tesseract-core-${v}.wasm.js`, `core/tesseract-core-${v}.wasm.js`]),
+  ["@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz", "lang/eng.traineddata.gz"]
+];
+const ocrAssets = () => {
+  const src = (f) => resolve(import.meta.dirname, "node_modules", f);
+  const serve = (req, res, next) => {
+    const hit = OCR_FILES.find(([, to]) => req.url.split("?")[0] === "/tesseract/" + to);
+    if (!hit) return next();
+    res.setHeader("content-type", hit[1].endsWith(".gz") ? "application/octet-stream" : "text/javascript");
+    res.end(readFileSync(src(hit[0])));
+  };
+  return {
+    name: "ocr-assets",
+    configureServer: (s) => { s.middlewares.use(serve); },
+    writeBundle: (opts) => OCR_FILES.forEach(([from, to]) => {
+      const out = resolve(opts.dir, "tesseract", to);
+      mkdirSync(dirname(out), { recursive: true });
+      copyFileSync(src(from), out);
+    })
+  };
+};
+
 export default defineConfig({
-  plugins: [ewuApi()],
+  plugins: [ewuApi(), ocrAssets()],
   build: {
     target: "es2020",
     rollupOptions: {
