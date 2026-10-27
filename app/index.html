@@ -12,10 +12,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <script>
-    // Inside the Android/iOS app shell, skip the website and open the app.
-    if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) location.replace("/app.html");
-  </script>
+  <script src="/native-redirect.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Caveat:wght@600&display=swap" rel="stylesheet">

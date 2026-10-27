@@ -2,6 +2,8 @@
 # (Cloudflare Pages, Netlify, Vercel, Firebase Hosting) or connect the host to this repo directly.
 name: Web build
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest

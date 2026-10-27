@@ -19,3 +19,4 @@ new
 
 # Signing keys and passwords (back these up somewhere safe)
 .secrets/
+extension.zip

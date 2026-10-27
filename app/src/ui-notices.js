@@ -83,5 +83,5 @@ export function install(ctx) {
 
   setInterval(() => { if (document.visibilityState === "visible") refresh(); }, POLL);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
-  return { refresh, homeCard, inboxItems, unseenCount };
+  return { refresh, homeCard, inboxItems, unseenCount, list };
 }

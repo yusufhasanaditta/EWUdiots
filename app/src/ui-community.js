@@ -136,5 +136,7 @@ export function install(ctx) {
       });
     });
   }
-  return { homeNews, refreshNews: refresh };
+  // For the assistant: the news feed and every alumni record (newsletter stories + approved profiles).
+  const alumniRows = async () => { await loadAlumni(); const F = alum.fields || [], extra = ctx.content.data.alumni || []; return (alum.alumni || []).map((row) => ({ ...Object.fromEntries(F.map((k, i) => [k, row[i]])), source: alum.issues[row[F.indexOf("issue")]] })).concat(extra); };
+  return { homeNews, refreshNews: refresh, newsList: () => feed?.news || [], alumniRows };
 }

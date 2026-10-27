@@ -70,7 +70,10 @@ await api(`/v1/projects/${ref}/config/auth`, { method: "PATCH", body: {
   smtp_admin_email: smtp.SMTP_USER, smtp_sender_name: "EWUdiots", smtp_host: smtp.SMTP_HOST, smtp_port: smtp.SMTP_PORT, smtp_user: smtp.SMTP_USER, smtp_pass: smtp.SMTP_PASS, smtp_max_frequency: 30,
   rate_limit_email_sent: 400, rate_limit_otp: 150, rate_limit_verify: 300,
   mailer_subjects_magic_link: "{{ .Token }} is your EWUdiots code", mailer_templates_magic_link_content: mail("Your sign-in code", "Here's your code to sign in to EWUdiots:"),
-  mailer_subjects_confirmation: "{{ .Token }} is your EWUdiots code", mailer_templates_confirmation_content: mail("Welcome to EWUdiots", "Welcome! Enter this code in the app to finish creating your account:")
+  mailer_subjects_confirmation: "{{ .Token }} is your EWUdiots code", mailer_templates_confirmation_content: mail("Welcome to EWUdiots", "Welcome! Enter this code in the app to finish creating your account:"),
+  mailer_subjects_recovery: "{{ .Token }} resets your EWUdiots password", mailer_templates_recovery_content: mail("Reset your password", "Someone (hopefully you) asked to reset your EWUdiots password. Enter this code in the app, then choose a new password:"),
+  password_min_length: 8, password_required_characters: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789",
+  mailer_secure_email_change_enabled: true, refresh_token_rotation_enabled: true, security_refresh_token_reuse_interval: 10
 } });
 console.log("Auth: email codes via", smtp.SMTP_USER);
 

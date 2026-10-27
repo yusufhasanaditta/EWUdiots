@@ -39,17 +39,12 @@ async function session() {
   try { await saveSession(await api("/auth/v1/token?grant_type=refresh_token", { body: { refresh_token: s.refresh_token } })); return (await chrome.storage.local.get("session")).session; }
   catch (e) { if (e.status === 400 || e.status === 401) await chrome.storage.local.remove("session"); return e.status ? null : s; } // offline: keep the session, retry later
 }
-// The popup closes whenever you switch tabs to read the code, so the pending email is kept for 15 minutes.
-let pendingEmail = "";
-const setPending = async (email) => { pendingEmail = email; if (email) await chrome.storage.local.set({ pendingEmail: { email, at: Date.now() } }); else await chrome.storage.local.remove("pendingEmail"); };
 
 async function render() {
-  const { auto = true, appUrl = CFG.appUrl, pendingEmail: pe } = await chrome.storage.local.get(["auto", "appUrl", "pendingEmail"]);
-  pendingEmail = pe && Date.now() - pe.at < 15 * 60e3 ? pe.email : "";
+  const { auto = true, appUrl = CFG.appUrl } = await chrome.storage.local.get(["auto", "appUrl"]);
   const [pages, b, s] = [await getPages(), await backend(), await session()];
   $("#auto").checked = auto; $("#app-url").value = appUrl || "";
   $("#auth-off").hidden = Boolean(b); $("#auth-out").hidden = !b || Boolean(s); $("#auth-in").hidden = !s;
-  $("#mail-form").hidden = Boolean(pendingEmail); $("#code-form").hidden = !pendingEmail; $("#code-to").textContent = pendingEmail;
   if (s) { $("#me-mail").textContent = s.user.email; $("#me-av").textContent = s.user.email.slice(0, 2).toUpperCase(); showAccount(s); }
   const list = $("#pages"); list.innerHTML = "";
   const known = new Set(PAGES.map((p) => p[0]));
@@ -86,27 +81,20 @@ async function showAccount(s) {
   } catch { box.hidden = true; }
 }
 
+// Same password as the app. New accounts and password resets happen in the app (students need their ID card there).
+const emailFor = (v) => { v = v.trim().toLowerCase(); return /^\d{4}-\d-\d{2}-\d{3}$/.test(v) ? v + "@std.ewubd.edu" : v; };
 $("#mail-form").addEventListener("submit", async (e) => {
-  e.preventDefault(); const email = $("#email").value.trim().toLowerCase();
-  if (!EWU_EMAIL.test(email)) return status("Use your EWU student email, e.g. 2024-1-60-123@std.ewubd.edu", "err");
-  $("#mail-go").disabled = true; status("Sending code…");
-  // Accounts are created in the app, where signing up needs both sides of the EWU ID card; here you only sign in.
-  try { await api("/auth/v1/otp", { body: { email, create_user: false } }); await setPending(email); status("Check your EWU mail (and spam) for the 6-digit code.", "ok"); render(); setTimeout(() => $("#code").focus(), 50); }
-  catch (err) {
-    const { appUrl = CFG.appUrl } = await chrome.storage.local.get("appUrl");
-    if (/signup|not allowed|not found/i.test(err.message)) { status("No EWUdiots account for this email yet. Create it in the app first (sign in with your ID card), then come back.", "err"); $("#make-acct").hidden = false; $("#make-acct").href = appUrl.replace(/#.*$/, "") + "#/login"; }
-    else status(/rate|seconds/i.test(err.message) ? "Please wait a minute before asking for another code." : err.message, "err");
-  } finally { $("#mail-go").disabled = false; }
+  e.preventDefault(); const email = emailFor($("#email").value), password = $("#pw").value;
+  if (!email || !password) return status("Enter your student ID (or email) and password.", "err");
+  $("#mail-go").disabled = true; status("Signing in…");
+  try { await saveSession(await api("/auth/v1/token?grant_type=password", { body: { email, password } })); $("#pw").value = ""; status("Signed in.", "ok"); render(); }
+  catch (err) { status(/invalid/i.test(err.message) ? "Wrong ID/email or password. Forgot it? Use the link below." : /confirm/i.test(err.message) ? "Verify your email in the app first." : err.message, "err"); }
+  finally { $("#mail-go").disabled = false; }
 });
-$("#code-form").addEventListener("submit", async (e) => {
-  e.preventDefault(); const token = $("#code").value.trim();
-  if (!/^\d{6}$/.test(token)) return status("Enter the 6-digit code.", "err");
-  $("#code-go").disabled = true; status("Verifying…");
-  try { await saveSession(await api("/auth/v1/verify", { body: { type: "email", email: pendingEmail, token } })); await setPending(""); status("Signed in.", "ok"); render(); }
-  catch (err) { status(/expired|invalid/i.test(err.message) ? "That code is wrong or expired. Try again." : err.message, "err"); } finally { $("#code-go").disabled = false; }
-});
-$("#make-acct").addEventListener("click", (e) => { e.preventDefault(); chrome.tabs.create({ url: e.currentTarget.href }); });
-$("#code-back").addEventListener("click", async () => { await setPending(""); status(""); render(); });
+document.querySelectorAll("[data-app]").forEach((a) => a.addEventListener("click", async (e) => {
+  e.preventDefault(); const { appUrl = CFG.appUrl } = await chrome.storage.local.get("appUrl");
+  if (validUrl(appUrl)) chrome.tabs.create({ url: appUrl.replace(/#.*$/, "") + a.dataset.app });
+}));
 $("#sign-out").addEventListener("click", async () => {
   const s = await session();
   if (s) api("/auth/v1/logout", { token: s.access_token }).catch(() => {});

@@ -94,7 +94,7 @@ try {
   check("admin: sign-in screen with demo option", /EWUdiots Admin/.test(await text()) && !!(await p.$("#lg-demo")));
   await click("#lg-demo", 1200);
   t = await text();
-  check("admin overview: KPIs + live feeds", (await p.$$eval(".kpi", (k) => k.length)) === 6 && /Live feeds/.test(t) && /Demo mode/.test(t));
+  check("admin overview: KPIs + live feeds", (await p.$$eval(".kpi", (k) => k.length)) === 10 && /Sign-ups, last 30 days/.test(t) && /Live feeds/.test(t) && /Demo mode/.test(t));
   check("admin: feeds healthy", (await p.$$eval("#feeds .itile.green", (i) => i.length)) === 2);
   check("admin: badges for pending work", await p.$eval('[data-badge="alumni"]', (b) => !b.hidden && b.textContent === "2"));
   await shot("admin-overview");

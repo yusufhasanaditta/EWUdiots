@@ -45,6 +45,7 @@ export function install(ctx) {
     const desktop = `<div class="d-only">
       <section class="hero-banner"><span class="fluid" aria-hidden="true"><i></i><i></i><i></i></span><span class="date">${now.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })} ${icon("star", "sm")}</span>
         <h1><small>${ctx.greeting()},</small>${first}!</h1><p>Small steps. Big progress.</p></section>
+      <div class="mt"><a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Remind me 30 min before”</span></span>${icon("arrow")}</a></div>
       <div class="dtiles mt">${[["routine", "calendar", "purple", "Routine", "View your classes"], ["planner", "listcheck", "green", "Advising Planner", "Plan next semester"], ["map", "map", "blue", "Campus Map", "Rooms, routes & 3D walk"], ["grades", "bars", "purple", "CGPA", "Track your progress"],
         ["tasks", "clipboard", "red", "Deadlines", "Assignments & exams"], ["fees", "wallet", "orange", "Fees", "Payments & installments"], ["vault", "vault", "blue", "Study Vault", "Notes, past papers"], ["rooms", "door", "purple", "Free Rooms", "Find empty classrooms"]]
         .map(([id, ic, tone, t, d]) => `<a class="dtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span><div class="min0"><b>${t}</b><span>${d}</span></div></a>`).join("")}</div>
@@ -70,6 +71,7 @@ export function install(ctx) {
         <a class="streak-chip" href="#/me" aria-label="${str} day study streak">${icon("flame", "sm")}<b>${str}</b></a></div>
       <div class="m-summary">${[[todays.length ? `${todays.filter((b) => b.e > nowM).length}` : "0", todays.length === 1 ? "class today" : "classes today", "#/routine"], [dueToday, "due today", "#/tasks"], [shown ? shown.toFixed(2) : "—", "CGPA", "#/grades"]]
         .map(([v, l, h]) => `<a href="${h}"><b class="num">${v}</b><span>${l}</span></a>`).join("")}</div>
+      <a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Remind me 30 min before”</span></span>${icon("arrow")}</a>
       ${ncCard}${todayStrip}${navStrip}
       <h2 class="mgroup-h">Quick access</h2><div class="qgrid">${TILES.map(([id, ic, tone, t]) => `<a class="qtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span>${t}</a>`).join("")}</div>
       <div class="mt">${deadlines}</div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}
@@ -86,6 +88,7 @@ export function install(ctx) {
     const tiles = [["vault", "vault", "yellow", "Study Vault", "Notes, past papers"], ["rooms", "building", "blue", "Free Rooms", "Find empty classrooms"], ["faculty", "users", "purple", "Faculty", "Directory & reviews"]]
       .concat(S().role === "faculty" ? [["focus", "target", "pink", "Focus", "Deep-work timer"]] : [["cover", "file", "green", "Cover Page", "Make a PDF cover"]]);
     return `<section class="hero-banner"><h1><small>${ctx.greeting()},</small>${esc(ctx.firstName())}!</h1><p>${S().role === "faculty" ? "Rooms, notes and your faculty profile in one place." : "Stay connected with EWU."}</p></section>
+      <div class="mt"><a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Remind me 30 min before”</span></span>${icon("arrow")}</a></div>
       <div class="dtiles mt">${tiles.map(([id, ic, tone, t, dd]) => `<a class="dtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span><div class="min0"><b>${t}</b><span>${dd}</span></div></a>`).join("")}</div>
       ${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}
       <section class="card mt"><div class="card-h"><h2>Free for the next hour</h2><a class="see" href="#/rooms">See All</a></div>
@@ -115,7 +118,7 @@ export function install(ctx) {
     const role = S().role;
     const rk = { faculty: "f", alumni: "a" }[role] || "s", p = S().profile || {};
     const GROUPS = [
-      ["Academics", [["courses", "book", "teal", "My Courses", "Course hubs and notes", "s"], ["planner", "calcheck", "green", "Advising Planner", "Plan your next semester", "s"], ["marks", "notes", "blue", "Marks Estimator", "Predict your grades", "s"],
+      ["Academics", [["alarms", "bell", "pink", "Class Alarms", "Warn me before class", "s"], ["courses", "book", "teal", "My Courses", "Course hubs and notes", "s"], ["planner", "calcheck", "green", "Advising Planner", "Plan your next semester", "s"], ["marks", "notes", "blue", "Marks Estimator", "Predict your grades", "s"],
         ["degree", "cap", "yellow", "Degree Progress", "Credits by requirement", "s"], ["exams", "exam", "orange", "Exam Planner", "Revision plan for exams", "s"], ["fees", "receipt", "red", "Fees & Deadlines", "Track payments and tasks", "s"], ["sync", "sync", "teal", "Sync Portal", "Import from the EWU portal", "s"]]],
       ["Study", [["focus", "target", "pink", "Focus Timer", "Pomodoro and analytics", "sf"], ["cards", "cards", "pink", "Flashcards", "Spaced repetition decks", "sf"], ["vault", "vault", "blue", "Study Vault", "Notes, past papers, slides", "sfa"], ["me", "award", "purple", "Achievements", "View your badges and stats", "sf"]]],
       ["Campus", [["map", "map", "purple", "Campus Map", "Find rooms, walk in 3D", "sfa"], ["rooms", "building", "purple", "Free Rooms", "Find empty classrooms", "sfa"], ["idcard", "user", "teal", "My ID Card", "Your 3D student pass", "s"], ["faculty", "users", "purple", "Faculty & Reviews", "Contacts and ratings", "sfa"], ["cover", "file", "green", "Cover Page", "Assignment cover PDF", "sa"]]],
@@ -143,7 +146,6 @@ export function install(ctx) {
   });
 
   /* ═════════════ PROFILE & SETTINGS ═════════════ */
-  let otpEmail = "";
   pages.profile = () => {
     const St = S(), p = St.profile || {}, L = ctx.study.levelInfo(), x = ctx.study.stats();
     const C = ctx.C, cloud = ctx.cloud;
@@ -157,14 +159,14 @@ export function install(ctx) {
       <section class="card settings-list mt">${row("pf-edit", "userpen", "Edit Profile", "Update your name, ID and program")}<a class="lrow" href="#/idcard"><span class="itile purple">${icon("scan")}</span><span class="body"><b>My ID Card</b><span>${St.idcard ? `${esc(St.idcard.id)}${St.idcard.verified ? " · verified" : ""}` : "Scan your card for a 3D student pass"}</span></span>${icon("chevR", "chev")}</a>${row("pf-acad", "book", "Academic Info", "Role, program, semester and credits")}${row("pf-priv", "shield", "Privacy &amp; Security", "Manage your data and account security")}</section>
       <h2 class="mt-l" style="margin-bottom:10px">Account &amp; Cloud</h2>
       <section class="card">${!cloud.enabled ? `<div class="row nowrap"><span class="itile teal">${icon("database")}</span><div><b>On this device</b><p class="small muted">Everything is saved on this device. Cloud backup isn't connected in this build.</p></div></div>` :
-        C.user ? `<div class="row nowrap"><span class="itile green">${icon("cloud")}</span><div class="grow min0"><b class="ellipsis" style="display:block">${esc(C.user.email)}</b><p class="small muted">${St.lastSync ? `Backed up ${new Date(St.lastSync).toLocaleString()}` : "Backing up…"}</p></div></div><div class="row mt"><button class="btn sm" id="ac-sync">${icon("sync")} Back up now</button><button class="btn sm neutral" id="ac-out">${icon("logout")} Log Out</button></div>` :
+        C.user ? `<div class="row nowrap"><span class="itile green">${icon("cloud")}</span><div class="grow min0"><b class="ellipsis" style="display:block">${esc(C.user.email)}</b><p class="small muted">${St.lastSync ? `Backed up ${new Date(St.lastSync).toLocaleString()}` : "Backing up…"}</p></div></div><div class="row mt"><button class="btn sm" id="ac-sync">${icon("sync")} Back up now</button><button class="btn sm" id="ac-pw">${icon("shield")} Change password</button><button class="btn sm neutral" id="ac-out">${icon("logout")} Log Out</button></div>` :
         `<div class="row nowrap"><span class="itile purple">${icon("cloud")}</span><div class="grow"><b>Back up &amp; unlock shared features</b><p class="small muted">Sign in with your EWU student email for backup, reviews, the shared vault and campus-wide free rooms.</p></div></div><a class="btn primary block mt" href="#/login?from=profile">${icon("mail")} Sign in with EWU email</a>`}</section>
       <h2 class="mt-l" style="margin-bottom:10px">App Preferences</h2>
       <section class="card settings-list">
         ${row("pf-theme", "theme", "Theme", "Light, dark or match your device", { auto: "System", light: "Light", dark: "Dark" }[St.theme])}
         <div class="lrow"><span class="itile purple">${icon("globe")}</span><span class="body"><b>Language</b><span>বাংলা coming soon</span></span><span class="small muted">English</span></div>
         <div class="lrow"><span class="itile purple">${icon("bell")}</span><span class="body"><b>Notifications</b><span>Classes, deadlines and payments</span></span><label class="switch"><input type="checkbox" id="set-notify" ${St.settings.notify ? "checked" : ""} aria-label="Notifications"></label></div>
-        <div class="lrow"><span class="itile purple">${icon("clock")}</span><span class="body"><b>Class reminder</b><span>How early to remind you</span></span><select class="select sm" id="set-min" aria-label="Minutes before class">${[5, 10, 15, 20, 30].map((m) => `<option value="${m}" ${St.settings.remindMin === m ? "selected" : ""}>${m} min</option>`).join("")}</select></div>
+        <a class="lrow" href="#/alarms"><span class="itile purple">${icon("clock")}</span><span class="body"><b>Class alarms</b><span>${St.settings.alarms.on ? St.settings.alarms.offsets.map(ctx.fmtBefore).join(", ") + " before each class" : "Off"}</span></span>${icon("chevR", "chev")}</a>
         <a class="lrow" href="#/sync"><span class="itile purple">${icon("sync")}</span><span class="body"><b>Data Sync</b><span>Re-sync academic data from portal${St.lastImport ? ` · last ${ctx.fmtDate(St.lastImport)}` : ""}</span></span>${icon("chevR", "chev")}</a>
       </section>
       <h2 class="mt-l" style="margin-bottom:10px">Data &amp; Backup</h2>
@@ -203,8 +205,14 @@ export function install(ctx) {
     on("#pf-theme", "click", () => openModal(ctx.modalHead("Theme") + `<div class="stack" style="gap:0">${[["auto", "System", "Match your device"], ["light", "Light", "Bright and clean"], ["dark", "Dark", "Easy on the eyes at night"]].map(([v, l, d]) => `<button class="lrow" data-th="${v}"><span class="itile purple">${icon(v === "dark" ? "moon" : v === "light" ? "sun" : "theme")}</span><span class="body"><b>${l}</b><span>${d}</span></span>${S().theme === v ? icon("check") : ""}</button>`).join("")}</div>`,
       (m) => $$("[data-th]", m).forEach((b) => b.addEventListener("click", () => { S().theme = b.dataset.th; ctx.save({ silent: true }); ctx.applyTheme(); closeModal(); ctx.rerender(); }))));
     on("#set-notify", "change", async (e) => { if (e.target.checked) { if (!(await ctx.enableNotifications())) e.target.checked = false; } else { S().settings.notify = false; ctx.save(); toast("Reminders off", "info"); } });
-    on("#set-min", "change", (e) => { S().settings.remindMin = Number(e.target.value); ctx.save(); toast("Saved"); });
     on("#ac-sync", "click", async (e) => { busy(e.currentTarget, true, "Backing up…"); if (await ctx.pushNow()) toast("Backed up"); else toast("Backup failed", "error", "Check your connection and try again."); ctx.rerender(); });
+    on("#ac-pw", "click", () => openModal(ctx.modalHead("Change password") + `<form id="cp" class="stack" novalidate>${pwField("password", "New password", "new-password")}${pwField("password2", "Confirm new password", "new-password")}<p class="xs">At least 8 characters, with letters and numbers. You stay signed in on this device.</p><div id="cp-err"></div><button class="btn primary block">${icon("check")} Save password</button></form>`, (m) => {
+      $$("[data-eye]", m).forEach((b) => b.addEventListener("click", () => { const i = b.previousElementSibling; i.type = i.type === "password" ? "text" : "password"; }));
+      $("#cp", m).addEventListener("submit", async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), err = (t) => { $("#cp-err", m).innerHTML = authErr(t); };
+        if (!pwOk(f.password)) return err("Use at least 8 characters with letters and numbers."); if (f.password !== f.password2) return err("The two passwords don't match.");
+        const b = e.target.querySelector("button.primary"); busy(b, true, "Saving…");
+        try { await ctx.cloud.changePassword(f.password); closeModal(); toast("Password changed"); } catch (x) { busy(b, false); err(x.message); } });
+    }));
     on("#ac-out", "click", () => confirmModal("Log Out?", "Are you sure you want to log out of your account? Your data stays on this device.", "Log Out", async () => { await ctx.cloud.signOut(); }, true, "logout"));
     on("#pf-export", "click", () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(S(), null, 2)], { type: "application/json" })); a.download = "ewudiots-data.json"; a.click(); toast("Export downloaded"); });
     on("#pf-wipe", "click", () => confirmModal("Clear Local Data?", `Removes your profile, routine, grades, tasks and settings from this device.${ctx.C.user ? " Your cloud backup stays — sign in again to restore." : " This action cannot be undone."}`, "Clear Data", async () => { if (ctx.C.user) await ctx.cloud.signOut(); ctx.resetState(); ctx.go("#/welcome"); toast("Device cleared", "info"); }, true));
@@ -220,9 +228,21 @@ export function install(ctx) {
     ["Can I use it without an account?", "Yes. Everything works on your device. Signing in with your EWU email only adds backup and shared features like reviews and the study vault."],
     ["Is this the official EWU app?", "No. EWUdiots is an unofficial project by students. Always confirm important information on the official portal."]
   ];
+  ctx.FAQ = FAQ; // the assistant answers how-to questions from these
   pages.help = () => `${ctx.subHead("Help &amp; Support", "", "#/more")}<div style="max-width:760px;margin:0 auto">
     <section class="card">${FAQ.map(([q, a]) => `<details class="lrow" style="display:block"><summary style="font-weight:600;padding:4px 0">${esc(q)}</summary><p class="small muted" style="margin-top:8px">${esc(a)}</p></details>`).join("")}</section>
-    <section class="card mt row nowrap"><span class="itile purple">${icon("mail")}</span><div class="grow"><b>Still need help?</b><p class="small muted">Send feedback, report a bug or request a feature.</p></div><a class="btn primary sm" href="mailto:civicframe01@gmail.com?subject=EWUdiots%20feedback">Contact</a></section></div>`;
+    ${ctx.C.user ? `<form class="card mt stack" id="fb-form"><div class="row nowrap"><span class="itile purple">${icon("mail")}</span><div class="grow"><b>Send feedback</b><p class="small muted">Report a bug, ask a question or request a feature. The EWUdiots team reads every message.</p></div></div>
+      <div class="seg" role="radiogroup">${[["idea", "Idea"], ["bug", "Bug"], ["question", "Question"], ["other", "Other"]].map(([v, l], i) => `<label class="seg-radio"><input type="radio" name="kind" value="${v}" ${i ? "" : "checked"}><span>${l}</span></label>`).join("")}</div>
+      <label class="field"><span class="sr-only">Message</span><textarea class="input" name="body" rows="4" minlength="3" maxlength="4000" required placeholder="Tell us what happened or what you'd like…"></textarea></label>
+      <button class="btn primary">${icon("arrow")} Send to the team</button></form>`
+      : `<section class="card mt row nowrap"><span class="itile purple">${icon("mail")}</span><div class="grow"><b>Still need help?</b><p class="small muted">Sign in to send feedback in the app, or email us.</p></div><a class="btn primary sm" href="mailto:civicframe01@gmail.com?subject=EWUdiots%20feedback">Contact</a></section>`}</div>`;
+  pages.help.mount = (el) => $("#fb-form", el)?.addEventListener("submit", async (e) => {
+    e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), b = e.target.querySelector("button.primary");
+    if (String(f.body).trim().length < 3) return toast("Write a little more first", "warn");
+    busy(b, true, "Sending…");
+    try { await ctx.cloud.sendFeedback(f.kind, String(f.body), ctx.APP_VERSION); e.target.reset(); toast("Thanks! The team got your message", "success"); } catch (err) { toast(err.message, "error"); }
+    busy(b, false);
+  });
   pages.about = () => `${ctx.subHead("About EWUdiots", "", "#/more")}<div style="max-width:760px;margin:0 auto">
     <section class="card" style="text-align:center"><div class="ob-word" style="padding:8px 0"><span class="w" style="font-size:38px">EWU<i>diots</i>${spark}</span><p>Your Uni Life, In One App</p><span class="unoff">Unofficial · not affiliated with EWU</span></div>
       <p class="small muted mt">Version ${ctx.APP_VERSION}. Made by EWU students, for EWU students. EWUdiots is not affiliated with, endorsed by or connected to East West University. Always confirm important information on the official portal.</p>
@@ -258,54 +278,127 @@ export function install(ctx) {
     on("#ob-skip", afterWelcome); on("#ob-start", afterWelcome);
   };
 
+  /* ── Accounts: sign in (ID/email + password) · create account (students: both sides of the ID card) · verify the
+     email with a 6-digit code · forgot password (code by email → new password). Admins use the admin console. ── */
+  const auth = { mode: "signin", role: "student", email: "", card: null, name: "", pendingRole: "" };
+  const pwOk = (p) => p.length >= 8 && /[A-Za-z]/.test(p) && /\d/.test(p);
+  const pwField = (name, label, auto) => `<label class="field">${label}<span class="pw-wrap"><input class="input" name="${name}" type="password" autocomplete="${auto}" minlength="8" required><button type="button" class="pw-eye" data-eye aria-label="Show password">${icon("eye", "sm")}</button></span></label>`;
+  const authErr = (msg) => `<div class="alert red mt-s" role="alert"><span class="a-ic">${icon("alert")}</span><div><b>${esc(msg)}</b></div></div>`;
   pages.login = () => {
     const from = ctx.qparam("from"), back = from === "profile" ? "#/profile" : "#/welcome?s=2";
+    const m = ctx.qparam("m"); if (m && ["signin", "signup", "forgot"].includes(m) && auth.mode !== "verify" && auth.mode !== "reset") auth.mode = m;
     if (!ctx.cloud.enabled) return obShell(`<h1>Sign in</h1><p class="muted mt-s">Cloud accounts aren't connected in this build. Everything works on this device.</p>`, { back, foot: `<button class="btn primary lg block" id="lg-skip">Continue</button>` });
     if (ctx.C.user) return obShell(`<div class="empty"><span class="ill">${icon("checkc")}</span><h3>You're signed in</h3><p>${esc(ctx.C.user.email)}</p></div>`, { back, foot: `<button class="btn primary lg block" id="lg-skip">Continue</button>` });
-    const card = ctx.idcard.savedCard();
-    return obShell(`<div class="ob-word" style="padding-top:20px"><span class="w" style="font-size:38px">EWU<i>diots</i>${spark}</span><div><span class="unoff">Unofficial · not affiliated with EWU</span></div></div>
-      <h2 class="mt-l" style="text-align:center">Sign in with your ID card</h2><p class="muted small" style="text-align:center;margin-top:4px">${otpEmail ? `We sent a 6-digit code to <b>${esc(otpEmail)}</b>. Open your EWU student mail (check spam too).` : "Add both sides of your EWU ID card. We send a 6-digit code to your EWU student email — no password needed."}</p>
-      ${otpEmail ? `<form id="otp-form" class="stack mt"><label class="field">Code<input class="input otp" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="\\d{6}" maxlength="6" required></label><button class="btn primary lg block">Verify &amp; Sign In</button>
-          <div class="row"><button type="button" class="btn ghost grow" id="otp-resend">${icon("reset")} Send again</button><button type="button" class="btn ghost grow" id="otp-back">Use another card</button></div></form>`
-        : card ? `<div class="card soft mt row nowrap"><span class="itile purple">${icon("user")}</span><div class="grow min0"><b>${esc(card.name || "Your card")}</b><p class="small muted">${esc(card.id)} · both sides added</p></div></div>
-          <button class="btn primary lg block mt" id="lg-saved">${icon("mail")} Send code to ${esc(card.id)}@std.ewubd.edu</button><button class="btn ghost block" id="lg-card">${icon("scan")} Use a different card</button>`
-        : `<ol class="login-steps mt">${[["scan", "Front of your card", "The side with your photo and ID"], ["reset", "Back of your card", "Turn it over and snap again"], ["mail", "Code to your EWU mail", "<id>@std.ewubd.edu"]].map(([ic, t, d]) => `<li><span class="itile sm purple">${icon(ic)}</span><div><b>${t}</b><span>${esc(d)}</span></div></li>`).join("")}</ol>
-          <button class="btn primary lg block mt" id="lg-card">${icon("scan")} Scan my ID card</button>`}
-      <p class="small muted mt" style="text-align:center">Only real EWU students can sign in. One account works in the app, on the web, on Windows and in the Chrome extension.</p>`,
+    const brand = `<div class="ob-word" style="padding-top:12px"><span class="w" style="font-size:34px">EWU<i>diots</i>${spark}</span><div><span class="unoff">Unofficial · not affiliated with EWU</span></div></div>`;
+    const tabs = auth.mode === "signin" || auth.mode === "signup" ? `<div class="seg auth-tabs mt" role="tablist">${[["signin", "Sign in"], ["signup", "Create account"]].map(([v, l]) => `<button role="tab" data-am="${v}" aria-selected="${auth.mode === v}">${l}</button>`).join("")}</div>` : "";
+    let body = "";
+    if (auth.mode === "signin") body = `<form id="au-in" class="stack mt" novalidate>
+        <label class="field">Student ID or email<span class="searchbar">${icon("user")}<input class="input" name="who" autocomplete="username" placeholder="2024-1-60-123 or you@gmail.com" value="${esc(auth.email)}" required></span></label>
+        ${pwField("password", "Password", "current-password")}
+        <div class="row between"><label class="row small" style="gap:6px"><input type="checkbox" class="check" checked disabled> Keep me signed in</label><button type="button" class="lnk" data-am="forgot">Forgot password?</button></div>
+        <div id="au-err"></div><button class="btn primary lg block">${icon("arrow")} Sign in</button></form>`;
+    else if (auth.mode === "signup") {
+      const R = [["student", "user", "Student"], ["alumni", "cap", "Alumni"], ["faculty", "briefcase", "Faculty"]];
+      body = `<div class="role-pick mt" role="radiogroup" aria-label="I am">${R.map(([v, ic, l]) => `<button type="button" role="radio" data-ar="${v}" aria-checked="${auth.role === v}">${icon(ic)}<span>${l}</span></button>`).join("")}</div>
+        <form id="au-up" class="stack mt" novalidate>
+        ${auth.role === "student" ? (auth.card ? `<div class="card soft row nowrap"><span class="itile green">${icon("checkc")}</span><div class="grow min0"><b>${esc(auth.card.name || "ID card added")}</b><p class="small muted">${esc(auth.card.id)}@std.ewubd.edu · both sides added</p></div><button type="button" class="btn sm ghost" id="au-card">${icon("reset", "sm")} Redo</button></div>`
+            : `<button type="button" class="id-cta" id="au-card"><span class="itile purple">${icon("scan")}</span><span class="grow"><b>Scan both sides of your ID card</b><span>Required. We read your student ID and send the code to your EWU mail.</span></span>${icon("chevR")}</button>`)
+          : `<label class="field">Full name<input class="input" name="name" autocomplete="name" required value="${esc(auth.name)}" placeholder="Your name"></label>
+             <label class="field">Email<span class="searchbar">${icon("mail")}<input class="input" name="email" type="email" autocomplete="email" required value="${esc(auth.email)}" placeholder="you@gmail.com"></span><span class="hint">Your personal email (Gmail is fine). We send a code to check it.</span></label>`}
+        ${pwField("password", "Create a password", "new-password")}${pwField("password2", "Confirm password", "new-password")}
+        <p class="xs">At least 8 characters, with letters and numbers.</p>
+        <div id="au-err"></div><button class="btn primary lg block" ${auth.role === "student" && !auth.card ? "disabled" : ""}>${icon("mail")} Create account &amp; send code</button></form>`;
+    } else if (auth.mode === "verify") body = `<div class="verify-ill">${icon("mail")}</div><h2 style="text-align:center">Check your email</h2><p class="muted small" style="text-align:center">We sent a 6-digit code to <b>${esc(auth.email)}</b>.${/@std\.ewubd\.edu$/.test(auth.email) ? " Open your EWU student mail" : " Open your inbox"} (check spam too).</p>
+        <form id="au-code" class="stack mt" novalidate><label class="field">Code<input class="input otp" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label><div id="au-err"></div>
+        <button class="btn primary lg block">${icon("check")} Verify &amp; continue</button><div class="row"><button type="button" class="btn ghost grow" id="au-resend">${icon("reset")} Send a new code</button><button type="button" class="btn ghost grow" data-am="signin">Back</button></div></form>`;
+    else if (auth.mode === "forgot") body = `<h2 class="mt" style="text-align:center">Forgot your password?</h2><p class="muted small" style="text-align:center">Enter your student ID or email. We'll email you a 6-digit code to set a new password.</p>
+        <form id="au-fg" class="stack mt" novalidate><label class="field">Student ID or email<span class="searchbar">${icon("user")}<input class="input" name="who" autocomplete="username" required value="${esc(auth.email)}" placeholder="2024-1-60-123 or you@gmail.com"></span></label><div id="au-err"></div>
+        <button class="btn primary lg block">${icon("mail")} Email me a code</button><button type="button" class="btn ghost block" data-am="signin">Back to sign in</button></form>`;
+    else if (auth.mode === "reset") body = `<h2 class="mt" style="text-align:center">Set a new password</h2><p class="muted small" style="text-align:center">Enter the code we sent to <b>${esc(auth.email)}</b> and choose a new password.</p>
+        <form id="au-rs" class="stack mt" novalidate><label class="field">Code<input class="input otp" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label>
+        ${pwField("password", "New password", "new-password")}${pwField("password2", "Confirm new password", "new-password")}<div id="au-err"></div>
+        <button class="btn primary lg block">${icon("check")} Save password &amp; sign in</button><button type="button" class="btn ghost block" data-am="forgot">Send a new code</button></form>`;
+    return obShell(`${brand}${tabs}${body}<p class="xs mt" style="text-align:center">One account for the phone app, web, Windows, Mac and the Chrome extension. Admins sign in at <a href="/admin.html">the admin console</a>.</p>`,
       { back, foot: from === "profile" ? "" : `<button class="btn ghost block" id="lg-skip">Continue without an account</button>` });
   };
   pages.login.mount = (el) => {
     const from = ctx.qparam("from");
-    const next = () => ctx.go(from === "profile" ? "#/profile" : "#/role");
+    const next = () => ctx.go(from === "profile" ? "#/profile" : S().profile ? "#/home" : "#/setup");
     const on = (sel, ev, fn) => { const x = $(sel, el); x && x.addEventListener(ev, fn); };
-    on("#lg-skip", "click", next);
-    const send = async (card, btn) => {
-      const email = `${card.id}@std.ewubd.edu`;
-      busy(btn, true, "Sending code…");
-      try { await ctx.cloud.sendCode(email); ctx.idcard.pending = card; otpEmail = email.toLowerCase(); toast("Code sent", "success", `Check ${email}`); ctx.rerender(); }
-      catch (err) { busy(btn, false); toast(/rate|seconds|many/i.test(err.message) ? "Please wait a minute before asking for another code" : err.message, "error"); }
+    const fail = (msg) => { const e = $("#au-err", el); if (e) e.innerHTML = authErr(msg); else toast(msg, "error"); };
+    const mode = (m) => { auth.mode = m; ctx.rerender(); };
+    on("#lg-skip", "click", () => ctx.go(from === "profile" ? "#/profile" : "#/role"));
+    $$("[data-am]", el).forEach((b) => b.addEventListener("click", () => mode(b.dataset.am)));
+    $$("[data-ar]", el).forEach((b) => b.addEventListener("click", () => { auth.role = b.dataset.ar; ctx.rerender(); }));
+    $$("[data-eye]", el).forEach((b) => b.addEventListener("click", () => { const i = b.previousElementSibling; i.type = i.type === "password" ? "text" : "password"; b.setAttribute("aria-label", i.type === "password" ? "Show password" : "Hide password"); }));
+    // After any successful sign-in: wait for the cloud restore, apply the role, keep a verified card.
+    const done = async (msg) => {
+      for (let i = 0; i < 30 && !ctx.C.user; i++) await new Promise((r) => setTimeout(r, 100));
+      await ctx.afterSignIn();
+      const role = ctx.cloud.roleOf(ctx.C.user) || auth.pendingRole;
+      if (["student", "alumni", "faculty"].includes(role)) S().role = role;
+      if (auth.card && ctx.C.user?.email?.startsWith(auth.card.id)) await ctx.idcard.commit(auth.card, { verified: true, email: ctx.C.user.email });
+      if (!S().profile && auth.name) S().profile = { name: auth.name, creditsTotal: 140, semester: ctx.currentSemester() };
+      ctx.save(); Object.assign(auth, { mode: "signin", card: null, pendingRole: "" });
+      toast(msg, "success"); next();
     };
-    on("#otp-back", "click", () => { otpEmail = ""; ctx.idcard.pending = null; ctx.rerender(); });
-    on("#otp-resend", "click", (e) => { const c = ctx.idcard.pending || ctx.idcard.savedCard(); if (c) send(c, e.currentTarget); });
-    on("#lg-saved", "click", (e) => send(ctx.idcard.savedCard(), e.currentTarget));
-    on("#lg-card", "click", async () => {
-      const card = await ctx.idcard.scan({ title: "Sign in with your ID card", cta: "Send code to my EWU email" });
-      if (card) send(card, $("#lg-card", el));
+    on("#au-card", "click", async () => {
+      const card = await ctx.idcard.scan({ title: "Your EWU ID card", cta: "Use this card" });
+      if (card) { auth.card = card; auth.email = `${card.id}@std.ewubd.edu`; auth.name = card.name; ctx.rerender(); }
     });
-    on("#otp-form", "submit", async (e) => {
-      e.preventDefault(); const btn = e.target.querySelector("button.primary");
-      busy(btn, true, "Verifying…");
-      try {
-        await ctx.cloud.verifyCode(otpEmail, String(new FormData(e.target).get("code")));
-        const card = ctx.idcard.pending, mail = otpEmail; otpEmail = ""; ctx.idcard.pending = null;
-        // Let the cloud restore finish first, so a fresh device never overwrites the backup with just the card.
-        for (let i = 0; i < 30 && !ctx.C.user; i++) await new Promise((r) => setTimeout(r, 100));
-        await ctx.afterSignIn();
-        if (card && mail.startsWith(card.id)) await ctx.idcard.commit(card, { verified: true, email: mail });
-        else if (S().idcard && mail.startsWith(S().idcard.id)) { S().idcard.verified = true; S().idcard.email = mail; ctx.save(); }
-        toast("Signed in", "success", card ? "Your ID card is verified and saved." : ""); next();
+    on("#au-in", "submit", async (e) => {
+      e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), btn = e.target.querySelector("button.primary");
+      auth.email = String(f.who).trim();
+      if (!auth.email || !f.password) return fail("Enter your student ID (or email) and password.");
+      busy(btn, true, "Signing in…");
+      try { await ctx.cloud.signInPassword(auth.email, f.password); await done("Welcome back!"); }
+      catch (err) {
+        busy(btn, false);
+        if (/verify your email/i.test(err.message)) { auth.email = ctx.cloud.emailFor(auth.email); ctx.cloud.resendSignup(auth.email).catch(() => {}); mode("verify"); toast("Verify your email", "info", "We sent you a new code."); }
+        else fail(`${err.message}${/wrong/i.test(err.message) ? " Forgot it? Tap Forgot password." : ""}`);
       }
-      catch (err) { busy(btn, false); toast(/expired|invalid/i.test(err.message) ? "That code is wrong or expired" : err.message, "error", "Try again or request a new code."); }
+    });
+    on("#au-up", "submit", async (e) => {
+      e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), btn = e.target.querySelector("button.primary");
+      const email = auth.role === "student" ? auth.card && `${auth.card.id}@std.ewubd.edu` : String(f.email || "").trim().toLowerCase();
+      if (auth.role === "student" && !auth.card) return fail("Scan both sides of your ID card first.");
+      if (auth.role !== "student") { auth.name = String(f.name || "").trim(); auth.email = email; if (auth.name.length < 2) return fail("Please enter your name."); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Please enter a valid email."); if (/@std\.ewubd\.edu$/.test(email)) return fail("Students: choose Student above and scan your ID card."); }
+      if (!pwOk(f.password)) return fail("Use at least 8 characters with letters and numbers.");
+      if (f.password !== f.password2) return fail("The two passwords don't match.");
+      busy(btn, true, "Creating…");
+      try { auth.email = await ctx.cloud.signUp({ email, password: f.password, role: auth.role, name: auth.role === "student" ? auth.card.name : auth.name }); auth.pendingRole = auth.role; mode("verify"); toast("Code sent", "success", `Check ${auth.email}`); }
+      catch (err) { busy(btn, false); if (err.exists) { auth.email = email; fail(err.message); } else fail(err.message); }
+    });
+    on("#au-code", "submit", async (e) => {
+      e.preventDefault(); const code = String(new FormData(e.target).get("code")).trim(), btn = e.target.querySelector("button.primary");
+      if (!/^\d{6}$/.test(code)) return fail("Enter the 6-digit code from the email.");
+      busy(btn, true, "Verifying…");
+      try { await ctx.cloud.verifySignup(auth.email, code); await done("Your account is ready"); }
+      catch (err) { busy(btn, false); fail(err.message); }
+    });
+    let cool = 0;
+    on("#au-resend", "click", async (e) => {
+      if (Date.now() < cool) return toast("Please wait a minute before asking again", "warn");
+      busy(e.currentTarget, true, "Sending…");
+      try { await ctx.cloud.resendSignup(auth.email); cool = Date.now() + 60e3; toast("New code sent", "success", auth.email); } catch (err) { fail(err.message); }
+      busy(e.currentTarget, false);
+    });
+    on("#au-fg", "submit", async (e) => {
+      e.preventDefault(); const who = String(new FormData(e.target).get("who")).trim(), btn = e.target.querySelector("button.primary");
+      if (!who) return fail("Enter your student ID or email.");
+      busy(btn, true, "Sending…");
+      // Same answer whether or not the account exists, so this can't be used to discover who has one.
+      try { auth.email = await ctx.cloud.forgotPassword(who); mode("reset"); toast("If that account exists, a code is on its way", "info", auth.email); }
+      catch (err) { busy(btn, false); fail(err.message); }
+    });
+    on("#au-rs", "submit", async (e) => {
+      e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), btn = e.target.querySelector("button.primary");
+      if (!/^\d{6}$/.test(String(f.code).trim())) return fail("Enter the 6-digit code from the email.");
+      if (!pwOk(f.password)) return fail("Use at least 8 characters with letters and numbers.");
+      if (f.password !== f.password2) return fail("The two passwords don't match.");
+      busy(btn, true, "Saving…");
+      try { await ctx.cloud.resetPassword(auth.email, f.code, f.password); await done("Password changed. You're signed in."); }
+      catch (err) { busy(btn, false); fail(err.message); }
     });
   };
 

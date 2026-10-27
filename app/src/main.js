@@ -19,6 +19,8 @@ import { install as installMap } from "./ui-map.js";
 import { install as installIdCard } from "./ui-idcard.js";
 import { install as installNotices } from "./ui-notices.js";
 import { install as installCommunity } from "./ui-community.js";
+import { install as installAlarms } from "./ui-alarms.js";
+import { install as installAsk } from "./ui-ask.js";
 import { createContent, FEATURES } from "./content.js";
 
 const APP_VERSION = __APP_VERSION__; // from package.json (vite.config.js)
@@ -34,7 +36,7 @@ const blank = () => ({
   profile: null, routine: [], routineSem: "", grades: [], tasks: [], attendance: {}, marks: {},
   faculty: {}, payments: { schedule: [], fees: {} }, degree: [], rules: {}, recommended: [],
   planner: { courses: [], pins: {}, offered: null, offeredSem: "", filters: { noEarly: false, hideFull: true, daysOff: [] }, saved: [] },
-  localReviews: {}, theme: "auto", cover: {}, settings: { remindMin: 10, notify: false }, demo: false, lastSync: null, updatedAt: 0,
+  localReviews: {}, theme: "auto", cover: {}, settings: { remindMin: 10, notify: false, alarms: { on: true, offsets: [10], perCourse: {}, ring: true } }, demo: false, lastSync: null, updatedAt: 0,
   role: "student", onboarded: false, bookmarks: { rooms: [], files: [] }, paid: {}, plans: { whatif: [], marks: {} }, log: [], read: {},
   campus: { rooms: [], from: "E1" }, idcard: null,
   study: studyDefaults()
@@ -42,6 +44,9 @@ const blank = () => ({
 let S;
 try { S = Object.assign(blank(), JSON.parse(localStorage.getItem(KEY) || "{}")); } catch { S = blank(); }
 S.study = Object.assign(studyDefaults(), S.study || {});
+// Class alarms: a default list of "minutes before" for every class, optional per-course lists (older saves had one remindMin).
+const alarmDefaults = (st) => Object.assign({ on: true, offsets: [st.remindMin || 10], perCourse: {}, ring: true }, st.alarms || {});
+S.settings.alarms = alarmDefaults(S.settings);
 if (S.profile && !S.onboarded) S.onboarded = true; // existing users skip the welcome flow
 let pushTimer = null;
 function save({ silent = false } = {}) {
@@ -87,7 +92,7 @@ async function pullNow() {
 function adopt(data, at) {
   const theme = S.theme;
   S = Object.assign(blank(), data, { theme, syncedAt: at, lastSync: new Date(at).toISOString() });
-  S.study = Object.assign(studyDefaults(), S.study || {});
+  S.study = Object.assign(studyDefaults(), S.study || {}); S.settings.alarms = alarmDefaults(S.settings || {});
   facCache = null; idcard?.forget();
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* storage blocked */ }
 }
@@ -192,6 +197,7 @@ function applyTheme() {
 /* ───────────── Navigation (role-aware) ───────────── */
 const NAV = [
   { id: "home", label: "Home", icon: "home", roles: "sfa" },
+  { id: "ask", label: "Ask EWUdiots", icon: "sparkle", roles: "sfa" },
   { id: "routine", label: "Routine", icon: "calendar", roles: "s" },
   { id: "planner", label: "Advising Planner", icon: "calcheck", roles: "s" },
   { id: "courses", label: "Courses", icon: "book", roles: "s" },
@@ -213,7 +219,7 @@ const roleKey = () => ({ faculty: "f", alumni: "a" }[S.role] || "s");
 const navFor = () => NAV.filter((n) => n.roles.includes(roleKey()) && (!n.feature || content.feature(n.feature)));
 // Pages an admin switched off (Settings → Features) are closed for everyone.
 const PAGE_FEATURE = { notices: "notices", news: "news", alumni: "alumni", map: "map", vault: "vault", file: "vault", idcard: "idcard", focus: "focus", cards: "focus", exams: "focus" };
-const SUB = { course: "courses", marks: "courses", degree: "grades", whatif: "grades", plan: "planner", combos: "planner", fee: "fees", prof: "faculty", file: "vault", cards: "focus", exams: "tasks", account: "more", profile: "more", notifications: "home", help: "more", about: "more", cover: "more", sync: "more", idcard: "more" };
+const SUB = { course: "courses", marks: "courses", degree: "grades", whatif: "grades", plan: "planner", combos: "planner", fee: "fees", prof: "faculty", file: "vault", cards: "focus", exams: "tasks", account: "more", profile: "more", notifications: "home", help: "more", about: "more", cover: "more", sync: "more", idcard: "more", alarms: "routine", ask: "ask" };
 const prefersReduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 function renderNav(route) {
   const active = SUB[route] || route;
@@ -236,6 +242,7 @@ function quickAdd() {
   const items = (S.role === "student" ? [
     ["clipboard", "orange", "Add deadline", "Assignment, quiz, lab or exam", () => go("#/tasks?add=1")],
     ["calendar", "purple", "Add a class", "Put a class on your routine", () => go("#/routine?add=1")],
+    ["bell", "pink", "Class alarms", "Get warned 30 min, 1 hour… before class", () => go("#/alarms")],
     ["focus", "pink", "Start focus", "25-minute Pomodoro session", () => study.focusOn()],
     ["cards", "blue", "Add flashcards", "Create cards for a course", () => go("#/cards?add=1")],
     ["exam", "green", "Add an exam", "Get a revision plan", () => go("#/exams?add=1")],
@@ -264,12 +271,13 @@ function inbox() {
   const due = study ? study.dueCards().length : 0;
   if (due) out.push({ id: `c${new Date().toDateString()}`, cat: "Academic", icon: "cards", tone: "blue", title: `${due} flashcard${due === 1 ? "" : "s"} due today`, body: "A quick review keeps your streak alive.", at: new Date(new Date().setHours(8, 0, 0, 0)).toISOString(), href: "#/cards" });
   if (notices) out.push(...notices.inboxItems());
+  (C.messages || []).forEach((m) => out.push({ id: `m${m.id}`, cat: "Campus", icon: "megaphone", tone: "purple", title: m.title, body: m.body || "From the EWUdiots team", at: m.created_at, href: /^(#\/|https:\/\/)/.test(m.link) ? m.link : "#/notifications" }));
   S.log.forEach((l) => out.push(l));
   return out.sort((a, b) => new Date(b.at) - new Date(a.at));
 }
 
 /* ───────────── Command palette (Ctrl+K / search) ───────────── */
-const PAGES_SEARCH = [["home", "Home", "home"], ["routine", "My routine", "calendar"], ["planner", "Advising planner", "calcheck"], ["courses", "My courses", "book"], ["grades", "CGPA", "bars"], ["degree", "Degree progress", "cap"],
+const PAGES_SEARCH = [["ask", "Ask EWUdiots (assistant)", "sparkle"], ["home", "Home", "home"], ["routine", "My routine", "calendar"], ["alarms", "Class alarms (remind me before class)", "bell"], ["planner", "Advising planner", "calcheck"], ["courses", "My courses", "book"], ["grades", "CGPA", "bars"], ["degree", "Degree progress", "cap"],
   ["whatif", "What-if calculator", "calc"], ["marks", "Marks & attendance estimator", "percent"], ["tasks", "Deadlines", "clipboard"], ["exams", "Exam planner", "exam"], ["fees", "Fees & payments", "wallet"], ["vault", "Study vault", "vault"],
   ["rooms", "Free rooms", "door"], ["map", "Campus map & directions", "map"], ["notices", "EWU notice board", "megaphone"], ["news", "Campus news", "globe"], ["alumni", "Alumni: where are they now", "community"], ["idcard", "My ID card", "user"], ["faculty", "Faculty & reviews", "users"], ["focus", "Focus timer", "focus"], ["cards", "Flashcards", "cards"], ["me", "Achievements", "award"], ["cover", "Cover page", "file"],
   ["sync", "Sync portal", "sync"], ["notifications", "Notifications", "bell"], ["profile", "Profile & settings", "settings"]];
@@ -322,6 +330,7 @@ function route({ animate = false } = {}) {
   const r = location.hash.replace(/^#\/?/, "").split("?")[0] || "home";
   let id = pages[r] ? r : r === "account" ? "profile" : "notfound";
   if (PAGE_FEATURE[id] && !content.feature(PAGE_FEATURE[id])) id = "off";
+  if (content.data.settings.maintenance?.on && !maintBypass && !FULLSCREEN.has(id)) id = "maint";
   if (!S.onboarded && !FULLSCREEN.has(id) && id !== "sync") id = "welcome";
   const changed = id !== currentRoute;
   currentRoute = id;
@@ -347,6 +356,10 @@ function route({ animate = false } = {}) {
 window.addEventListener("hashchange", () => route({ animate: true }));
 const rerender = () => route();
 const qparam = (k) => new URLSearchParams(location.hash.split("?")[1] || "").get(k);
+// Maintenance mode (admin panel → Features & maintenance): one screen for everyone, with a way into your own offline data.
+let maintBypass = false;
+pages.maint = () => `<div class="card mt-l maint">${empty("mascot-reading", "We're tidying things up", esc(content.data.settings.maintenance?.text || "EWUdiots is being updated. Please check back soon."), `<button class="btn primary" id="mt-off">${icon("database")} Use my saved data meanwhile</button>`)}</div>`;
+pages.maint.mount = (el) => $("#mt-off", el).addEventListener("click", () => { maintBypass = true; rerender(); });
 pages.off = () => `<div class="card mt-l">${empty("mascot-reading", "This section is taking a break", "The EWUdiots team has switched it off for now. Please check back soon.", `<a class="btn primary" href="#/home">Go Home</a>`)}</div>`;
 pages.notfound = () => `<div class="card mt-l">${empty("mascot-confused", "Oops! Page not found", "The page you're looking for doesn't exist.", `<a class="btn primary" href="#/home">Go Home</a>`)}</div>`;
 
@@ -415,7 +428,7 @@ function markAttendance(code, kind) {
 async function enableNotifications() {
   const ok = await native.askNotifications();
   S.settings.notify = ok; save();
-  toast(ok ? "Reminders on" : "Notifications are blocked", ok ? "success" : "warn", ok ? `Classes ${S.settings.remindMin} min before, deadlines 1 day and 1 hour before.` : "Allow notifications in your browser or phone settings.");
+  toast(ok ? "Reminders on" : "Notifications are blocked", ok ? "success" : "warn", ok ? `Class alarms ${S.settings.alarms.offsets.map(fmtBefore).join(" and ")} before, deadlines 1 day and 1 hour before.` : "Allow notifications in your browser or phone settings.");
   return ok;
 }
 
@@ -438,18 +451,63 @@ function scheduleReminders() {
     });
     const t = S.study?.timer;
     if (t?.endAt) items.push({ key: "focus" + t.endAt, title: t.kind === "focus" ? "Focus session done" : "Break's over", body: t.kind === "focus" ? "Nice work. Take a short break." : "Start your next focus session.", at: new Date(t.endAt) });
-    await native.scheduleAll({ classes: expand(S.routine), minutesBefore: S.settings.remindMin, items }).catch(() => {});
+    await native.scheduleAll({ classes: expand(S.routine).map((c) => ({ ...c, offsets: alarmsFor(c.code) })).filter((c) => c.offsets.length), items }).catch(() => {});
   }, 800);
 }
-// Web fallback: check every minute while the page is open (dedupe kept in memory, not in saved state).
+const fmtBefore = (m) => (m >= 60 && m % 60 === 0 ? `${m / 60} hour${m === 60 ? "" : "s"}` : m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`);
+function alarmsFor(code) { const a = S.settings.alarms; if (!a.on) return []; return [...new Set(a.perCourse[code] || a.offsets)].sort((x, y) => y - x); }
+/* The next alarm times for the coming week: [{ at: Date, off, code, title, room, s, day }] */
+function upcomingAlarms(limit = 8) {
+  const out = [], now = new Date();
+  for (let k = 0; k < 8; k++) {
+    const d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + k);
+    for (const b of expand(S.routine).filter((x) => x.day === d.getDay())) for (const off of alarmsFor(b.code)) {
+      const at = new Date(d.getTime() + (b.s - off) * 6e4);
+      if (at > now) out.push({ at, off, ...b });
+    }
+  }
+  return out.sort((a, b) => a.at - b.at).slice(0, limit);
+}
+/* In-app alarm: a full sheet with a soft repeating chime, snooze or dismiss. Shown while the app is open
+   (on phones the system alarm notification also rings when the app is closed). */
+let chime = null;
+function stopChime() { if (chime) { clearInterval(chime.t); chime.ctx.close().catch(() => {}); chime = null; } }
+function ringAlarm(c, off) {
+  if (S.settings.alarms.ring && !prefersReduced()) {
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const beep = () => [0, 0.25, 0.5].forEach((dt, i) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = "sine"; o.frequency.value = [880, 988, 1175][i];
+        g.gain.setValueAtTime(0.0001, ac.currentTime + dt); g.gain.exponentialRampToValueAtTime(0.25, ac.currentTime + dt + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dt + 0.22);
+        o.connect(g).connect(ac.destination); o.start(ac.currentTime + dt); o.stop(ac.currentTime + dt + 0.25); });
+      stopChime(); beep(); chime = { ctx: ac, t: setInterval(beep, 1600) }; setTimeout(stopChime, 30000);
+    } catch { /* no audio */ }
+  }
+  navigator.vibrate?.([300, 150, 300, 150, 300]);
+  openModal(`<div class="alarm-sheet"><div class="alarm-ring" aria-hidden="true">${icon("bell")}</div><p class="xs">Class alarm · ${fmtBefore(off)} before</p>
+    <h2 id="modal-title">${esc(c.code)}${c.lab ? " Lab" : ""} at ${fmt12(c.s)}</h2><p class="muted">${esc([c.title, c.room && `Room ${baseRoom(c.room)}`].filter(Boolean).join(" · "))}</p>
+    <div class="stack mt" style="gap:8px">${c.room ? `<button class="btn primary block" id="al-go">${icon("map")} Directions to ${esc(baseRoom(c.room))}</button>` : ""}
+      <div class="row"><button class="btn neutral grow" id="al-snooze">${icon("clock")} Snooze 5 min</button><button class="btn outline grow" data-close id="al-ok">${icon("check")} Got it</button></div></div></div>`, (m) => {
+    $("#al-go", m)?.addEventListener("click", () => { stopChime(); closeModal(); go(`#/map?to=${encodeURIComponent(baseRoom(c.room))}`); });
+    $("#al-snooze", m).addEventListener("click", () => { stopChime(); closeModal(); setTimeout(() => ringAlarm(c, Math.max(1, off - 5)), 5 * 6e4); toast("Snoozed for 5 minutes", "info"); });
+    $("#al-ok", m).addEventListener("click", stopChime);
+  }, { center: true });
+}
+// While the app is open: ring class alarms in the app, and send browser notifications on the web (dedupe in memory).
 const notified = new Set(); delete S._notified;
 setInterval(() => {
-  if (native.isNative || !S.settings.notify || !("Notification" in window) || Notification.permission !== "granted") return;
-  const nc = nextClass();
-  const fire = (k, title, body) => { if (notified.has(k)) return; notified.add(k); new Notification(title, { body, icon: "/icons/icon-192.png" }); };
-  if (nc && !nc.live && nc.mins <= S.settings.remindMin && nc.mins > 0) fire(`c${nc.code}${nc.day}${nc.s}${new Date().toDateString()}`, `${nc.code} in ${nc.mins} min`, nc.room || "");
-  S.tasks.filter((t) => !t.done).forEach((t) => { const ms = new Date(t.due) - Date.now(); if (ms > 0 && ms < 36e5) fire(t.id + "h", `Due in 1 hour: ${t.title}`, t.course); else if (ms > 0 && ms < 864e5) fire(t.id + "d", `Due tomorrow: ${t.title}`, t.course); });
-}, 60000);
+  const now = Date.now(), webNote = !native.isNative && S.settings.notify && "Notification" in window && Notification.permission === "granted";
+  const fire = (k, title, body) => { if (notified.has(k)) return false; notified.add(k); if (webNote) new Notification(title, { body, icon: "/icons/icon-192.png", tag: k, requireInteraction: true }); return true; };
+  for (const a of upcomingAlarms(20).concat(recentAlarms())) {
+    const late = now - a.at.getTime();
+    if (late >= 0 && late < 90e3 && fire(`al${a.code}${a.day}${a.s}${a.off}${a.at.toDateString()}`, `⏰ ${a.code} starts in ${fmtBefore(a.off)}`, [a.title, a.room].filter(Boolean).join(" · ")) && document.visibilityState === "visible" && !modalOpen()) ringAlarm(a, a.off);
+  }
+  if (webNote) S.tasks.filter((t) => !t.done).forEach((t) => { const ms = new Date(t.due) - now; if (ms > 0 && ms < 36e5) fire(t.id + "h", `Due in 1 hour: ${t.title}`, t.course); else if (ms > 0 && ms < 864e5) fire(t.id + "d", `Due tomorrow: ${t.title}`, t.course); });
+}, 20000);
+// Alarms whose time passed in the last 90 s (upcomingAlarms only looks forward).
+function recentAlarms() {
+  const now = new Date(), d = new Date(now); d.setHours(0, 0, 0, 0);
+  return expand(S.routine).filter((b) => b.day === now.getDay()).flatMap((b) => alarmsFor(b.code).map((off) => ({ at: new Date(d.getTime() + (b.s - off) * 6e4), off, ...b })));
+}
 
 /* ───────────── Shared row renderers ───────────── */
 const TASK_IC = { Assignment: ["notes", "red"], Quiz: ["clipboard", "orange"], Lab: ["sparkle", "teal"], Presentation: ["megaphone", "purple"], Exam: ["exam", "purple"], Other: ["clipboard", "blue"], Fees: ["wallet", "green"], Advising: ["calcheck", "blue"] };
@@ -505,6 +563,8 @@ function onSignedIn(user) {
   if (!first) return signInDone;
   return (signInDone = restoreOrBackup(user));
 }
+// Messages the team sent to everyone or to you (admin panel → Messages to users).
+async function loadMessages() { if (!C.user) return; try { C.messages = await cloud.fetchMessages(); if (["home", "notifications"].includes(currentRoute)) rerender(); } catch { /* offline */ } }
 async function restoreOrBackup(user) {
   try {
     const remote = await cloud.pullData(user.id);
@@ -513,7 +573,7 @@ async function restoreOrBackup(user) {
       adopt(remote.data, remoteAt); toast("Your account is ready on this device", "success", "Routine, grades and progress restored.");
     } else if (S.profile && !S.demo) { await pushNow(); }
     idcard?.forget(); // fetch the card pictures from the account if this device doesn't have them
-    sync.checkInbox();
+    sync.checkInbox(); loadMessages();
     if (S.routine.length && !S.demo) cloud.contribute({ semester: S.routineSem, rows: S.routine, faculty: Object.values(S.faculty) }).catch(() => {});
   } catch (e) { console.warn(e); }
   rerender();
@@ -522,7 +582,7 @@ async function restoreOrBackup(user) {
 /* ───────────── Boot ───────────── */
 const ctx = {
   get S() { return S; }, resetState, pages, save, rerender, route: () => currentRoute, go, qparam, toast, openModal, closeModal, modalHead, confirmModal, modalOpen, busy,
-  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE,
+  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
   afterSignIn: () => signInDone, LETTER, toMin, fmt12, fmtShort, dayIdx, expand, overlaps, toneFor, colorFor, HEX, TONES, gradePoint, cgpaOf, fmtMoney, fmtCountdown, daysUntil, fmtDate, firstName, initials, greeting,
   nextClass, nextPayment, markAttendance, facultyIndex, facBy, facName, offered, sectionBlocks, roomData, freeRoomsAt, baseRoom, enableNotifications, taskLine, duePill, TASK_IC, inbox, loadDemo, onSignedIn,
   isDark, applyTheme, palette, roleLabel, navFor, nextSemesterGuess, DAY_NAMES, WEEK, SLOTS, GRADES, NON_GPA, DEMO, parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey
@@ -536,9 +596,11 @@ campus = installMap(ctx);
 idcard = installIdCard(ctx);
 notices = installNotices(ctx);
 community = installCommunity(ctx);
+installAlarms(ctx);
+installAsk(ctx);
 content.onChange(() => { facCache = null; rerender(); });
 content.refresh();
-setInterval(() => { if (document.visibilityState === "visible") content.refresh(); }, 10 * 60e3);
+setInterval(() => { if (document.visibilityState === "visible") { content.refresh(); loadMessages(); } }, 10 * 60e3);
 
 $("#top-search").addEventListener("click", palette);
 $("#top-search-field").addEventListener("click", palette);

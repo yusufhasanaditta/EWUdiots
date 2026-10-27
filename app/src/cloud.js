@@ -22,6 +22,46 @@ export async function verifyCode(email, token) {
   need();
   return ok(await sb.auth.verifyOtp({ email: email.trim().toLowerCase(), token: token.trim(), type: "email" })).user;
 }
+/* ---------- Password accounts ----------
+   Students sign up with their EWU student email (after scanning both sides of the ID card); alumni and faculty with
+   any email. Every new account proves its email with a 6-digit code. Signing in afterwards is ID/email + password,
+   and the session stays on the device until you log out. "Forgot password" emails a code to set a new one. */
+export const STUDENT_ID = /^\d{4}-\d-\d{2}-\d{3}$/;
+export const emailFor = (idOrEmail) => { const v = String(idOrEmail || "").trim().toLowerCase(); return STUDENT_ID.test(v) ? `${v}@std.ewubd.edu` : v; };
+const friendly = (m) => /invalid login/i.test(m) ? "Wrong ID/email or password." : /not confirmed/i.test(m) ? "Please verify your email first. We can send a new code." :
+  /expired|invalid.*(otp|token)|token.*(expired|invalid)/i.test(m) ? "That code is wrong or expired." : /rate|seconds|too many/i.test(m) ? "Please wait a minute and try again." :
+  /weak|at least|characters/i.test(m) ? "Use at least 8 characters with letters and numbers." : m;
+const authOk = ({ data, error }) => { if (error) throw Object.assign(new Error(friendly(error.message)), { raw: error.message }); return data; };
+export async function signUp({ email, password, role = "student", name = "" }) {
+  need();
+  email = emailFor(email);
+  if (role === "student" && !EWU_EMAIL.test(email)) throw new Error("Students sign up with their EWU student email, e.g. 2026-2-60-123@std.ewubd.edu");
+  const d = authOk(await sb.auth.signUp({ email, password, options: { data: { role, name: name.trim() } } }));
+  // Supabase answers an existing, verified email with an empty identity list instead of an error.
+  if (d.user && Array.isArray(d.user.identities) && !d.user.identities.length) throw Object.assign(new Error("An account with this email already exists. Sign in, or use Forgot password."), { exists: true });
+  return email;
+}
+export async function verifySignup(email, token) {
+  need();
+  const r = await sb.auth.verifyOtp({ email: emailFor(email), token: token.trim(), type: "signup" });
+  if (!r.error) return r.data.user;
+  return authOk(await sb.auth.verifyOtp({ email: emailFor(email), token: token.trim(), type: "email" })).user;
+}
+export async function resendSignup(email) { need(); authOk(await sb.auth.resend({ type: "signup", email: emailFor(email) })); }
+export async function signInPassword(idOrEmail, password) { need(); return authOk(await sb.auth.signInWithPassword({ email: emailFor(idOrEmail), password })).user; }
+export async function forgotPassword(idOrEmail) { need(); authOk(await sb.auth.resetPasswordForEmail(emailFor(idOrEmail))); return emailFor(idOrEmail); }
+export async function resetPassword(email, token, password) {
+  need();
+  authOk(await sb.auth.verifyOtp({ email: emailFor(email), token: token.trim(), type: "recovery" }));
+  return authOk(await sb.auth.updateUser({ password })).user;
+}
+export async function changePassword(password) { need(); authOk(await sb.auth.updateUser({ password })); }
+export const roleOf = (user) => user?.app_metadata?.role || "";
+
+/* ---------- Messages from the team, and feedback to the team ---------- */
+export async function fetchMessages() { if (!sb) return []; return ok(await sb.from("user_messages").select("id, title, body, link, created_at").order("created_at", { ascending: false }).limit(30)) || []; }
+export async function sendFeedback(kind, body, version) { need(); ok(await sb.from("feedback").insert({ kind, body: body.trim(), app_version: version })); }
+
 export async function currentUser() { if (!sb) return null; const { data } = await sb.auth.getUser(); return data.user || null; }
 export const onAuth = (fn) => sb && sb.auth.onAuthStateChange((_e, session) => fn(session?.user || null));
 export async function signOut() { if (sb) await sb.auth.signOut(); }

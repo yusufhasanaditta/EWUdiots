@@ -41,3 +41,7 @@ body { background: var(--bg); }
 @keyframes fade { from { opacity: 0; } }
 
 button.lnk { background: none; border: 0; padding: 0; color: var(--primary); font-weight: 600; cursor: pointer; font: inherit; }
+.adm-chart { width: 100%; height: 130px; display: block; }
+.adm-chart rect { fill: var(--primary); } .adm-chart rect.zero { fill: var(--border); }
+.bulk { align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px; background: var(--primary-ll); }
+.adm-top .icon-btn { position: relative; }

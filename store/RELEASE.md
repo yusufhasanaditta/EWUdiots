@@ -100,3 +100,10 @@ Test on a real phone first (optional): install Android Studio → `cd app && npm
 - `cd app && npm run test:ext`: installs the real extension in Chrome, browses portal-shaped pages (`tests/fixtures/portal-pages.mjs`, fake data), sends them to the app and checks every imported value and that nothing private leaked. If the EWU portal changes its layout, update the fixtures to match and re-run.
 - `cd app && npm run test:campus`: 3D/2D campus map, routes, walk and tour, room register, floor plans, and the ID card scan (a synthetic card image).
 - Bump `version` in `app/package.json` and `extension/manifest.json`, and `APP_VERSION` in `app/src/main.js`.
+
+## 12. Accounts, assistant, alarms and admin tools (v2.5)
+- **Sign in:** students create an account with both sides of their ID card + a password; alumni and faculty with any email + password. Every new account verifies its email with a 6-digit code. After that: student ID/email + password, staying signed in until Log out. **Forgot password** emails a code to set a new one. Admins still sign in to `/admin.html` with an email code only.
+- **Ask EWUdiots** (app) and **Ask the assistant** (admin): free, run on the device, no AI key. Rules live in `app/src/assistant.js` and `adminAnswer()` in `app/src/admin/admin.js`.
+- **Class alarms** (`#/alarms`): any number of minutes/hours before each class, per course too. Android rings through the "Class alarms" notification channel.
+- **Admin:** Users (suspend, sign out everywhere, reset code, message), Messages to users, Feedback inbox, Security centre, sign-up chart, alerts bell, post trash with restore, bulk actions, CSV export, maintenance mode.
+- Database changes are in `supabase/migrations/0006_accounts_admin_tools.sql`; apply with `node scripts/setup-supabase.mjs` (needs `.secrets/`).

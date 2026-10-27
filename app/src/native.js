@@ -35,20 +35,24 @@ const hashId = (s) => { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt
 
 /**
  * Replace all scheduled reminders.
- * classes: [{ code, title, room, day (0=Sun), s (minutes) }], minutesBefore
+ * classes: [{ code, title, room, day (0=Sun), s (minutes), offsets: [minutes before…] }]
  * items:   [{ key, title, body, at: Date }]  (deadlines, exams, payments)
+ * Class alarms go to their own high-importance channel, so they ring and pop up like an alarm.
  */
+const before = (m) => (m >= 60 && m % 60 === 0 ? `${m / 60} hour${m === 60 ? "" : "s"}` : m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`);
+let channel = false;
 export async function scheduleAll({ classes = [], minutesBefore = 10, items = [] }) {
   if (!isNative) return false;
   if (!(await notificationsAllowed())) return false;
+  if (!channel && platform === "android") { await LocalNotifications.createChannel({ id: "class-alarms", name: "Class alarms", description: "Warns you before each class, as early as you choose", importance: 5, visibility: 1, vibration: true, lights: true, lightColor: "#7C3AED" }).catch(() => {}); channel = true; }
   const pending = await LocalNotifications.getPending();
   if (pending.notifications.length) await LocalNotifications.cancel({ notifications: pending.notifications.map((n) => ({ id: n.id })) });
   const list = [];
-  for (const c of classes) {
-    let m = c.s - minutesBefore, day = c.day;
-    if (m < 0) { m += 1440; day = (day + 6) % 7; }
-    list.push({ id: hashId(`c|${c.code}|${c.day}|${c.s}`), title: `${c.code} in ${minutesBefore} min`, body: [c.title, c.room].filter(Boolean).join(" · "),
-      smallIcon: "ic_stat_notify", schedule: { on: { weekday: day + 1, hour: Math.floor(m / 60), minute: m % 60 }, allowWhileIdle: true } });
+  for (const c of classes) for (const off of c.offsets || [minutesBefore]) {
+    let m = c.s - off, day = c.day;
+    while (m < 0) { m += 1440; day = (day + 6) % 7; }
+    list.push({ id: hashId(`c|${c.code}|${c.day}|${c.s}|${off}`), title: `⏰ ${c.code} starts in ${before(off)}`, body: [c.title, c.room && `Room ${c.room}`].filter(Boolean).join(" · "),
+      smallIcon: "ic_stat_notify", channelId: "class-alarms", schedule: { on: { weekday: day + 1, hour: Math.floor(m / 60), minute: m % 60 }, allowWhileIdle: true } });
   }
   const now = Date.now();
   for (const it of items) if (it.at.getTime() > now) list.push({ id: hashId(`i|${it.key}`), title: it.title, body: it.body, smallIcon: "ic_stat_notify", schedule: { at: it.at, allowWhileIdle: true } });

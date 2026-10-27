@@ -3,7 +3,7 @@
    nothing done in demo mode reaches students. Both expose the same small API. */
 import * as cloud from "../cloud.js";
 
-const TABLES = ["posts", "site_settings", "alumni_profiles", "faculty_overrides", "campus_rooms", "reports", "reviews", "resources", "admins", "admin_invites", "admin_log"];
+const TABLES = ["users", "user_messages", "feedback", "posts", "site_settings", "alumni_profiles", "faculty_overrides", "campus_rooms", "reports", "reviews", "resources", "admins", "admin_invites", "admin_log"];
 const KEYS = { site_settings: "key", faculty_overrides: "slug", campus_rooms: "code", admins: "user_id", admin_invites: "email" };
 
 export function supabaseBackend(user) {
@@ -23,6 +23,8 @@ export function supabaseBackend(user) {
     async upsert(table, row) { return ok(await sb.from(table).upsert(row, { onConflict: KEYS[table] || "id" }).select()); },
     async remove(table, match) { let q = sb.from(table).delete(); Object.entries(match).forEach(([k, v]) => { q = q.eq(k, v); }); const rows = ok(await q.select()); if (!rows?.length) throw new Error("Nothing was removed (no permission, or it's already gone)."); return rows; },
     async log(action, target = "") { await sb.from("admin_log").insert({ email: user.email, action, target: String(target).slice(0, 200) }); },
+    async rpc(fn, args = {}) { return ok(await sb.rpc(fn, args)); },
+    async sendReset(email) { const { error } = await sb.auth.resetPasswordForEmail(email); if (error) throw new Error(error.message); },
     signOut: () => cloud.signOut()
   };
 }
@@ -51,6 +53,11 @@ function seed() {
     admins: [{ user_id: "demo-owner", email: "you@demo", role: "owner", created_at: ago(10) }],
     admin_invites: [],
     admin_log: [{ id: id++, email: "you@demo", action: "Opened demo mode", target: "", created_at: now() }],
+    user_messages: [{ id: id++, user_id: null, title: "Welcome to EWUdiots", body: "Tell us what you'd like next from Help → Send feedback.", link: "", created_at: ago(3) }],
+    feedback: [{ id: id++, user_id: "u2", email: "2024-1-60-002@std.ewubd.edu", kind: "idea", body: "Please add a bus schedule for the university shuttle.", status: "new", app_version: "2.5.0", created_at: ago(0.3) },
+      { id: id++, user_id: "u3", email: "alumni.sample@gmail.com", kind: "bug", body: "The alumni filter by country resets when I go back.", status: "read", app_version: "2.4.0", created_at: ago(2) }],
+    users: [["u1", "2024-1-60-001@std.ewubd.edu", "student", "Sample Student", 0.1], ["u2", "2024-1-60-002@std.ewubd.edu", "student", "Another Student", 1], ["u3", "alumni.sample@gmail.com", "alumni", "Sample Alumni", 4], ["u4", "faculty.sample@gmail.com", "faculty", "Sample Faculty", 8]]
+      .map(([uid, email, role, name, d]) => ({ id: uid, email, role, name, created_at: ago(d + 2), last_sign_in_at: ago(d), confirmed: true, suspended: false })),
     _id: id
   };
 }
@@ -73,6 +80,19 @@ export function demoBackend() {
     async upsert(table, row) { const k = KEYS[table] || "id", i = db[table].findIndex((r) => r[k] === row[k]); if (i >= 0) Object.assign(db[table][i], row); else db[table].push({ created_at: now(), ...row }); persist(); return [structuredClone(row)]; },
     async remove(table, m) { db[table] = db[table].filter((r) => !match(r, m)); persist(); },
     async log(action, target = "") { db.admin_log.push({ id: db._id++, email: "you@demo", action, target, created_at: now() }); persist(); },
+    async rpc(fn, args = {}) {
+      if (fn === "admin_users") return structuredClone(db.users.filter((u) => !args.q || (u.email + u.name).toLowerCase().includes(args.q.toLowerCase())));
+      if (fn === "admin_set_suspended") { const u = db.users.find((x) => x.id === args.uid); if (u) u.suspended = args.suspend; persist(); return null; }
+      if (fn === "admin_revoke_sessions") return 1;
+      if (fn === "admin_auth_events") return db.users.flatMap((u, i) => [{ at: u.last_sign_in_at, action: "login", email: u.email, ip: `103.${120 + i}.x.x` }, { at: u.created_at, action: "user_signedup", email: u.email, ip: `103.${120 + i}.x.x` }]).sort((a, b) => (a.at < b.at ? 1 : -1));
+      if (fn === "admin_stats") {
+        const days = args.days || 30;
+        return { users: db.users.length, students: 2, alumni: 1, faculty: 1, suspended: db.users.filter((u) => u.suspended).length, new_period: 4, new_prev: 2, active_7d: 3, sessions: 5, synced: 3, feedback_new: db.feedback.filter((f) => f.status === "new").length,
+          signups: Array.from({ length: days }, (_, k) => ({ day: new Date(Date.now() - (days - 1 - k) * 864e5).toISOString().slice(0, 10), n: [3, 7, 8, 9].includes(days - 1 - k) ? 1 : 0 })) };
+      }
+      throw new Error(`Unknown function ${fn}`);
+    },
+    async sendReset() {},
     reset() { localStorage.removeItem(DEMO_KEY); },
     signOut: async () => {}
   };
