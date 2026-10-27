@@ -59,9 +59,9 @@ const readJSON = (p) => JSON.parse(readFileSync(resolve(import.meta.dirname, p),
 const versionFile = () => ({
   name: "version-file",
   writeBundle: (opts) => {
-    const { notes = [], minVersion = "0.0.0" } = readJSON("release.json");
+    const { notes = [], minVersion = "0.0.0" } = readJSON("release.json"); // release.json also holds the extension version: Vercel only uploads app/
     writeFileSync(resolve(opts.dir, "version.json"), JSON.stringify({ version: readJSON("package.json").version, minVersion, notes, apk: "/download/android",
-      extension: readJSON("../extension/manifest.json").version, extensionZip: "/download/extension", at: new Date().toISOString() }));
+      extension: readJSON("release.json").extension || "0.0.0", extensionZip: "/download/extension", at: new Date().toISOString() }));
   }
 });
 
