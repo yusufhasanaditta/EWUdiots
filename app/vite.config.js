@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import { resolve, dirname } from "node:path";
-import { readFileSync, mkdirSync, copyFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from "node:fs";
 import { fetchNotices, parseNotices, NOTICE_SOURCE } from "./src/notices.js";
 import { fetchNews, parseNews, NEWS_SOURCE } from "./src/news.js";
 
@@ -53,8 +53,18 @@ const ocrAssets = () => {
   };
 };
 
+/* /version.json: the phone app compares it with its own version and offers the new APK when the site is ahead. */
+const versionFile = () => ({
+  name: "version-file",
+  writeBundle: (opts) => {
+    const { version } = JSON.parse(readFileSync(resolve(import.meta.dirname, "package.json"), "utf8"));
+    writeFileSync(resolve(opts.dir, "version.json"), JSON.stringify({ version, apk: "/download/android", at: new Date().toISOString() }));
+  }
+});
+
 export default defineConfig({
-  plugins: [ewuApi(), ocrAssets()],
+  plugins: [ewuApi(), ocrAssets(), versionFile()],
+  define: { __APP_VERSION__: JSON.stringify(JSON.parse(readFileSync(resolve(import.meta.dirname, "package.json"), "utf8")).version) },
   build: {
     target: "es2020",
     rollupOptions: {

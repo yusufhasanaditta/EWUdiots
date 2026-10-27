@@ -50,9 +50,18 @@ export function install(ctx) {
      Resolves with the card details (and both images) or null if cancelled. ── */
   function scan({ title = "Scan your EWU ID card", cta = "Continue" } = {}) {
     return new Promise((resolve) => {
-      let done = false; const finish = (v) => { if (done) return; done = true; resolve(v); };
+      // The front photo is kept until you finish, so if the phone closes the app while the camera is open, the scan resumes.
+      let done = false; const finish = (v) => { if (done) return; done = true; delBlob("id:pending").catch(() => {}); resolve(v); };
       const sides = { front: null, back: null };
-      let got = null, reading = null; // OCR of the front runs while you photograph the back
+      let got = null, reading = null, pct = 0, skip = null; // OCR of the front runs while you photograph the back
+      const NONE = { id: "", name: "", dept: "", valid: "" };
+      const startReading = (url) => {
+        pct = 0;
+        const ocr = readText(url, (p) => { pct = p; const b = $("#id-prog"); if (b) b.style.width = `${Math.round(10 + p * 90)}%`; }).then(parseCardText);
+        // A slow or stuck reader never blocks you: after 40 s, or when you tap "Type it myself", you fill the form by hand.
+        reading = Promise.race([ocr, new Promise((r) => setTimeout(() => r(NONE), 40000)), new Promise((r) => { skip = () => r(NONE); })])
+          .catch((e) => { console.warn(e); return NONE; });
+      };
       const steps = () => `<ol class="id-steps" aria-label="Steps">${[["front", "Front"], ["back", "Back"], ["check", "Check"]].map(([k, l], i) => `<li class="${(k === "check" ? sides.front && sides.back : sides[k]) ? "done" : ""}">${sides[k] ? icon("check", "sm") : `<span>${i + 1}</span>`}${l}</li>`).join("")}</ol>`;
       const pickHTML = (side) => `${modalHead(title)}${steps()}<div class="stack">
         <div class="id-guide ${side}" aria-hidden="true"><div class="id-frame"><span></span><span></span><span></span><span></span>${side === "front" ? `${icon("user")}<i></i><i></i><i></i>` : `<em></em><i></i><i></i>`}</div></div>
@@ -64,7 +73,8 @@ export function install(ctx) {
       openModal(pickHTML("front"), (m) => {
         const show = (html) => { m.innerHTML = `<div class="grabber" aria-hidden="true"></div>${html}`; bind(); };
         const confirm = async () => {
-          show(`${modalHead("Reading your card…")}${steps()}<div class="stack" style="align-items:center;text-align:center"><img class="id-scan-prev" src="${sides.front}" alt=""><div class="bar" style="width:100%"><span id="id-prog" style="width:30%"></span></div><p class="xs">Reading your ID and name…</p></div>`);
+          show(`${modalHead("Reading your card…")}${steps()}<div class="stack" style="align-items:center;text-align:center"><img class="id-scan-prev" src="${sides.front}" alt=""><div class="bar" style="width:100%"><span id="id-prog" style="width:${Math.round(10 + pct * 90)}%"></span></div><p class="xs">Reading your ID and name on this phone. The first time takes a little longer.</p><button type="button" class="btn ghost sm" id="id-skipocr">Type it myself</button></div>`);
+          $("#id-skipocr", m)?.addEventListener("click", () => skip?.());
           got = await reading;
           show(`${modalHead("Check your details")}${steps()}<form id="id-form" class="stack" novalidate>
             <div class="id-pair"><figure><img src="${sides.front}" alt="Front of your card"><figcaption>Front</figcaption></figure><figure><img src="${sides.back}" alt="Back of your card"><figcaption>Back</figcaption></figure></div>
@@ -89,7 +99,8 @@ export function install(ctx) {
           let url; try { url = await fileToDataURL(file, 1600, 0.9); } catch (e) { return toast(e.message, "error"); }
           sides[side] = url;
           if (side === "front") {
-            reading = readText(url).then(parseCardText).catch((e) => { console.warn(e); return { id: "", name: "", dept: "", valid: "" }; });
+            startReading(url);
+            setBlob("id:pending", url).catch(() => {});
             show(pickHTML("back"));
           } else confirm();
         };
@@ -99,6 +110,7 @@ export function install(ctx) {
           $$("[data-close]", m).forEach((b) => b.addEventListener("click", () => finish(null)));
         }
         bind();
+        getBlob("id:pending").then((url) => { if (url && !sides.front && !done) { sides.front = url; startReading(url); show(pickHTML("back")); toast("Picking up where you left off", "info", "Front side is saved. Now add the back."); } }).catch(() => {});
       });
       // Closing the sheet any other way (scrim, Esc) cancels the scan.
       const obs = new MutationObserver(() => { if (!$("#scrim").classList.contains("open")) { obs.disconnect(); finish(null); } });

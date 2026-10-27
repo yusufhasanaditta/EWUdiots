@@ -8,7 +8,7 @@ export function install(ctx) {
   const { pages, icon, esc, $, $$, toast } = ctx;
   const S = () => ctx.S;
   // Native builds load from the device, so they need the website's address for the API.
-  const API = (ctx.native.isNative ? import.meta.env.VITE_SITE_URL || "" : "") + "/api/notices";
+  const API = (ctx.native.isNative ? ctx.SITE : "") + "/api/notices";
   let feed = (() => { try { return JSON.parse(localStorage.getItem(CACHE)) || null; } catch { return null; } })(); // { at, notices }
   let loading = null, error = "", tab = "All", q = "", failedAt = 0;
   const seen = () => (S().noticeSeen = S().noticeSeen || { ids: [], since: null });
@@ -20,7 +20,6 @@ export function install(ctx) {
     if (!force && ((feed && Date.now() - feed.at < POLL) || Date.now() - failedAt < 60e3)) return feed; // fresh, or failed < 1 min ago
     loading = (async () => {
       try {
-        if (ctx.native.isNative && !import.meta.env.VITE_SITE_URL) throw new Error("This build doesn't know the website address yet (VITE_SITE_URL).");
         const r = await fetch(API, { cache: "no-cache" });
         const j = /json/.test(r.headers.get("content-type") || "") ? await r.json() : {};
         if (!r.ok || !Array.isArray(j.notices)) throw new Error(j.error || `Notice board unavailable (${r.status})`);

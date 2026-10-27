@@ -6,7 +6,7 @@ const SECTOR_TONE = { Pharma: "teal", Banking: "blue", Technology: "purple", Fin
 export function install(ctx) {
   const { pages, icon, esc, $, $$, toast, openModal, closeModal, modalHead, busy } = ctx;
   const S = () => ctx.S;
-  const API = (ctx.native.isNative ? import.meta.env.VITE_SITE_URL || "" : "") + "/api/news";
+  const API = (ctx.native.isNative ? ctx.SITE : "") + "/api/news";
   const fmt = (d) => (d ? new Date(d.length === 10 ? d + "T00:00:00" : d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "");
 
   /* ═════════════ NEWS ═════════════ */
@@ -17,7 +17,6 @@ export function install(ctx) {
     if (!force && ((feed && Date.now() - feed.at < 60 * 60e3) || Date.now() - failedAt < 60e3)) return feed; // fresh, or failed < 1 min ago
     loading = (async () => {
       try {
-        if (ctx.native.isNative && !import.meta.env.VITE_SITE_URL) throw new Error("This build doesn't know the website address yet.");
         const r = await fetch(API, { cache: "no-cache" });
         const j = /json/.test(r.headers.get("content-type") || "") ? await r.json() : {};
         if (!r.ok || !Array.isArray(j.news)) throw new Error(j.error || `News unavailable (${r.status})`);

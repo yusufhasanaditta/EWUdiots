@@ -76,7 +76,8 @@ export function install(ctx) {
       <div class="g2m mt">${streakCard}${attCard}</div></div>`;
     const b = ctx.content.banner();
     const banner = b ? `<div class="alert ${b.tone || "purple"} admin-banner fx-rise"><span class="a-ic">${icon(b.tone === "red" ? "alert" : "megaphone")}</span><div class="grow"><b>${esc(b.title || "From the EWUdiots team")}</b><p>${esc(b.text)}</p></div>${b.link ? `<a class="btn sm" href="${esc(b.link)}" ${/^https:/.test(b.link) ? 'target="_blank" rel="noopener"' : ""}>${esc(b.cta || "Open")}</a>` : ""}</div>` : "";
-    return `${banner}${ctx.demoBanner()}${mobile}${desktop}${ctx.community.homeNews()}`;
+    const up = ctx.C.update ? `<a class="alert green update-card" href="${esc(ctx.C.update.url)}" target="_blank" rel="noopener"><span class="a-ic">${icon("download")}</span><div class="grow"><b>Update available: EWUdiots ${esc(ctx.C.update.version)}</b><p>Tap to download, then install over this app. Your data stays.</p></div>${icon("chevR")}</a>` : "";
+    return `${up}${banner}${ctx.demoBanner()}${mobile}${desktop}${ctx.community.homeNews()}`;
   };
   /* Faculty / alumni home: campus tools only. */
   function homeLite() {
@@ -123,7 +124,8 @@ export function install(ctx) {
     return `<a class="me-card" href="#/profile"><span class="avatar lg">${esc(ctx.initials(p.name || "EWU Student"))}</span><span class="grow min0"><b class="ellipsis">${esc(p.name || "Set up your profile")}</b><span class="ellipsis">${esc([p.id, p.program || p.department].filter(Boolean).join(" · ") || ctx.roleLabel())}</span>
         <span class="me-sync ${ctx.C.user ? "on" : ""}">${icon(ctx.C.user ? "cloud" : "database", "sm")} ${ctx.C.user ? "Synced on all your devices" : "Saved on this device"}</span></span>${icon("chevR")}</a>
       ${GROUPS.map(([g, list]) => `<h2 class="mgroup-h">${g}</h2><div class="mtiles">${list.map(([id, ic, tone, t, d]) => `<a class="mtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span><div class="min0"><b>${t}</b><span>${d}</span></div></a>`).join("")}</div>`).join("")}
-      <a class="get-app mt" href="/#download"><span class="itile purple">${icon("download")}</span><span class="grow"><b>Get EWUdiots everywhere</b><span>Android app, Windows and the Chrome extension</span></span>${icon("chevR", "chev")}</a>
+      ${ctx.C.install ? `<button class="get-app mt" id="mo-install" style="width:100%;text-align:left;cursor:pointer"><span class="itile green">${icon("download")}</span><span class="grow"><b>Install EWUdiots on this device</b><span>Its own window, works offline, same account</span></span>${icon("chevR", "chev")}</button>` : ""}
+      <a class="get-app mt" href="${ctx.native.isNative ? ctx.SITE : ""}/#download"${ctx.native.isNative ? ' target="_blank" rel="noopener"' : ""}><span class="itile purple">${icon("download")}</span><span class="grow"><b>Get EWUdiots everywhere</b><span>Android app, Windows and the Chrome extension</span></span>${icon("chevR", "chev")}</a>
       <h2 class="mt-l" style="margin-bottom:10px">Account</h2>
       <section class="card settings-list">
         ${[["profile", "user", "purple", "Profile & Settings", "Manage your account"], ["help", "help", "purple", "Help & Support", "FAQs, contact and feedback"], ["about", "info", "purple", "About EWUdiots", "Unofficial student project"]]
@@ -132,7 +134,11 @@ export function install(ctx) {
       </section>
       <div class="card soft mt" style="text-align:center"><b>${icon("heart", "sm")} Built by students, for students.</b><p class="small muted">Unofficial · not affiliated with East West University</p></div>`;
   };
-  pages.more.mount = (el) => $("#mo-share", el).addEventListener("click", async () => {
+  pages.more.mount = (el) => {
+    $("#mo-install", el)?.addEventListener("click", async () => { const p = ctx.C.install; if (!p) return; p.prompt(); await p.userChoice.catch(() => {}); ctx.C.install = null; ctx.rerender(); });
+    moShare(el);
+  };
+  const moShare = (el) => $("#mo-share", el).addEventListener("click", async () => {
     try { const r = await ctx.native.share({ title: "EWUdiots", text: "EWUdiots: routine, CGPA, advising planner, deadlines and study tools for EWU students.", url: location.origin }); if (r === "copied") toast("Link copied"); } catch { /* share cancelled */ }
   });
 

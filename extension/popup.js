@@ -90,8 +90,13 @@ $("#mail-form").addEventListener("submit", async (e) => {
   e.preventDefault(); const email = $("#email").value.trim().toLowerCase();
   if (!EWU_EMAIL.test(email)) return status("Use your EWU student email, e.g. 2024-1-60-123@std.ewubd.edu", "err");
   $("#mail-go").disabled = true; status("Sending code…");
-  try { await api("/auth/v1/otp", { body: { email, create_user: true } }); await setPending(email); status("Check your EWU mail (and spam) for the 6-digit code.", "ok"); render(); setTimeout(() => $("#code").focus(), 50); }
-  catch (err) { status(err.message, "err"); } finally { $("#mail-go").disabled = false; }
+  // Accounts are created in the app, where signing up needs both sides of the EWU ID card; here you only sign in.
+  try { await api("/auth/v1/otp", { body: { email, create_user: false } }); await setPending(email); status("Check your EWU mail (and spam) for the 6-digit code.", "ok"); render(); setTimeout(() => $("#code").focus(), 50); }
+  catch (err) {
+    const { appUrl = CFG.appUrl } = await chrome.storage.local.get("appUrl");
+    if (/signup|not allowed|not found/i.test(err.message)) { status("No EWUdiots account for this email yet. Create it in the app first (sign in with your ID card), then come back.", "err"); $("#make-acct").hidden = false; $("#make-acct").href = appUrl.replace(/#.*$/, "") + "#/login"; }
+    else status(/rate|seconds/i.test(err.message) ? "Please wait a minute before asking for another code." : err.message, "err");
+  } finally { $("#mail-go").disabled = false; }
 });
 $("#code-form").addEventListener("submit", async (e) => {
   e.preventDefault(); const token = $("#code").value.trim();
@@ -100,6 +105,7 @@ $("#code-form").addEventListener("submit", async (e) => {
   try { await saveSession(await api("/auth/v1/verify", { body: { type: "email", email: pendingEmail, token } })); await setPending(""); status("Signed in.", "ok"); render(); }
   catch (err) { status(/expired|invalid/i.test(err.message) ? "That code is wrong or expired. Try again." : err.message, "err"); } finally { $("#code-go").disabled = false; }
 });
+$("#make-acct").addEventListener("click", (e) => { e.preventDefault(); chrome.tabs.create({ url: e.currentTarget.href }); });
 $("#code-back").addEventListener("click", async () => { await setPending(""); status(""); render(); });
 $("#sign-out").addEventListener("click", async () => {
   const s = await session();

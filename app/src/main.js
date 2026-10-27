@@ -21,7 +21,8 @@ import { install as installNotices } from "./ui-notices.js";
 import { install as installCommunity } from "./ui-community.js";
 import { createContent, FEATURES } from "./content.js";
 
-const APP_VERSION = "2.3.0";
+const APP_VERSION = __APP_VERSION__; // from package.json (vite.config.js)
+const SITE = import.meta.env.VITE_SITE_URL || "https://ewudiots.vercel.app";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -521,7 +522,7 @@ async function restoreOrBackup(user) {
 /* ───────────── Boot ───────────── */
 const ctx = {
   get S() { return S; }, resetState, pages, save, rerender, route: () => currentRoute, go, qparam, toast, openModal, closeModal, modalHead, confirmModal, modalOpen, busy,
-  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, pushNow, pullNow, logEvent, PAGE_FEATURE,
+  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE,
   afterSignIn: () => signInDone, LETTER, toMin, fmt12, fmtShort, dayIdx, expand, overlaps, toneFor, colorFor, HEX, TONES, gradePoint, cgpaOf, fmtMoney, fmtCountdown, daysUntil, fmtDate, firstName, initials, greeting,
   nextClass, nextPayment, markAttendance, facultyIndex, facBy, facName, offered, sectionBlocks, roomData, freeRoomsAt, baseRoom, enableNotifications, taskLine, duePill, TASK_IC, inbox, loadDemo, onSignedIn,
   isDark, applyTheme, palette, roleLabel, navFor, nextSemesterGuess, DAY_NAMES, WEEK, SLOTS, GRADES, NON_GPA, DEMO, parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey
@@ -547,6 +548,13 @@ const setOnline = () => document.body.classList.toggle("offline", !navigator.onL
 addEventListener("online", setOnline); addEventListener("offline", setOnline); setOnline();
 native.boot({ dark: isDark(), onBack: () => { if (modalOpen()) { closeModal(); return true; } if (currentRoute !== "home") { history.back(); return true; } return false; } });
 route();
+// Web: keep the browser's install offer so More → "Install EWUdiots" can show it (Windows, Mac, Android Chrome).
+addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); C.install = e; if (currentRoute === "more") rerender(); });
+addEventListener("appinstalled", () => { C.install = null; toast("EWUdiots installed", "success", "Open it from your apps. Your account is the same everywhere."); });
+/* Phone app: offer the newer APK when the website has moved ahead (Home shows an Update card). */
+const newer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
+if (native.isNative) fetch(SITE + "/version.json", { cache: "no-store" }).then((r) => r.json())
+  .then((j) => { if (newer(j.version, APP_VERSION)) { C.update = { version: j.version, url: SITE + (j.apk || "/download/android") }; if (currentRoute === "home") rerender(); } }).catch(() => {});
 sync.takeExtHandoff();
 scheduleReminders();
 if (cloud.enabled) {
