@@ -105,8 +105,11 @@ export function install(ctx) {
       try {
         if (smart) { results.push(fromSmart(await ctx.cloud.smartScan(f))); }
         else {
-          const t = await readText(f,(pr) => { scan.ocr = (i + pr) / files.length; const b = $(".steps .sp:nth-child(2) .bar span"); if (b) b.style.width = Math.round(scan.ocr * 100) + "%"; });
-          raws.push(t); results.push(ctx.parsePortalText(t));
+          const prog = (pr) => { scan.ocr = (i + pr) / files.length; const b = $(".steps .sp:nth-child(2) .bar span"); if (b) b.style.width = Math.round(scan.ocr * 100) + "%"; };
+          let t = await readText(f, prog), r = ctx.parsePortalText(t);
+          // Zoomed-out pages have tiny text: if rows were clearly missed, read once more at a bigger size and keep the better result.
+          if (missedRows(t, r)) { const t2 = await readText(f, prog, { boost: true }), r2 = ctx.parsePortalText(t2); if (rowsOf(r2) > rowsOf(r)) { t = t2; r = r2; } }
+          raws.push(t); results.push(r);
         }
       } catch (err) { scan.error = `${err.message || "The file might be scanned or low quality."} Try a sharper screenshot, or paste the text instead.`; scan.cur = ""; paint(); return; }
     }
@@ -116,6 +119,11 @@ export function install(ctx) {
     if (isEmptyResult(r)) { scan.error = "We couldn't find portal data in that screenshot."; scan.cur = ""; paint(); return; }
     setTimeout(() => { scan.prep = 1; paint(); setTimeout(() => finishParse(null, smart ? "smart scan" : "screenshot", raws.join("\n\n—\n\n"), r), 600); }, 500);
   }
+  const rowsOf = (r) => r.routine.length + r.offered.length + r.grades.length + r.recommended.length + r.payments.schedule.length;
+  const missedRows = (t, r) => {
+    const times = (t.match(/\d{1,2}[:.]?\d{2}\s*[AaPp]\.?[Mm]/g) || []).length, codes = new Set(t.match(/\b[A-Z]{2,4}\s?[0-9OIl]{3,4}\b/g) || []).size;
+    return (times >= 3 && (r.routine.length + r.offered.length) * 2 < times - 1) || (codes >= 3 && rowsOf(r) < codes * 0.6);
+  };
   const summary = (r) => [r.routine.length && `${new Set(r.routine.map((x) => x.code)).size} courses`, r.grades.length && `${r.grades.length} grades`, r.payments.schedule.length && `${r.payments.schedule.length} fee deadline${r.payments.schedule.length > 1 ? "s" : ""}`,
     r.offered.length && `${r.offered.length} offered sections`, r.degree.length && "degree progress", Object.keys(r.profile).length && "your profile"].filter(Boolean).join(", ").replace(/, ([^,]*)$/, " and $1");
   function mergeResults(list) {

@@ -28,7 +28,7 @@ export async function verifyCode(email, token) {
    and the session stays on the device until you log out. "Forgot password" emails a code to set a new one. */
 export const STUDENT_ID = /^\d{4}-\d-\d{2}-\d{3}$/;
 export const emailFor = (idOrEmail) => { const v = String(idOrEmail || "").trim().toLowerCase(); return STUDENT_ID.test(v) ? `${v}@std.ewubd.edu` : v; };
-const friendly = (m) => /invalid login/i.test(m) ? "Wrong ID/email or password." : /not confirmed/i.test(m) ? "Please verify your email first. We can send a new code." :
+const friendly = (m) => /invalid login/i.test(m) ? "Wrong ID/email or password." : /signups? not allowed|user not found/i.test(m) ? "There's no account with that ID or email yet. Create one first." : /not confirmed/i.test(m) ? "Please verify your email first. We can send a new code." :
   /expired|invalid.*(otp|token)|token.*(expired|invalid)/i.test(m) ? "That code is wrong or expired." : /rate|seconds|too many/i.test(m) ? "Please wait a minute and try again." :
   /weak|at least|characters/i.test(m) ? "Use at least 8 characters with letters and numbers." : m;
 const authOk = ({ data, error }) => { if (error) throw Object.assign(new Error(friendly(error.message)), { raw: error.message }); return data; };
@@ -57,6 +57,16 @@ export async function resetPassword(email, token, password) {
 }
 export async function changePassword(password) { need(); authOk(await sb.auth.updateUser({ password })); }
 export const roleOf = (user) => user?.app_metadata?.role || "";
+// Set only by the server (public.verify_my_card / admins), so the phone can't claim it.
+export const cardVerified = (user) => user?.app_metadata?.card_verified === true;
+export async function verifyMyCard(cardId) { need(); ok(await sb.rpc("verify_my_card", { card_id: cardId })); await sb.auth.refreshSession(); }
+/* Passwordless sign-in for existing accounts (e.g. after scanning the ID card): a 6-digit code to the account's email. */
+export async function sendLoginCode(idOrEmail) {
+  need(); const email = emailFor(idOrEmail);
+  authOk(await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } }));
+  return email;
+}
+export async function verifyLoginCode(email, token) { need(); return authOk(await sb.auth.verifyOtp({ email: emailFor(email), token: token.trim(), type: "email" })).user; }
 
 /* ---------- Messages from the team, and feedback to the team ---------- */
 export async function fetchMessages() { if (!sb) return []; return ok(await sb.from("user_messages").select("id, title, body, link, created_at").order("created_at", { ascending: false }).limit(30)) || []; }

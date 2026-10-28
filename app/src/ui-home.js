@@ -80,8 +80,9 @@ export function install(ctx) {
       <div class="g2m mt">${streakCard}${attCard}</div></div>`;
     const b = ctx.content.banner();
     const banner = b ? `<div class="alert ${b.tone || "purple"} admin-banner fx-rise"><span class="a-ic">${icon(b.tone === "red" ? "alert" : "megaphone")}</span><div class="grow"><b>${esc(b.title || "From the EWUdiots team")}</b><p>${esc(b.text)}</p></div>${b.link ? `<a class="btn sm" href="${esc(b.link)}" ${/^https:/.test(b.link) ? 'target="_blank" rel="noopener"' : ""}>${esc(b.cta || "Open")}</a>` : ""}</div>` : "";
-    const up = ctx.C.update && ctx.native.isNative ? `<a class="alert green update-card" href="${esc(ctx.C.update.url)}" target="_blank" rel="noopener"><span class="a-ic">${icon("download")}</span><div class="grow"><b>Update available: EWUdiots ${esc(ctx.C.update.version)}</b><p>Tap to download, then install over this app. Your data stays.</p></div>${icon("chevR")}</a>` : "";
-    return `${up}${banner}${ctx.demoBanner()}${mobile}${desktop}${ctx.community.homeNews()}`;
+    const up = ctx.C.update && ctx.native.isNative ? `<a class="alert green update-card" href="${esc(ctx.C.update.url)}" data-update target="_blank" rel="noopener"><span class="a-ic">${icon("download")}</span><div class="grow"><b>Update available: EWUdiots ${esc(ctx.C.update.version)}</b><p>Tap to update. Your data stays.</p></div>${icon("chevR")}</a>` : "";
+    const verify = needsVerify() ? `<a class="alert green fx-rise" href="#/profile?verify=1"><span class="a-ic">${icon("shield")}</span><div class="grow"><b>Verify your student account</b><p>Scan your EWU ID card once to get the verified badge.</p></div>${icon("chevR")}</a>` : "";
+    return `${up}${banner}${verify}${ctx.demoBanner()}${mobile}${desktop}${ctx.community.homeNews()}`;
   };
   // Next few campus events (approved), with a link to the full list.
   const eventsCard = () => {
@@ -162,6 +163,7 @@ export function install(ctx) {
     return `${ctx.subHead("Profile &amp; Settings", "", "#/more")}
       <div style="max-width:760px;margin:0 auto">
       ${profileHero(p)}
+      ${verifyNudge("pf-verify")}
       ${St.role === "student" ? portalCard(p, St) : ""}
       ${aboutCard(p)}
       <div class="card mt stats-strip">${[["star", "yellow", L.n, "Level"], ["shield", "green", ctx.study.unlockedCount(), "Badges"], ["bars", "blue", Math.round(x.totalMin / 60), "Study Hours"], ["flame", "orange", x.streak, "Day Streak"]]
@@ -187,6 +189,9 @@ export function install(ctx) {
       </section>
       <p class="xs mt" style="text-align:center">EWUdiots ${ctx.APP_VERSION} · Unofficial · not affiliated with East West University</p></div>`;
   };
+  /* Signed-in students who haven't verified with their ID card yet see this on Home and Profile. */
+  const needsVerify = () => { const u = ctx.C.user; return Boolean(u && ctx.cloud.roleOf(u) === "student" && !ctx.cloud.cardVerified(u)); };
+  const verifyNudge = (id) => needsVerify() ? `<section class="card mt verify-nudge row nowrap"><span class="itile green">${icon("shield")}</span><div class="grow min0"><b>Verify your student account</b><p class="small muted">Scan both sides of your EWU ID card to get the verified badge. Takes a minute.</p></div><button class="btn primary sm" id="${id}">${icon("scan", "sm")} Verify</button></section>` : "";
   /* Profile header: photo (tap to change), name, role, and how complete the profile is. */
   const ABOUT = [["headline", "Headline", "text", "CSE student · competitive programmer", 80], ["bio", "About me", "area", "A few lines about you, what you're into and what you're looking for.", 500],
     ["phone", "Phone", "tel", "01XXXXXXXXX", 20], ["hometown", "Hometown", "text", "e.g. Chattogram", 60], ["skills", "Skills", "text", "Python, UI design, public speaking", 200],
@@ -200,7 +205,7 @@ export function install(ctx) {
     const pc = completeness(p);
     return `<section class="card pf-hero">
       <div class="pf-photo">${ctx.myAvatar("xl")}<label class="pf-cam" aria-label="${p.photo ? "Change" : "Add"} your photo">${icon("image", "sm")}<input type="file" id="pf-photo" accept="image/*" hidden></label></div>
-      <div class="grow min0"><b class="pf-name">${esc(p.name || "Your name")}</b>
+      <div class="grow min0"><b class="pf-name">${esc(p.name || "Your name")}${ctx.cloud.cardVerified(ctx.C.user) ? ` <span class="pill green" title="ID card checked">${icon("checkc", "sm")} Verified student</span>` : ""}</b>
         ${p.headline ? `<p class="small">${esc(p.headline)}</p>` : ""}
         <p class="small muted">${[p.id && `ID ${p.id}`, p.program || p.department, ctx.roleLabel(), "East West University"].filter(Boolean).map(esc).join(" · ")}</p>
         <div class="pf-meter mt-s" title="Profile ${pc}% complete"><span style="width:${pc}%"></span></div>
@@ -276,6 +281,8 @@ export function install(ctx) {
     on("#pf-edit", "click", () => profileForm("Edit Profile", ["name", "id", "department"]));
     on("#pf-edit2", "click", () => profileForm("Edit Profile", S().role === "student" ? ["name", "id", "department"] : ["name", "department"]));
     on("#pf-about", "click", aboutForm);
+    on("#pf-verify", "click", () => ctx.idcard.verifyAccount());
+    if (ctx.qparam("verify") && needsVerify()) { history.replaceState(null, "", "#/profile"); ctx.idcard.verifyAccount(); }
     on("#pf-photo", "change", async (e) => {
       const f = e.target.files[0]; e.target.value = ""; if (!f) return;
       try { S().profile = Object.assign(S().profile || {}, { photo: await photoData(f) }); ctx.save(); ctx.rerender(); toast("Photo updated", "success", ctx.C.user ? "It's saved to your account." : ""); }
@@ -372,9 +379,10 @@ export function install(ctx) {
     $("#ob-local", el)?.addEventListener("click", () => ctx.go("#/role"));
   };
 
-  /* ── Accounts: sign in (ID/email + password) · create account (students: both sides of the ID card) · verify the
+  /* ── Accounts: sign in (ID/email + password, or a code by email, or by scanning the ID card → code to the student mail)
+     · create account (students: student email, verify with the ID card later — or scan both sides now) · verify the
      email with a 6-digit code · forgot password (code by email → new password). Admins use the admin console. ── */
-  const auth = { mode: "signin", role: "student", email: "", card: null, name: "", pendingRole: "" };
+  const auth = { mode: "signin", role: "student", sMethod: "email", sid: "", codeSent: false, email: "", card: null, name: "", pendingRole: "" };
   const pwOk = (p) => p.length >= 8 && /[A-Za-z]/.test(p) && /\d/.test(p);
   const pwField = (name, label, auto) => `<label class="field">${label}<span class="pw-wrap"><input class="input" name="${name}" type="password" autocomplete="${auto}" minlength="8" required><button type="button" class="pw-eye" data-eye aria-label="Show password">${icon("eye", "sm")}</button></span></label>`;
   const authErr = (msg) => `<div class="alert red mt-s" role="alert"><span class="a-ic">${icon("alert")}</span><div><b>${esc(msg)}</b></div></div>`;
@@ -391,18 +399,31 @@ export function install(ctx) {
         <label class="field">Student ID or email<span class="searchbar">${icon("user")}<input class="input" name="who" autocomplete="username" placeholder="2024-1-60-123 or you@gmail.com" value="${esc(auth.email)}" required></span></label>
         ${pwField("password", "Password", "current-password")}
         <div class="row between"><label class="row small" style="gap:6px"><input type="checkbox" class="check" checked disabled> Keep me signed in</label><button type="button" class="lnk" data-am="forgot">Forgot password?</button></div>
-        <div id="au-err"></div><button class="btn primary lg block">${icon("arrow")} Sign in</button></form>`;
+        <div id="au-err"></div><button class="btn primary lg block">${icon("arrow")} Sign in</button></form>
+        <div class="or-line"><span>or</span></div>
+        <div class="grid g2 alt-signin"><button type="button" class="btn outline" id="au-scanin">${icon("scan")} Scan ID card</button><button type="button" class="btn outline" data-am="code">${icon("mail")} Email me a code</button></div>`;
+    else if (auth.mode === "code") body = !auth.codeSent
+      ? `<h2 class="mt" style="text-align:center">Sign in with a code</h2><p class="muted small" style="text-align:center">No password needed. We email a 6-digit code to your account's email.</p>
+        <form id="au-cd1" class="stack mt" novalidate><label class="field">Student ID or email<span class="searchbar">${icon("user")}<input class="input" name="who" autocomplete="username" required value="${esc(auth.email)}" placeholder="2024-1-60-123 or you@gmail.com"></span></label><div id="au-err"></div>
+        <button class="btn primary lg block">${icon("mail")} Email me a code</button><div class="row"><button type="button" class="btn ghost grow" id="au-scanin">${icon("scan")} Scan ID card</button><button type="button" class="btn ghost grow" data-am="signin">Back</button></div></form>`
+      : `<div class="verify-ill">${icon("mail")}</div><h2 style="text-align:center">Check your email</h2><p class="muted small" style="text-align:center">We sent a sign-in code to <b>${esc(auth.email)}</b>.${/@std\.ewubd\.edu$/.test(auth.email) ? " Open your EWU student mail" : " Open your inbox"} (check spam too).</p>
+        <form id="au-cd2" class="stack mt" novalidate><label class="field">Code<input class="input otp" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label><div id="au-err"></div>
+        <button class="btn primary lg block">${icon("check")} Sign in</button><div class="row"><button type="button" class="btn ghost grow" id="au-cdre">${icon("reset")} Send a new code</button><button type="button" class="btn ghost grow" id="au-cdback">Back</button></div></form>`;
     else if (auth.mode === "signup") {
       const R = [["student", "user", "Student"], ["alumni", "cap", "Alumni"], ["faculty", "briefcase", "Faculty"]];
+      const viaCard = auth.sMethod === "card";
       body = `<div class="role-pick mt" role="radiogroup" aria-label="I am">${R.map(([v, ic, l]) => `<button type="button" role="radio" data-ar="${v}" aria-checked="${auth.role === v}">${icon(ic)}<span>${l}</span></button>`).join("")}</div>
+        ${auth.role === "student" ? `<div class="seg auth-tabs mt" role="tablist" aria-label="Sign up with">${[["email", "mail", "Student email"], ["card", "scan", "Scan ID card"]].map(([v, ic, l]) => `<button type="button" role="tab" data-sm="${v}" aria-selected="${(auth.sMethod || "email") === v}">${icon(ic, "sm")} ${l}</button>`).join("")}</div>` : ""}
         <form id="au-up" class="stack mt" novalidate>
-        ${auth.role === "student" ? (auth.card ? `<div class="card soft row nowrap"><span class="itile green">${icon("checkc")}</span><div class="grow min0"><b>${esc(auth.card.name || "ID card added")}</b><p class="small muted">${esc(auth.card.id)}@std.ewubd.edu · both sides added</p></div><button type="button" class="btn sm ghost" id="au-card">${icon("reset", "sm")} Redo</button></div>`
-            : `<button type="button" class="id-cta" id="au-card"><span class="itile purple">${icon("scan")}</span><span class="grow"><b>Scan both sides of your ID card</b><span>Required. We read your student ID and send the code to your EWU mail.</span></span>${icon("chevR")}</button>`)
+        ${auth.role === "student" ? (viaCard ? (auth.card ? `<div class="card soft row nowrap"><span class="itile green">${icon("checkc")}</span><div class="grow min0"><b>${esc(auth.card.name || "ID card added")}</b><p class="small muted">${esc(auth.card.id)}@std.ewubd.edu · both sides added</p></div><button type="button" class="btn sm ghost" id="au-card">${icon("reset", "sm")} Redo</button></div>`
+            : `<button type="button" class="id-cta" id="au-card"><span class="itile purple">${icon("scan")}</span><span class="grow"><b>Scan both sides of your ID card</b><span>We read your student ID, send the code to your EWU mail, and your account is verified straight away.</span></span>${icon("chevR")}</button>`)
+            : `<label class="field">Student ID or EWU email<span class="searchbar">${icon("user")}<input class="input" name="sid" autocomplete="username" required value="${esc(auth.sid || "")}" placeholder="2024-1-60-123"></span><span class="hint">We send a code to your EWU student mail. You can verify with your ID card later from your account.</span></label>
+               <label class="field">Full name<input class="input" name="name" autocomplete="name" required value="${esc(auth.name)}" placeholder="As on your ID card"></label>`)
           : `<label class="field">Full name<input class="input" name="name" autocomplete="name" required value="${esc(auth.name)}" placeholder="Your name"></label>
              <label class="field">${auth.role === "faculty" ? "University email" : "Personal email"}<span class="searchbar">${icon("mail")}<input class="input" name="email" type="email" autocomplete="email" required value="${esc(auth.email)}" placeholder="${auth.role === "faculty" ? "yourname@ewubd.edu" : "you@gmail.com"}"></span><span class="hint">${auth.role === "faculty" ? "Teachers must use their EWU university email (@ewubd.edu). We send a code to it." : "The email you use now (Gmail is fine). We send a code to check it."}</span></label>`}
         ${pwField("password", "Create a password", "new-password")}${pwField("password2", "Confirm password", "new-password")}
         <p class="xs">At least 8 characters, with letters and numbers.</p>
-        <div id="au-err"></div><button class="btn primary lg block" ${auth.role === "student" && !auth.card ? "disabled" : ""}>${icon("mail")} Create account &amp; send code</button></form>`;
+        <div id="au-err"></div><button class="btn primary lg block" ${auth.role === "student" && viaCard && !auth.card ? "disabled" : ""}>${icon("mail")} Create account &amp; send code</button></form>`;
     } else if (auth.mode === "verify") body = `<div class="verify-ill">${icon("mail")}</div><h2 style="text-align:center">Check your email</h2><p class="muted small" style="text-align:center">We sent a 6-digit code to <b>${esc(auth.email)}</b>.${/@std\.ewubd\.edu$/.test(auth.email) ? " Open your EWU student mail" : " Open your inbox"} (check spam too).</p>
         <form id="au-code" class="stack mt" novalidate><label class="field">Code<input class="input otp" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label><div id="au-err"></div>
         <button class="btn primary lg block">${icon("check")} Verify &amp; continue</button><div class="row"><button type="button" class="btn ghost grow" id="au-resend">${icon("reset")} Send a new code</button><button type="button" class="btn ghost grow" data-am="signin">Back</button></div></form>`;
@@ -421,7 +442,7 @@ export function install(ctx) {
     const next = () => ctx.go(from === "profile" ? "#/profile" : S().profile ? "#/home" : "#/setup");
     const on = (sel, ev, fn) => { const x = $(sel, el); x && x.addEventListener(ev, fn); };
     const fail = (msg) => { const e = $("#au-err", el); if (e) e.innerHTML = authErr(msg); else toast(msg, "error"); };
-    const mode = (m) => { auth.mode = m; ctx.rerender(); };
+    const mode = (m) => { if (m === "code") auth.codeSent = false; auth.mode = m; ctx.rerender(); };
     on("#lg-skip", "click", () => ctx.go(from === "profile" ? "#/profile" : "#/role"));
     $$("[data-am]", el).forEach((b) => b.addEventListener("click", () => mode(b.dataset.am)));
     $$("[data-ar]", el).forEach((b) => b.addEventListener("click", () => { auth.role = b.dataset.ar; ctx.rerender(); }));
@@ -432,7 +453,8 @@ export function install(ctx) {
       await ctx.afterSignIn();
       const role = ctx.cloud.roleOf(ctx.C.user) || auth.pendingRole;
       if (["student", "alumni", "faculty"].includes(role)) S().role = role;
-      if (auth.card && ctx.C.user?.email?.startsWith(auth.card.id)) await ctx.idcard.commit(auth.card, { verified: true, email: ctx.C.user.email });
+      // Signed up by scanning both sides: the card is saved to the account and the server marks it verified.
+      if (auth.card?.back && ctx.C.user?.email?.startsWith(auth.card.id + "@")) await ctx.idcard.verifyWithCard(auth.card);
       if (!S().profile && auth.name) S().profile = { name: auth.name, creditsTotal: 140, semester: ctx.currentSemester() };
       ctx.save(); Object.assign(auth, { mode: "signin", card: null, pendingRole: "" });
       toast(msg, "success"); next();
@@ -441,6 +463,42 @@ export function install(ctx) {
       const card = await ctx.idcard.scan({ title: "Your EWU ID card", cta: "Use this card" });
       if (card) { auth.card = card; auth.email = `${card.id}@std.ewubd.edu`; auth.name = card.name; ctx.rerender(); }
     });
+    $$("[data-sm]", el).forEach((b) => b.addEventListener("click", () => { auth.sMethod = b.dataset.sm; ctx.rerender(); }));
+    // Sign in by scanning the card: read the ID from the front, then a code goes to that student's EWU mail.
+    const sendLogin = async (who, btn) => {
+      busy(btn, true, "Sending…");
+      try { auth.email = await ctx.cloud.sendLoginCode(who); auth.codeSent = true; auth.mode = "code"; ctx.rerender(); toast("Code sent", "success", auth.email); }
+      catch (err) {
+        busy(btn, false);
+        if (/no account/i.test(err.message) && ctx.cloud.STUDENT_ID.test(String(who))) { Object.assign(auth, { mode: "signup", role: "student", sMethod: "email", sid: who }); ctx.rerender(); toast("No account for this ID yet", "info", "Create one: your ID is filled in."); }
+        else fail(err.message);
+      }
+    };
+    on("#au-scanin", "click", async (e) => {
+      const btn = e.currentTarget, card = await ctx.idcard.scan({ title: "Sign in with your ID card", cta: "Send me a code", frontOnly: true });
+      if (!card) return;
+      auth.name = card.name || auth.name; await sendLogin(card.id, btn);
+    });
+    on("#au-cd1", "submit", (e) => {
+      e.preventDefault(); const who = String(new FormData(e.target).get("who") || "").trim();
+      if (!who) return fail("Enter your student ID or email.");
+      sendLogin(who, e.target.querySelector("button.primary"));
+    });
+    on("#au-cd2", "submit", async (e) => {
+      e.preventDefault(); const code = String(new FormData(e.target).get("code")).trim(), btn = e.target.querySelector("button.primary");
+      if (!/^\d{6}$/.test(code)) return fail("Enter the 6-digit code from the email.");
+      busy(btn, true, "Signing in…");
+      try { await ctx.cloud.verifyLoginCode(auth.email, code); auth.codeSent = false; await done("Welcome back!"); }
+      catch (err) { busy(btn, false); fail(err.message); }
+    });
+    let cdCool = 0;
+    on("#au-cdre", "click", async (e) => {
+      if (Date.now() < cdCool) return toast("Please wait a minute before asking again", "warn");
+      const b = e.currentTarget; busy(b, true, "Sending…");
+      try { await ctx.cloud.sendLoginCode(auth.email); cdCool = Date.now() + 60e3; toast("New code sent", "success", auth.email); } catch (err) { fail(err.message); }
+      busy(b, false);
+    });
+    on("#au-cdback", "click", () => { auth.codeSent = false; ctx.rerender(); });
     on("#au-in", "submit", async (e) => {
       e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), btn = e.target.querySelector("button.primary");
       auth.email = String(f.who).trim();
@@ -455,15 +513,22 @@ export function install(ctx) {
     });
     on("#au-up", "submit", async (e) => {
       e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), btn = e.target.querySelector("button.primary");
-      const email = auth.role === "student" ? auth.card && `${auth.card.id}@std.ewubd.edu` : String(f.email || "").trim().toLowerCase();
-      if (auth.role === "student" && !auth.card) return fail("Scan both sides of your ID card first.");
-      if (auth.role !== "student") { auth.name = String(f.name || "").trim(); auth.email = email; if (auth.name.length < 2) return fail("Please enter your name."); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Please enter a valid email."); if (/@std\.ewubd\.edu$/.test(email)) return fail("Students: choose Student above and scan your ID card.");
+      const viaCard = auth.role === "student" && auth.sMethod === "card";
+      if (auth.role === "student" && !viaCard) {
+        auth.sid = String(f.sid || "").trim(); auth.name = String(f.name || "").trim();
+        if (!ctx.cloud.EWU_EMAIL.test(ctx.cloud.emailFor(auth.sid))) return fail("Enter your student ID like 2024-1-60-123, or your EWU student email.");
+        if (auth.name.length < 2) return fail("Please enter your name.");
+        auth.card = null;
+      }
+      const email = auth.role === "student" ? (viaCard ? auth.card && `${auth.card.id}@std.ewubd.edu` : ctx.cloud.emailFor(auth.sid)) : String(f.email || "").trim().toLowerCase();
+      if (viaCard && !auth.card) return fail("Scan both sides of your ID card first, or choose Student email.");
+      if (auth.role !== "student") { auth.name = String(f.name || "").trim(); auth.email = email; if (auth.name.length < 2) return fail("Please enter your name."); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Please enter a valid email."); if (/@std\.ewubd\.edu$/.test(email)) return fail("Students: choose Student above and use your student ID.");
         if (auth.role === "faculty" && !/^[^@\s]+@ewubd\.edu$/.test(email)) return fail("Teachers must use their EWU university email (name@ewubd.edu).");
         if (auth.role === "alumni" && /@ewubd\.edu$/.test(email)) return fail("Alumni: please use your personal email. EWU staff should choose Teacher."); }
       if (!pwOk(f.password)) return fail("Use at least 8 characters with letters and numbers.");
       if (f.password !== f.password2) return fail("The two passwords don't match.");
       busy(btn, true, "Creating…");
-      try { auth.email = await ctx.cloud.signUp({ email, password: f.password, role: auth.role, name: auth.role === "student" ? auth.card.name : auth.name }); auth.pendingRole = auth.role; mode("verify"); toast("Code sent", "success", `Check ${auth.email}`); }
+      try { auth.email = await ctx.cloud.signUp({ email, password: f.password, role: auth.role, name: viaCard ? auth.card.name : auth.name }); auth.pendingRole = auth.role; mode("verify"); toast("Code sent", "success", `Check ${auth.email}`); }
       catch (err) { busy(btn, false); if (err.exists) { auth.email = email; fail(err.message); } else fail(err.message); }
     });
     on("#au-code", "submit", async (e) => {
@@ -476,9 +541,9 @@ export function install(ctx) {
     let cool = 0;
     on("#au-resend", "click", async (e) => {
       if (Date.now() < cool) return toast("Please wait a minute before asking again", "warn");
-      busy(e.currentTarget, true, "Sending…");
+      const b = e.currentTarget; busy(b, true, "Sending…");
       try { await ctx.cloud.resendSignup(auth.email); cool = Date.now() + 60e3; toast("New code sent", "success", auth.email); } catch (err) { fail(err.message); }
-      busy(e.currentTarget, false);
+      busy(b, false);
     });
     on("#au-fg", "submit", async (e) => {
       e.preventDefault(); const who = String(new FormData(e.target).get("who")).trim(), btn = e.target.querySelector("button.primary");

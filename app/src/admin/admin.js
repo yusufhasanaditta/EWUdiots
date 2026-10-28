@@ -360,25 +360,36 @@ const VIEWS = {
 
   async users(el) {
     let q = el.dataset.q || "", role = el.dataset.role || "all";
-    const rows = await api.rpc("admin_users", { q, lim: 500 }), shown = rows.filter((u) => role === "all" || (role === "suspended" ? u.suspended : u.role === role));
-    const count = (r) => rows.filter((u) => r === "all" || (r === "suspended" ? u.suspended : u.role === r)).length;
+    const rows = await api.rpc("admin_users", { q, lim: 500 });
+    const pick = (r) => (u) => r === "all" || (r === "suspended" ? u.suspended : r === "unverified" ? u.role === "student" && !u.card_verified : u.role === r);
+    const shown = rows.filter(pick(role)), count = (r) => rows.filter(pick(r)).length;
     el.innerHTML = `<div class="row nowrap"><form class="searchbar grow" id="uq">${icon("search")}<input class="input" name="q" type="search" value="${esc(q)}" placeholder="Search email or name"></form><button class="btn outline" id="u-csv">${icon("download")} CSV</button></div>
-      <div class="seg mt-s">${[["all", "All"], ["student", "Students"], ["alumni", "Alumni"], ["faculty", "Faculty"], ["suspended", "Suspended"]].map(([v, l]) => `<button data-role="${v}" aria-selected="${role === v}">${l} (${count(v)})</button>`).join("")}</div>
+      <div class="seg mt-s">${[["all", "All"], ["student", "Students"], ["unverified", "Students not verified"], ["alumni", "Alumni"], ["faculty", "Faculty"], ["suspended", "Suspended"]].map(([v, l]) => `<button data-role="${v}" aria-selected="${role === v}">${l} (${count(v)})</button>`).join("")}</div>
       <section class="card mt tight">${shown.length ? shown.map((u) => `<div class="lrow"><span class="avatar sm">${esc((u.name || u.email).slice(0, 2).toUpperCase())}</span>
         <span class="body"><b>${esc(u.name || u.email)}</b><span>${esc(u.email)} · joined ${ago(u.created_at)} · ${u.last_sign_in_at ? `seen ${ago(u.last_sign_in_at)}` : "never signed in"}</span></span>
-        ${u.role ? `<span class="pill">${esc(u.role)}</span>` : ""}${!u.confirmed ? '<span class="pill amber">Unverified</span>' : ""}${u.suspended ? '<span class="pill red">Suspended</span>' : ""}
+        ${u.role ? `<span class="pill">${esc(u.role)}</span>` : ""}${!u.confirmed ? '<span class="pill amber">Email not confirmed</span>' : ""}${u.role === "student" ? (u.card_verified ? `<span class="pill green">${icon("checkc", "sm")} ID verified</span>` : '<span class="pill">ID not verified</span>') : ""}${u.suspended ? '<span class="pill red">Suspended</span>' : ""}
         <button class="btn sm ghost" data-u="${esc(u.id)}" aria-label="Manage ${esc(u.email)}">${icon("morev")}</button></div>`).join("") : '<p class="small muted">No users match.</p>'}</section>`;
     $("#uq", el).addEventListener("submit", (e) => { e.preventDefault(); el.dataset.q = new FormData(e.target).get("q"); VIEWS.users(el); });
     $$("[data-role]", el).forEach((b) => b.addEventListener("click", () => { el.dataset.role = b.dataset.role; VIEWS.users(el); }));
-    $("#u-csv", el).addEventListener("click", () => downloadCSV("users", shown, ["email", "name", "role", "created_at", "last_sign_in_at", "confirmed", "suspended"]));
+    $("#u-csv", el).addEventListener("click", () => downloadCSV("users", shown, ["email", "name", "role", "created_at", "last_sign_in_at", "confirmed", "card_verified", "suspended"]));
     $$("[data-u]", el).forEach((b) => b.addEventListener("click", () => {
       const u = rows.find((x) => x.id === b.dataset.u);
       openModal(u.name || u.email, `<p class="small muted">${esc(u.email)} · ${esc(u.role || "no role")} · joined ${ago(u.created_at)}</p><div class="stack mt" style="gap:0">
+        ${u.role === "student" ? `<button class="lrow" id="um-card"><span class="itile sm green">${icon("scan")}</span><span class="body"><b>${u.card_verified ? "ID card: verified" : "ID card: not verified"}</b><span>See the card photos, verify or remove the badge</span></span></button>` : ""}
         <button class="lrow" id="um-msg"><span class="itile sm purple">${icon("mail")}</span><span class="body"><b>Send a message</b><span>Shows in their app notifications</span></span></button>
         <button class="lrow" id="um-reset"><span class="itile sm blue">${icon("lock")}</span><span class="body"><b>Email a password reset code</b><span>They choose a new password in the app</span></span></button>
         <button class="lrow" id="um-out"><span class="itile sm orange">${icon("logout")}</span><span class="body"><b>Sign out on all devices</b><span>Ends every session (lost phone, shared PC)</span></span></button>
         <button class="lrow" id="um-sus"><span class="itile sm ${u.suspended ? "green" : "red"}">${icon(u.suspended ? "checkc" : "x")}</span><span class="body"><b>${u.suspended ? "Restore access" : "Suspend account"}</b><span>${u.suspended ? "They can sign in again" : "Blocks sign-in and signs them out"}</span></span></button></div>`, (m) => {
         $("#um-msg", m).addEventListener("click", () => { closeModal(); messageForm(u); });
+        $("#um-card", m)?.addEventListener("click", async () => {
+          const urls = await Promise.all(["front", "back"].map((side) => api.cardUrl(u.id, side).catch(() => "")));
+          openModal(`ID card · ${u.email.split("@")[0]}`, `<div class="grid g2">${urls.map((x, i) => x ? `<figure style="margin:0"><img src="${esc(x)}" alt="" style="width:100%;border-radius:12px"><figcaption class="xs">${i ? "Back" : "Front"}</figcaption></figure>` : `<p class="small muted">No ${i ? "back" : "front"} photo uploaded.</p>`).join("")}</div>
+            <p class="xs mt-s">Check that the student ID on the card is ${esc(u.email.split("@")[0])}. Photos are private; only admins who manage users can open them.</p>
+            <div class="row mt"><span class="grow"></span>${u.card_verified ? `<button class="btn danger-soft" id="uc-off">${icon("x", "sm")} Remove badge</button>` : `<button class="btn primary" id="uc-on">${icon("check", "sm")} Mark verified</button>`}</div>`, (m2) => {
+            const set = (on) => act(on ? "Verified student card" : "Removed card verification", u.email, () => api.rpc("admin_set_card_verified", { uid: u.id, verified: on })).then(() => { closeModal(); toast(on ? "Marked verified" : "Badge removed", "info"); VIEWS.users(el); }).catch((e) => toast(e.message, "error"));
+            $("#uc-on", m2)?.addEventListener("click", () => set(true)); $("#uc-off", m2)?.addEventListener("click", () => set(false));
+          });
+        });
         $("#um-reset", m).addEventListener("click", async () => { try { await act("Sent password reset", u.email, () => api.sendReset(u.email)); closeModal(); toast("Reset code sent", "success", u.email); } catch (e) { toast(e.message, "error"); } });
         $("#um-out", m).addEventListener("click", async () => { try { const n = await act("Signed user out everywhere", u.email, () => api.rpc("admin_revoke_sessions", { uid: u.id })); closeModal(); toast(`Ended ${n || 0} session(s)`, "info"); } catch (e) { toast(e.message, "error"); } });
         $("#um-sus", m).addEventListener("click", () => { closeModal(); confirmAct(u.suspended ? "Restore this account?" : "Suspend this account?", u.suspended ? `${esc(u.email)} can sign in again.` : `${esc(u.email)} is signed out everywhere and can't sign in until you restore access.`, u.suspended ? "Restore" : "Suspend",

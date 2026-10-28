@@ -247,3 +247,12 @@ label.chip { cursor: pointer; } label.chip input { accent-color: var(--primary);
 .ev-group { font-size: 15px; margin: 22px 0 10px; color: var(--text-2); text-transform: uppercase; letter-spacing: .05em; }
 .ev-img { width: 100%; max-height: 260px; object-fit: cover; border-radius: 16px; }
 @media (prefers-reduced-motion: reduce) { .ev-card, .pf-meter span { transition: none; } }
+
+/* v2.10 sign-in options + verification */
+.or-line { display: flex; align-items: center; gap: 12px; margin: 18px 0 12px; color: var(--text-3, #64748b); font-size: 13px; }
+.or-line::before, .or-line::after { content: ""; flex: 1; height: 1px; background: var(--border, #e5e7eb); }
+.alt-signin .btn { min-height: 46px; }
+.verify-nudge { border: 1px solid var(--success-s, #dcfce7); background: linear-gradient(135deg, var(--success-s, #f0fdf4), var(--surface)); }
+.pf-name .pill { vertical-align: middle; font-size: 11.5px; }
+@media (max-width: 420px) { .verify-nudge { flex-wrap: wrap; } .verify-nudge .btn { width: 100%; } }
+.upd-prog { margin: 14px 0 4px; text-align: left; } .upd-prog .bar { height: 10px; }

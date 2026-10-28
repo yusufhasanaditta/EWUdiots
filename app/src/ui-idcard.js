@@ -9,9 +9,21 @@ const SKIP = /\b(EAST|WEST|UNIVERSITY|STUDENT|IDENTITY|CARD|VALID|DEPT|DEPARTMEN
 const PROGRAMS = { "60": "CSE" }; // ID program codes we're sure of (2024-1-60-123 = CSE)
 
 /* Pull ID, name, programme and validity out of OCR text. Exported for unit tests. */
+// Card photos: OCR mixes up look-alike characters inside the number (O/0, I/l/1, S/5, B/8, Z/2) and sometimes drops the dashes.
+const LOOSE_ID = /([\dOoIl|SBZ]{4})\s*[-–—_.,:]\s*([\dOoIl|SZ])\s*[-–—_.,:]\s*([\dOoIl|SBZ]{2})\s*[-–—_.,:]\s*([\dOoIl|SBZ]{3})/;
+const digits = (s) => s.replace(/[Oo]/g, "0").replace(/[Il|]/g, "1").replace(/S/g, "5").replace(/B/g, "8").replace(/Z/g, "2");
+export function findStudentId(text) {
+  const T = String(text || "");
+  let m = T.match(ID_RE);
+  if (!m) { const l = T.match(LOOSE_ID); if (l) { const g = l.slice(1, 5).map(digits); if (g.every((x) => /^\d+$/.test(x))) m = [l[0], ...g]; } }
+  if (!m) m = T.match(/\b(20\d{2})\s?([1-3])\s?(\d{2})\s?(\d{3})\b/); // dashes lost: "2024160123"
+  if (!m || !/^20\d{2}$/.test(m[1]) || !/^[1-3]$/.test(m[2])) return "";
+  return `${m[1]}-${m[2]}-${m[3]}-${m[4]}`;
+}
+
 export function parseCardText(text) {
   const lines = String(text || "").split(/\r?\n/).map((l) => l.replace(/[|_~`"“”]+/g, " ").replace(/\s+/g, " ").trim()).filter(Boolean);
-  const m = String(text).match(ID_RE), id = m ? `${m[1]}-${m[2]}-${m[3]}-${m[4]}` : "";
+  const id = findStudentId(text);
   let name = "";
   const labelled = lines.map((l) => l.match(/^name\s*[:.\-]?\s*(.+)$/i)).find(Boolean);
   if (labelled) name = labelled[1];
@@ -21,6 +33,19 @@ export function parseCardText(text) {
   const dept = (String(text).match(/\b(CSE|EEE|ECE|ICE|Civil|Pharmacy|English|Economics|Law|Sociology|GEB|Mathematics|Information Studies|Business Administration)\b/i) || [""])[0] || (id ? PROGRAMS[id.split("-")[2]] || "" : "");
   const valid = (String(text).match(/valid\w*\s*(?:up\s*to|till|until|thru|through)?\s*[:.\-]?\s*([A-Za-z0-9 ,\/.\-]{4,20})/i) || ["", ""])[1].trim();
   return { id, name, program: prog, dept, valid };
+}
+
+/* Read a card photo: as taken, then turned sideways both ways (cards are often shot in portrait), then bigger.
+   Stops at the first try that finds the student ID; otherwise keeps whatever name it found. */
+const CARD_TRIES = [{}, { rotate: 90 }, { rotate: 270 }, { boost: true }, { rotate: 180 }];
+export async function readCard(src, onProg = () => {}) {
+  let best = { id: "", name: "", program: "", dept: "", valid: "" };
+  for (const [i, opt] of CARD_TRIES.entries()) {
+    const got = parseCardText(await readText(src, (p) => onProg((i + p) / CARD_TRIES.length), opt));
+    if (got.id) { onProg(1); return { ...got, name: got.name || best.name }; }
+    if (!best.name && got.name) best = got;
+  }
+  return best;
 }
 
 export function install(ctx) {
@@ -48,7 +73,8 @@ export function install(ctx) {
 
   /* ── Scan flow: photo of the front → photo of the back → confirm. Both sides are required.
      Resolves with the card details (and both images) or null if cancelled. ── */
-  function scan({ title = "Scan your EWU ID card", cta = "Continue" } = {}) {
+  // frontOnly: signing in only needs the ID number, so the back side and the photo crop are skipped.
+  function scan({ title = "Scan your EWU ID card", cta = "Continue", frontOnly = false } = {}) {
     return new Promise((resolve) => {
       // The front photo is kept until you finish, so if the phone closes the app while the camera is open, the scan resumes.
       let done = false; const finish = (v) => { if (done) return; done = true; delBlob("id:pending").catch(() => {}); resolve(v); };
@@ -57,15 +83,15 @@ export function install(ctx) {
       const NONE = { id: "", name: "", dept: "", valid: "" };
       const startReading = (url) => {
         pct = 0;
-        const ocr = readText(url, (p) => { pct = p; const b = $("#id-prog"); if (b) b.style.width = `${Math.round(10 + p * 90)}%`; }).then(parseCardText);
-        // A slow or stuck reader never blocks you: after 40 s, or when you tap "Type it myself", you fill the form by hand.
-        reading = Promise.race([ocr, new Promise((r) => setTimeout(() => r(NONE), 40000)), new Promise((r) => { skip = () => r(NONE); })])
+        const ocr = readCard(url, (p) => { pct = p; const b = $("#id-prog"); if (b) b.style.width = `${Math.round(10 + p * 90)}%`; });
+        // A slow or stuck reader never blocks you: after 90 s, or when you tap "Type it myself", you fill the form by hand.
+        reading = Promise.race([ocr, new Promise((r) => setTimeout(() => r(NONE), 90000)), new Promise((r) => { skip = () => r(NONE); })])
           .catch((e) => { console.warn(e); return NONE; });
       };
-      const steps = () => `<ol class="id-steps" aria-label="Steps">${[["front", "Front"], ["back", "Back"], ["check", "Check"]].map(([k, l], i) => `<li class="${(k === "check" ? sides.front && sides.back : sides[k]) ? "done" : ""}">${sides[k] ? icon("check", "sm") : `<span>${i + 1}</span>`}${l}</li>`).join("")}</ol>`;
+      const steps = () => `<ol class="id-steps" aria-label="Steps">${(frontOnly ? [["front", "Front"], ["check", "Check"]] : [["front", "Front"], ["back", "Back"], ["check", "Check"]]).map(([k, l], i) => `<li class="${(k === "check" ? sides.front && (frontOnly || sides.back) : sides[k]) ? "done" : ""}">${sides[k] ? icon("check", "sm") : `<span>${i + 1}</span>`}${l}</li>`).join("")}</ol>`;
       const pickHTML = (side) => `${modalHead(title)}${steps()}<div class="stack">
         <div class="id-guide ${side}" aria-hidden="true"><div class="id-frame"><span></span><span></span><span></span><span></span>${side === "front" ? `${icon("user")}<i></i><i></i><i></i>` : `<em></em><i></i><i></i>`}</div></div>
-        <div><b>${side === "front" ? "Photo of the front side" : "Now the back side"}</b><p class="small muted">${side === "front" ? "The side with your photo and student ID. Lay it flat in good light so the number is sharp." : "Turn the card over. Both sides are needed to add your card."}</p></div>
+        <div><b>${side === "front" ? "Photo of the front side" : "Now the back side"}</b><p class="small muted">${side === "front" ? "The side with your photo and student ID. Lay it flat in good light so the number is sharp. Sideways is fine." : "Turn the card over. Both sides are needed to add your card."}</p></div>
         <div class="row"><label class="btn primary grow" style="cursor:pointer">${icon("scan")} Take a photo<input type="file" data-side="${side}" accept="image/*" capture="environment" hidden></label>
           <label class="btn outline grow" style="cursor:pointer">${icon("upload")} Upload image<input type="file" data-side="${side}" accept="image/*" hidden></label></div>
         ${side === "back" ? `<div class="row nowrap small muted" style="gap:10px"><img class="id-thumb" src="${sides.front}" alt="Front side"><span class="grow">Front side added.</span><button type="button" class="btn ghost sm" id="id-redo-front">${icon("reset")} Retake front</button></div>` : ""}
@@ -77,12 +103,12 @@ export function install(ctx) {
           $("#id-skipocr", m)?.addEventListener("click", () => skip?.());
           got = await reading;
           show(`${modalHead("Check your details")}${steps()}<form id="id-form" class="stack" novalidate>
-            <div class="id-pair"><figure><img src="${sides.front}" alt="Front of your card"><figcaption>Front</figcaption></figure><figure><img src="${sides.back}" alt="Back of your card"><figcaption>Back</figcaption></figure></div>
+            <div class="id-pair"><figure><img src="${sides.front}" alt="Front of your card"><figcaption>Front</figcaption></figure>${sides.back ? `<figure><img src="${sides.back}" alt="Back of your card"><figcaption>Back</figcaption></figure>` : ""}</div>
             ${!got.id ? `<div class="alert amber">${icon("alert")}<div><b>We couldn't read the ID number</b><p>Type it below, or retake the front closer and sharper.</p></div></div>` : ""}
             <label class="field">Student ID<input class="input" name="id" inputmode="numeric" value="${esc(got.id)}" placeholder="2024-1-60-123" required><span class="err" id="id-err" hidden></span></label>
             <label class="field">Full name<input class="input" name="name" value="${esc(got.name)}" autocomplete="name" placeholder="As printed on the card"></label>
             <div class="grid g2"><label class="field">Department<input class="input" name="dept" value="${esc(got.dept)}" placeholder="e.g. CSE"></label><label class="field">Valid until<input class="input" name="valid" value="${esc(got.valid)}" placeholder="optional"></label></div>
-            <label class="row nowrap small" style="gap:8px"><input type="checkbox" name="usephoto" checked> Crop my photo from the card for the pass</label>
+            ${frontOnly ? "" : '<label class="row nowrap small" style="gap:8px"><input type="checkbox" name="usephoto" checked> Crop my photo from the card for the pass</label>'}
             <div class="row"><button type="button" class="btn neutral grow" id="id-retake">${icon("reset")} Retake</button><button class="btn primary grow">${cta}</button></div></form>`);
           $("#id-retake", m).addEventListener("click", () => { sides.front = sides.back = null; reading = null; show(pickHTML("front")); });
           $("#id-form", m).addEventListener("submit", async (e) => {
@@ -101,7 +127,7 @@ export function install(ctx) {
           if (side === "front") {
             startReading(url);
             setBlob("id:pending", url).catch(() => {});
-            show(pickHTML("back"));
+            if (frontOnly) confirm(); else show(pickHTML("back"));
           } else confirm();
         };
         function bind() {
@@ -110,7 +136,7 @@ export function install(ctx) {
           $$("[data-close]", m).forEach((b) => b.addEventListener("click", () => finish(null)));
         }
         bind();
-        getBlob("id:pending").then((url) => { if (url && !sides.front && !done) { sides.front = url; startReading(url); show(pickHTML("back")); toast("Picking up where you left off", "info", "Front side is saved. Now add the back."); } }).catch(() => {});
+        getBlob("id:pending").then((url) => { if (url && !sides.front && !done && !frontOnly) { sides.front = url; startReading(url); show(pickHTML("back")); toast("Picking up where you left off", "info", "Front side is saved. Now add the back."); } }).catch(() => {});
       });
       // Closing the sheet any other way (scrim, Esc) cancels the scan.
       const obs = new MutationObserver(() => { if (!$("#scrim").classList.contains("open")) { obs.disconnect(); finish(null); } });
@@ -192,13 +218,17 @@ export function install(ctx) {
       <section class="card settings-list mt">
         <button class="lrow" id="idc-scan"><span class="itile purple">${icon("scan")}</span><span class="body"><b>Rescan card</b><span>Front and back, or update your details</span></span>${icon("chevR", "chev")}</button>
         <button class="lrow" id="idc-photo"><span class="itile blue">${icon("image")}</span><span class="body"><b>Change pass photo</b><span>Use any picture of you</span></span>${icon("chevR", "chev")}</button>
+        ${ctx.C.user && ctx.cloud.roleOf(ctx.C.user) === "student" && !ctx.cloud.cardVerified(ctx.C.user) ? `<button class="lrow" id="idc-verify"><span class="itile green">${icon("shield")}</span><span class="body"><b>Verify my student account</b><span>${c.hasScan && c.hasBack && ctx.C.user.email.startsWith(c.id + "@") ? "Uses this card. No rescan needed." : "Scan both sides of your own card"}</span></span>${icon("chevR", "chev")}</button>` : ""}
         ${!c.verified && ctx.cloud.enabled && !ctx.C.user ? `<a class="lrow" href="#/login?from=profile"><span class="itile green">${icon("mail")}</span><span class="body"><b>Verify with your EWU email</b><span>Code goes to ${esc(c.id)}@std.ewubd.edu</span></span>${icon("chevR", "chev")}</a>` : ""}
         <button class="lrow" id="idc-del"><span class="itile red">${icon("trash")}</span><span class="body"><b style="color:var(--error-t)">Remove ID card</b><span>Deletes the pass and both card pictures</span></span></button></section>
       <p class="xs mt">EWUdiots is unofficial. Use your real EWU ID card for exams, the library and security checks.</p></div>`;
   };
   pages.idcard.mount = (el) => {
     const on = (s, fn) => { const b = $(s, el); b && b.addEventListener("click", fn); };
-    on("#idc-scan", async () => { const r = await scan({ cta: "Save card" }); if (r) { await commit(r); toast("ID card saved", "success", r.id); ctx.rerender(); } });
+    // Signed-in students scanning their own card are verified on the server at the same time.
+    const mine = (r) => ctx.C.user && ctx.cloud.roleOf(ctx.C.user) === "student" && ctx.C.user.email.toLowerCase().startsWith(r.id + "@");
+    on("#idc-scan", async () => { const r = await scan({ cta: "Save card" }); if (!r) return; if (mine(r) && !ctx.cloud.cardVerified(ctx.C.user)) await verifyWithCard(r); else { await commit(r); toast("ID card saved", "success", r.id); } ctx.rerender(); });
+    on("#idc-verify", async () => { const saved = savedCard(); if (saved && mine(saved)) await verifyWithCard(saved); else await verifyAccount(); ctx.rerender(); });
     const card = $("#idc", el); if (!card) return;
     const c = S().idcard, me = ctx.C.user?.email?.toLowerCase() || "";
     if (!c.verified && me.startsWith(c.id + "@")) { c.verified = true; c.email = me; ctx.save({ silent: true }); ctx.rerender(); return; } // already signed in with this card's email
@@ -227,5 +257,26 @@ export function install(ctx) {
   const forget = () => { imgs.scan = imgs.back = imgs.photo = null; imgs.loaded = false; };
   // A card already on this device with both sides photographed can sign in again without rescanning.
   const savedCard = () => { const c = S().idcard; return c && c.hasScan && c.hasBack ? { id: c.id, name: c.name, dept: c.dept, valid: c.valid } : null; };
-  return { scan, commit, forget, savedCard, pending: null };
+  /* Verify a signed-in student account: scan both sides of your own card (its ID must be your account's ID), the photos go
+     to your private folder, and the server marks the account verified (public.verify_my_card checks both again). */
+  async function verifyAccount() {
+    const user = ctx.C.user;
+    if (!user) { ctx.go("#/login?from=profile"); return false; }
+    const want = String(user.email || "").split("@")[0];
+    const card = await scan({ title: "Verify with your ID card", cta: "Verify my account" });
+    return card ? verifyWithCard(card) : false;
+  }
+  async function verifyWithCard(card) {
+    const user = ctx.C.user, want = String(user?.email || "").split("@")[0];
+    if (!user) return false;
+    if (card.id !== want) { toast("That card has a different student ID", "error", `This account is ${want}. Scan your own card.`); return false; }
+    try {
+      await commit(card, { verified: true, email: user.email });
+      await backupImgs(["scan", "back"]);
+      await ctx.cloud.verifyMyCard(card.id);
+      toast("Your student account is verified", "success", "Thanks! You have the verified badge now.");
+      ctx.rerender(); return true;
+    } catch (e) { toast("Couldn't verify yet", "error", e.message); return false; }
+  }
+  return { scan, commit, forget, savedCard, verifyAccount, verifyWithCard, pending: null };
 }

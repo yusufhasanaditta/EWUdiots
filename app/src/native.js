@@ -1,5 +1,5 @@
 /* Native (Android/iOS via Capacitor) integrations with web fallbacks. */
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { Share } from "@capacitor/share";
 import { StatusBar, Style } from "@capacitor/status-bar";
@@ -66,3 +66,15 @@ export async function share({ title, text, url }) {
   await navigator.clipboard.writeText([text, url].filter(Boolean).join("\n"));
   return "copied";
 }
+
+/* In-app update for the website APK (android/…/ApkUpdaterPlugin.java). Apps built before v2.10 don't have the plugin,
+   so callers fall back to opening the download in the browser. */
+const ApkUpdater = registerPlugin("ApkUpdater");
+export const canSelfUpdate = () => isNative && platform === "android" && Capacitor.isPluginAvailable("ApkUpdater");
+export async function updaterAllowed() { return (await ApkUpdater.canInstall()).allowed; }
+export const openUpdaterSettings = () => ApkUpdater.openInstallSettings();
+export async function downloadAndInstall(url, onProgress = () => {}) {
+  const h = await ApkUpdater.addListener("progress", (p) => onProgress(p.percent, p.bytes));
+  try { await ApkUpdater.downloadAndInstall({ url }); } finally { h.remove(); }
+}
+export const onResume = (fn) => { if (isNative) App.addListener("resume", fn); };

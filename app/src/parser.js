@@ -12,7 +12,8 @@ const TERM_ORDER = { spring: 0, summer: 1, fall: 2 };
 
 const CODE_RE = /\b([A-Z]{2,4})\s?(\d{3,4}[A-Z]?)\b/;
 const TIME_RE = /(\d{1,2})[:.](\d{2})\s*([AaPp]\.?[Mm]\.?)?\s*(?:-|–|to|~)\s*(\d{1,2})[:.](\d{2})\s*([AaPp]\.?[Mm]\.?)?/;
-const GRADE_RE = /(?:^|\s)(\d{1,2}(?:\.\d{1,2})?)\s+(A\+|A-|B\+|B-|C\+|C-|D\+|A|B|C|D|F|P|S|U|R|I|W)(?=\s|$)/;
+// OCR often glues the credits to the grade ("3.0B"), so a decimal credit may touch the grade.
+const GRADE_RE = /(?:^|\s)(\d{1,2}\.\d{1,2}(?=\s*[A-DFPSURIW])|\d{1,2}(?=\s))\s*(A\+|A-|B\+|B-|C\+|C-|D\+|A|B|C|D|F|P|S|U|R|I|W)(?=\s|$)/;
 const ROOM_RE = /\b([A-Z]{1,4}\d?-\d{2,4}[A-Z]?|\d{3,4}[A-Z]?)\b(\s*\([^)]{2,40}\))?/;
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@(?:std\.)?ewubd\.edu/;
 const NOT_INITIALS = new Set(["NO", "YES", "DR", "MR", "MS", "MRS", "LAB", "AM", "PM", "TBA", "N/A"]);
@@ -39,7 +40,51 @@ function to24(h, m, ap) {
 /* OCR and copy-paste often break a table cell over two lines
    ("MW 1:30PM-" / "3:00PM"). Re-join those before parsing. */
 function joinBrokenLines(text) {
-  return text.replace(/(\d[:.]\d{2}\s*(?:[AaPp][Mm])?\s*[-–])\s*\n\s*(?=\d{1,2}[:.]\d{2})/g, "$1");
+  return stitchWrappedRows(fixOcrSlips(text.replace(/(\d[:.]\d{2}\s*(?:[AaPp][Mm])?\s*[-–])\s*\n\s*(?=\d{1,2}[:.]\d{2})/g, "$1")));
+}
+
+/* Common OCR misreads in portal screenshots: "ENGO099" (letter O for zero), "450PM" (lost colon). */
+function fixOcrSlips(text) {
+  return text
+    .replace(/\b([A-Z]{2,4}?)([0-9OIl]{3,4})\b/g, (m, a, b) => {
+      if (!/\d/.test(b)) return m;
+      b = b.replace(/O/g, "0").replace(/[Il]/g, "1");
+      return a + (b.length === 4 && b[0] === "0" ? b.slice(1) : b); // no course number is 4 digits starting with 0 ("ENGO099")
+    })
+    .replace(/\b(\d{1,2})(\d{2})\s*([AaPp][Mm])\b/g, (m, h, mm, ap) => (Number(h) <= 12 && Number(mm) < 60 ? `${h}:${mm}${ap}` : m));
+}
+
+/* Phone screenshots squeeze the Class Schedule table, so one row wraps over three OCR lines:
+     "Mw DR."                                  ← days (and the faculty title) on the line above
+     "1 CHE109 6 4 1:30PM- FUB-903 No No KTRA"  ← the start time ends with a dash
+     "3:00PM RAHMAN"                           ← the end time on the line below
+   Put the end time back after the dash and the days in front of the start time. */
+const DANGLING = /(\d{1,2}[:.]\d{2}\s*[AaPp]\.?[Mm]\.?)\s*[-–~]+(?!\s*\d{1,2}[:.]\d{2})/;
+const LONE_TIME = /(?:^|\s)(\d{1,2}[:.]\d{2}\s*[AaPp]\.?[Mm]\.?)(?=\s|$)/;
+const DAYS_TOKEN = /(?:^|\s)([SMTWRFAsmtwrfa]{1,3})(?=\s|$)/;
+function stitchWrappedRows(text) {
+  const L = text.split("\n");
+  for (let i = 0; i < L.length; i++) {
+    const d = L[i].match(DANGLING);
+    if (!d || TIME_RE.test(L[i])) continue;
+    for (let j = i + 1; j <= i + 3 && j < L.length; j++) {
+      const t = L[j].match(LONE_TIME);
+      if (!t || DANGLING.test(L[j])) continue;
+      L[i] = L[i].replace(d[0], `${d[1]}-${t[1]} `);
+      L[j] = L[j].replace(t[1], " ");
+      break;
+    }
+    const before = L[i].slice(0, L[i].search(/\d{1,2}[:.]\d{2}/));
+    const hasDays = before.split(/\s+/).some((tk) => /^[SMTWRFA]{1,3}$/.test(tk)) || /\b(sun|mon|tue|wed|thu|fri|sat)/i.test(before);
+    for (let k = i - 1; !hasDays && k >= Math.max(0, i - 2); k--) {
+      const dm = L[k].match(DAYS_TOKEN);
+      if (!dm || /^(a|am|as|at|ma)$/i.test(dm[1])) continue;
+      const days = [...new Set(dm[1].toUpperCase())].join(""), at = L[i].search(/\d{1,2}[:.]\d{2}/);
+      L[i] = `${L[i].slice(0, at)}${days} ${L[i].slice(at)}`;
+      break;
+    }
+  }
+  return L.join("\n");
 }
 
 function grabProfile(T) {

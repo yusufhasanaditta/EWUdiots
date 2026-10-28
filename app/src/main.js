@@ -676,22 +676,57 @@ function showUpdate() {
     $("#upd-x", bar)?.addEventListener("click", () => bar.remove());
     return;
   }
-  // Phone: a sheet once per version (always when required); afterwards the Home card stays.
-  let seen = ""; try { seen = localStorage.getItem(UPD_KEY) || ""; } catch { /* storage blocked */ }
-  if ((!u.required && seen === u.version) || modalOpen()) return;
-  try { localStorage.setItem(UPD_KEY, u.version); } catch { /* storage blocked */ }
+  // Phone: the sheet comes back each time the app is opened (at most every 6 hours after "Later"; always when required).
+  let seen = {}; try { seen = JSON.parse(localStorage.getItem(UPD_KEY) || "{}") || {}; } catch { /* storage blocked or old format */ }
+  if ((!u.required && seen.v === u.version && Date.now() - (seen.at || 0) < 6 * 36e5) || modalOpen()) return;
+  try { localStorage.setItem(UPD_KEY, JSON.stringify({ v: u.version, at: Date.now() })); } catch { /* storage blocked */ }
+  openUpdateSheet();
+}
+/* Update now: download the new APK inside the app (progress bar) and open Android's installer, which asks
+   "Update this app?" once. Older builds without the in-app updater download it in the browser instead. */
+let afterPermission = null; // set while we wait for the "install unknown apps" switch; runs once when the app is back
+function openUpdateSheet() {
+  const u = C.update; if (!u) return;
+  const self = native.canSelfUpdate();
   openModal(`<div class="upd-sheet"><div class="upd-ill" aria-hidden="true">${icon("download")}</div><p class="xs">${u.required ? "Required update" : "Update available"}</p>
     <h2 id="modal-title">EWUdiots ${esc(u.version)}</h2><p class="small muted">You have ${esc(APP_VERSION)}.${u.required ? " This update fixes something important, so please install it to keep using the app." : ""}</p>
     ${u.notes.length ? `<ul class="upd-notes">${u.notes.map((n) => `<li>${icon("check", "sm")}<span>${esc(n)}</span></li>`).join("")}</ul>` : ""}
-    <a class="btn primary lg block" id="upd-now" href="${esc(u.url)}" target="_blank" rel="noopener">${icon("download")} Update now</a>
-    <p class="xs mt-s">Open the downloaded file and tap Install. Your data stays.</p>
+    <div id="upd-act">${self ? `<button class="btn primary lg block" id="upd-now">${icon("download")} Update now</button><p class="xs mt-s">Downloads inside the app, then tap <b>Update</b> in the Android window. Your data stays.</p>`
+      : `<a class="btn primary lg block" id="upd-now" href="${esc(u.url)}" target="_blank" rel="noopener">${icon("download")} Update now</a><p class="xs mt-s">Open the downloaded file and tap Install. Your data stays. After this update, the next ones install from inside the app.</p>`}</div>
     ${u.required ? "" : `<button class="btn ghost block" data-close>Later</button>`}</div>`, (m) => {
     if (u.required) { const head = m.querySelector(".grabber"); head && head.remove(); }
+    if (!self) return;
+    const act = $("#upd-act", m);
+    const run = async () => {
+      if (!(await native.updaterAllowed().catch(() => true))) {
+        act.innerHTML = `<div class="alert amber">${icon("shield")}<div><b>One-time permission</b><p>Android asks you to allow EWUdiots to install its own updates. Turn on <b>Allow from this source</b>, then come back.</p></div></div>
+          <button class="btn primary lg block mt-s" id="upd-perm">${icon("settings")} Open settings</button>`;
+        $("#upd-perm", act).addEventListener("click", () => { native.openUpdaterSettings(); afterPermission = run; });
+        return;
+      }
+      act.innerHTML = `<div class="upd-prog"><div class="bar"><span id="upd-bar-fill" style="width:2%"></span></div><p class="small mt-s" id="upd-pct" aria-live="polite">Downloading…</p></div>`;
+      try {
+        await native.downloadAndInstall(u.url, (pct, bytes) => { const f = $("#upd-bar-fill"), t = $("#upd-pct"); if (f && pct >= 0) f.style.width = `${Math.max(2, pct)}%`; if (t) t.textContent = pct >= 0 ? `Downloading… ${pct}%` : `Downloading… ${(bytes / 1048576).toFixed(1)} MB`; });
+        act.innerHTML = `<div class="alert green">${icon("checkc")}<div><b>Almost done</b><p>Tap <b>Update</b> in the Android window. EWUdiots restarts on the new version.</p></div></div><button class="btn outline block mt-s" id="upd-again">${icon("reset")} Show the installer again</button>`;
+        $("#upd-again", act).addEventListener("click", run);
+      } catch (e) {
+        act.innerHTML = `<div class="alert red">${icon("alert")}<div><b>Download didn't finish</b><p>${esc(e.message || "Check your internet and try again.")}</p></div></div><button class="btn primary block mt-s" id="upd-retry">${icon("reset")} Try again</button><a class="btn ghost block" href="${esc(u.url)}" target="_blank" rel="noopener">Download in the browser instead</a>`;
+        $("#upd-retry", act).addEventListener("click", run);
+      }
+    };
+    $("#upd-now", m).addEventListener("click", run);
   }, { center: true });
 }
+// The Home "Update available" card opens the same sheet.
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-update]"); if (b && C.update) { e.preventDefault(); openUpdateSheet(); } });
 checkUpdate();
 setInterval(checkUpdate, 30 * 60e3);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
+// Coming back to the app: finish an update that was waiting for the permission, otherwise re-check for one.
+native.onResume(async () => {
+  if (afterPermission && $("#upd-perm")) { const go = afterPermission; afterPermission = null; return go(); }
+  await checkUpdate(); if (C.update) showUpdate();
+});
 sync.takeExtHandoff();
 scheduleReminders();
 if (cloud.enabled) {

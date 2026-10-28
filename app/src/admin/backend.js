@@ -28,6 +28,8 @@ export function supabaseBackend(user) {
     // Media library: public "media" bucket (only admins with media.write can write, enforced by storage policies).
     async upload(path, blob) { ok(await sb.storage.from("media").upload(path, blob, { contentType: blob.type, upsert: true })); return sb.storage.from("media").getPublicUrl(path).data.publicUrl; },
     async removeFile(path) { ok(await sb.storage.from("media").remove([path])); ok(await sb.from("media_items").delete().eq("path", path)); },
+    // Student ID card photos (private bucket; admins with users.manage may read them for 10 minutes).
+    async cardUrl(uid, side) { return ok(await sb.storage.from("idcards").createSignedUrl(`${uid}/${side}.jpg`, 600)).signedUrl; },
     // Scheduled jobs run on the server (api/cron.js), which checks the jobs.run permission with this session's token.
     async runJob(job) {
       const { data } = await sb.auth.getSession();
@@ -105,6 +107,7 @@ export function demoBackend() {
       if (fn === "admin_users") return structuredClone(db.users.filter((u) => !args.q || (u.email + u.name).toLowerCase().includes(args.q.toLowerCase())));
       if (fn === "admin_set_suspended") { const u = db.users.find((x) => x.id === args.uid); if (u) u.suspended = args.suspend; persist(); return null; }
       if (fn === "admin_revoke_sessions") return 1;
+      if (fn === "admin_set_card_verified") { const u = db.users.find((x) => x.id === args.uid); if (u) u.card_verified = args.verified; persist(); return null; }
       if (fn === "admin_auth_events") return db.users.flatMap((u, i) => [{ at: u.last_sign_in_at, action: "login", email: u.email, ip: `103.${120 + i}.x.x` }, { at: u.created_at, action: "user_signedup", email: u.email, ip: `103.${120 + i}.x.x` }]).sort((a, b) => (a.at < b.at ? 1 : -1));
       if (fn === "admin_stats") {
         const days = args.days || 30;
@@ -123,6 +126,7 @@ export function demoBackend() {
     async sendReset() {},
     async upload(path, blob) { return new Promise((res) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsDataURL(blob); }); },
     async removeFile(path) { db.media_items = db.media_items.filter((m) => m.path !== path); persist(); },
+    async cardUrl() { return ""; },
     async runJob(job) { const detail = { news: "12 news items (demo)", notices: "20 notices (demo)", newsletters: "0 new issue(s)", events: "6 official events checked (demo)", cleanup: "old trash and logs removed" }[job] || "done";
       db.job_runs.unshift({ id: db._id++, job, ok: true, detail, ms: 640, trigger: "admin", started_at: now() }); persist(); return { job, ok: true, detail }; },
     reset() { localStorage.removeItem(DEMO_KEY); },

@@ -1,0 +1,33 @@
+oft JFind| Next
+
+EAST WEST UNIVERSITY Student's Copy
+
+Plot No. A/2, Jahurul Islam City, Aftabnagar Dhaka 1212
+
+Grade Report: 21 Oct, 2026 Abdul Karim Chowdhury
+EWU ID: 2026-2-60-999 House 7, Road 3
+
+Unique ID: 00926205101999 Banasree
+
+Name: Rafi Ahmed Chowdhury PO 1212, Dhaka
+
+Degree Objective: B.Sc. in Computer Science and Engineering
+
+Course Title of the Course cr grdgp  gpacr
+
+2026 Summer
+
+CSE103 Structured Programming 4.5 B+ 14.62 4.5
+
+ENGO099 Remedial English 0.0P 0.00 0.0
+
+MAT101 Differential & Integral Calculus 3.0B 9.00 3.0
+
+CSE489 Mobile Application Development 3.0 W 0.00 0.0
+
+CGPA: 3.15 Term GPA: 3.15
+
+Summary: CGPA: 3.15 (out of 4.00) gpacr: 7.50 Credit Earned: 7.50 Minimum Credits Required: 140.00
+A+=4.0 B-=2.75 S = Satisfactory=0
+
+A =3.75 C+ =2.50 P=Pass=0
