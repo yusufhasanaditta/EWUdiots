@@ -21,6 +21,7 @@ import { install as installNotices } from "./ui-notices.js";
 import { install as installCommunity } from "./ui-community.js";
 import { install as installAlarms } from "./ui-alarms.js";
 import { install as installAsk } from "./ui-ask.js";
+import { install as installPeople } from "./ui-people.js";
 import { createContent, FEATURES } from "./content.js";
 import { applyBrand } from "./theme.js";
 
@@ -66,7 +67,7 @@ const loadDirectory = () => (dirP = dirP || fetch("/data/faculty.json").then((r)
 // A faculty photo that fails to load falls back to the initials underneath it.
 addEventListener("error", (e) => { const t = e.target; if (t.tagName === "IMG" && t.closest(".face")) t.remove(); }, true);
 let study = null; // study-mode API, installed at boot (src/study.js)
-let campus = null, idcard = null, notices = null, community = null;
+let campus = null, idcard = null, notices = null, community = null, people = null;
 const content = createContent(cloud); // admin-managed posts, settings, overrides // campus map + ID card APIs (src/ui-map.js, src/ui-idcard.js)
 async function pushNow() {
   if (!C.user) return false;
@@ -211,6 +212,12 @@ const NAV = [
   { id: "notices", label: "Notice Board", icon: "megaphone", roles: "sfa", feature: "notices" },
   { id: "news", label: "Campus News", icon: "globe", roles: "sfa", feature: "news" },
   { id: "alumni", label: "Alumni", icon: "community", roles: "sfa", feature: "alumni" },
+  { id: "teach", label: "Teaching hub", icon: "briefcase", roles: "f" },
+  { id: "alumhub", label: "Alumni hub", icon: "cap", roles: "a" },
+  { id: "office", label: "Office hours", icon: "clock", roles: "s" },
+  { id: "mentors", label: "Alumni mentors", icon: "heart", roles: "s" },
+  { id: "jobs", label: "Jobs & internships", icon: "briefcase", roles: "sfa" },
+  { id: "blog", label: "Blog", icon: "notes", roles: "sfa" },
   { id: "map", label: "Campus Map", icon: "map", roles: "sfa", feature: "map" },
   { id: "rooms", label: "Free Rooms", icon: "door", roles: "sfa" },
   { id: "faculty", label: "Faculty", icon: "users", roles: "fa" },
@@ -222,7 +229,7 @@ const roleKey = () => ({ faculty: "f", alumni: "a" }[S.role] || "s");
 const navFor = () => NAV.filter((n) => n.roles.includes(roleKey()) && (!n.feature || content.feature(n.feature)));
 // Pages an admin switched off (Settings → Features) are closed for everyone.
 const PAGE_FEATURE = { notices: "notices", news: "news", alumni: "alumni", map: "map", vault: "vault", file: "vault", idcard: "idcard", focus: "focus", cards: "focus", exams: "focus" };
-const SUB = { course: "courses", marks: "courses", degree: "grades", whatif: "grades", plan: "planner", combos: "planner", fee: "fees", prof: "faculty", file: "vault", cards: "focus", exams: "tasks", account: "more", profile: "more", notifications: "home", help: "more", about: "more", cover: "more", sync: "more", idcard: "more", alarms: "routine", ask: "ask" };
+const SUB = { course: "courses", marks: "courses", degree: "grades", whatif: "grades", plan: "planner", combos: "planner", fee: "fees", prof: "faculty", file: "vault", cards: "focus", exams: "tasks", account: "more", profile: "more", notifications: "home", help: "more", about: "more", cover: "more", sync: "more", idcard: "more", alarms: "routine", ask: "ask", post: "blog", write: "blog" };
 const prefersReduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 function renderNav(route) {
   const active = SUB[route] || route;
@@ -231,7 +238,8 @@ function renderNav(route) {
   const p = S.profile;
   $("#side-user").innerHTML = `<span class="avatar sm">${esc(initials(p?.name || "EWU Student"))}</span><div class="grow min0"><b class="ellipsis">${esc(p?.name || "Set up profile")}</b><span class="ellipsis" style="display:block">${esc(p ? (p.program || p.department || roleLabel()) : "Tap to start")}</span></div>${icon("chevR", "sm")}`;
   const B = S.role === "student" ? [["home", "home", "Home"], ["routine", "calendar", "Routine"], ["fab"], ["grades", "bars", "CGPA"], ["more", "grid", "More"]]
-    : [["home", "home", "Home"], ["vault", "vault", "Vault"], ["fab"], ["rooms", "door", "Rooms"], ["more", "grid", "More"]];
+    : S.role === "faculty" ? [["home", "home", "Home"], ["teach", "briefcase", "Teaching"], ["fab"], ["blog", "notes", "Blog"], ["more", "grid", "More"]]
+    : [["home", "home", "Home"], ["alumhub", "cap", "Hub"], ["fab"], ["jobs", "briefcase", "Jobs"], ["more", "grid", "More"]];
   $("#bottom-nav").innerHTML = B.map(([id, ic, l]) => id === "fab"
     ? `<button class="fab" id="fab" type="button" aria-label="Quick add"><span class="fab-btn">${icon("plus")}</span></button>`
     : `<a href="#/${id}" ${active === id || (id === "more" && !B.some((b) => b[0] === active)) ? 'aria-current="page"' : ""}>${icon(ic)}<span>${l}</span></a>`).join("");
@@ -249,8 +257,11 @@ function quickAdd() {
     ["focus", "pink", "Start focus", "25-minute Pomodoro session", () => study.focusOn()],
     ["cards", "blue", "Add flashcards", "Create cards for a course", () => go("#/cards?add=1")],
     ["exam", "green", "Add an exam", "Get a revision plan", () => go("#/exams?add=1")],
-    ["sync", "teal", "Sync portal", "Screenshot, paste or extension", () => go("#/sync")]
+    ["sync", "teal", "Sync portal", "Screenshot, paste or extension", () => go("#/sync")],
+    ["edit", "purple", "Write a blog post", "Share a tip with other students", () => go("#/write")]
   ] : [
+    ["edit", "purple", "Write a blog post", "Tips, experiences, advice", () => go("#/write")],
+    ["briefcase", "blue", "Post a job or internship", "Help students get hired", () => go("#/jobs")],
     ["door", "green", "Find a free room", "Empty classrooms right now", () => go("#/rooms")],
     ["upload", "purple", "Share material", "Upload notes to the vault", () => go("#/vault?up=1")],
     ["focus", "pink", "Start focus", "25-minute Pomodoro session", () => study.focusOn()]
@@ -274,13 +285,14 @@ function inbox() {
   const due = study ? study.dueCards().length : 0;
   if (due) out.push({ id: `c${new Date().toDateString()}`, cat: "Academic", icon: "cards", tone: "blue", title: `${due} flashcard${due === 1 ? "" : "s"} due today`, body: "A quick review keeps your streak alive.", at: new Date(new Date().setHours(8, 0, 0, 0)).toISOString(), href: "#/cards" });
   if (notices) out.push(...notices.inboxItems());
+  (C.courseNotes || []).forEach((n) => out.push({ id: `cn${n.id}`, cat: "Academic", icon: "megaphone", tone: "orange", title: `${n.course}${n.section ? ` (Sec ${n.section})` : ""}: ${n.title}`, body: `${n.teacher_name}${n.body ? " · " + n.body.slice(0, 140) : ""}`, at: n.created_at, href: `#/course?c=${encodeURIComponent(n.course)}` }));
   (C.messages || []).forEach((m) => out.push({ id: `m${m.id}`, cat: "Campus", icon: "megaphone", tone: "purple", title: m.title, body: m.body || "From the EWUdiots team", at: m.created_at, href: /^(#\/|https:\/\/)/.test(m.link) ? m.link : "#/notifications" }));
   S.log.forEach((l) => out.push(l));
   return out.sort((a, b) => new Date(b.at) - new Date(a.at));
 }
 
 /* ───────────── Command palette (Ctrl+K / search) ───────────── */
-const PAGES_SEARCH = [["ask", "Ask EWUdiots (assistant)", "sparkle"], ["home", "Home", "home"], ["routine", "My routine", "calendar"], ["alarms", "Class alarms (remind me before class)", "bell"], ["planner", "Advising planner", "calcheck"], ["courses", "My courses", "book"], ["grades", "CGPA", "bars"], ["degree", "Degree progress", "cap"],
+const PAGES_SEARCH = [["ask", "Ask EWUdiots (assistant)", "sparkle"], ["blog", "Blog: tips and stories", "notes"], ["write", "Write a blog post", "edit"], ["jobs", "Jobs & internships", "briefcase"], ["mentors", "Alumni mentors", "heart"], ["office", "Teachers' office hours & consultations", "clock"], ["teach", "Teaching hub (teachers)", "briefcase"], ["alumhub", "Alumni hub", "cap"], ["home", "Home", "home"], ["routine", "My routine", "calendar"], ["alarms", "Class alarms (remind me before class)", "bell"], ["planner", "Advising planner", "calcheck"], ["courses", "My courses", "book"], ["grades", "CGPA", "bars"], ["degree", "Degree progress", "cap"],
   ["whatif", "What-if calculator", "calc"], ["marks", "Marks & attendance estimator", "percent"], ["tasks", "Deadlines", "clipboard"], ["exams", "Exam planner", "exam"], ["fees", "Fees & payments", "wallet"], ["vault", "Study vault", "vault"],
   ["rooms", "Free rooms", "door"], ["map", "Campus map & directions", "map"], ["notices", "EWU notice board", "megaphone"], ["news", "Campus news", "globe"], ["alumni", "Alumni: where are they now", "community"], ["idcard", "My ID card", "user"], ["faculty", "Faculty & reviews", "users"], ["focus", "Focus timer", "focus"], ["cards", "Flashcards", "cards"], ["me", "Achievements", "award"], ["cover", "Cover page", "file"],
   ["sync", "Sync portal", "sync"], ["notifications", "Notifications", "bell"], ["profile", "Profile & settings", "settings"]];
@@ -573,7 +585,7 @@ function onSignedIn(user) {
   return (signInDone = restoreOrBackup(user));
 }
 // Messages the team sent to everyone or to you (admin panel → Messages to users).
-async function loadMessages() { if (!C.user) return; try { C.messages = await cloud.fetchMessages(); if (["home", "notifications"].includes(currentRoute)) rerender(); } catch { /* offline */ } }
+async function loadMessages() { if (!C.user) return; try { C.messages = await cloud.fetchMessages(); C.courseNotes = await people.courseNotices().catch(() => []); if (["home", "notifications"].includes(currentRoute)) rerender(); } catch { /* offline */ } }
 async function restoreOrBackup(user) {
   try {
     const remote = await cloud.pullData(user.id);
@@ -591,7 +603,7 @@ async function restoreOrBackup(user) {
 /* ───────────── Boot ───────────── */
 const ctx = {
   get S() { return S; }, resetState, pages, save, rerender, route: () => currentRoute, go, qparam, toast, openModal, closeModal, modalHead, confirmModal, modalOpen, busy,
-  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
+  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
   afterSignIn: () => signInDone, LETTER, toMin, fmt12, fmtShort, dayIdx, expand, overlaps, toneFor, colorFor, HEX, TONES, gradePoint, cgpaOf, fmtMoney, fmtCountdown, daysUntil, fmtDate, firstName, initials, greeting,
   nextClass, nextPayment, markAttendance, facultyIndex, facBy, facName, offered, sectionBlocks, roomData, freeRoomsAt, baseRoom, enableNotifications, taskLine, duePill, TASK_IC, inbox, loadDemo, onSignedIn,
   isDark, applyTheme, palette, roleLabel, navFor, nextSemesterGuess, DAY_NAMES, WEEK, SLOTS, GRADES, NON_GPA, DEMO, parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey
@@ -607,6 +619,7 @@ notices = installNotices(ctx);
 community = installCommunity(ctx);
 installAlarms(ctx);
 installAsk(ctx);
+people = installPeople(ctx);
 content.onChange(() => { facCache = null; applyTheme(); rerender(); });
 content.refresh();
 setInterval(() => { if (document.visibilityState === "visible") { content.refresh(); loadMessages(); } }, 10 * 60e3);

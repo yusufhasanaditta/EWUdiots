@@ -1,10 +1,10 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "New EWUdiots logo and app icon",
-    "News, notices and alumni now update by themselves every day",
-    "Smoother updates: the app tells you when a new version is out",
-    "Bug fixes and faster loading"
+    "Blog: write tips and stories, read what others share",
+    "Alumni mentors and a jobs & internships board",
+    "Teachers: office hours, consultations and course announcements",
+    "A cleaner, faster sign-in and welcome screen"
   ],
   "minVersion": "2.3.0",
   "extension": "1.7.0"

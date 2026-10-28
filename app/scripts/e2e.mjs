@@ -39,10 +39,10 @@ try {
 
   // 2. Onboarding: welcome (3 slides) → role → profile → sync
   await p.goto(BASE + "/app.html", { waitUntil: "networkidle2" });
-  check("new user sees welcome", /More than just a timetable/.test(await text()));
-  await click("#ob-next"); check("slide 2", /smarter uni life/.test(await text()));
-  await click("#ob-next"); check("slide 3", /Sync your data/.test(await text()));
-  await click("#ob-start");
+  check("new user sees welcome", /Let's get you set up/.test(await text()) && /Create an account/.test(await text()));
+  check("welcome uses no cropped artwork", !(await p.$('.auth img[src*="/img/"]')));
+  check("brand panel with the logo", !!(await p.$(".auth-brand .ab-logo img")));
+  await click("#ob-local");
   check("role screen", /Set up your profile/.test(await text()));
   await click('[data-role="student"]'); await click("#role-go");
   await click("#su-go"); check("setup validates name", /Please enter your name/.test(await text()));
@@ -159,11 +159,11 @@ try {
 
   // 15. Clear local data → back to welcome
   await go("#/profile"); await click("#pf-wipe"); await click("#cf-go"); await wait(300);
-  check("clear data returns to welcome", /More than just a timetable/.test(await text()) && !(await state()).profile);
+  check("clear data returns to welcome", /Let.s get you set up/.test(await text()) && !(await state()).profile);
 
   // 16. Desktop layout + legal pages
   await p.setViewport({ width: 1440, height: 900 });
-  await click("#ob-skip"); await click('[data-role="student"]'); await click("#role-go"); await p.type('[name="name"]', "Test User"); await click("#su-go");
+  await click("#ob-local"); await click('[data-role="student"]'); await click("#role-go"); await p.type('[name="name"]', "Test User"); await click("#su-go");
   await go("#/home"); check("desktop sidebar visible", await p.$eval(".sidebar", (s) => getComputedStyle(s).display !== "none"));
   for (const path of ["/privacy.html", "/terms.html", "/delete-account.html"]) { await p.goto(BASE + path); check(`page ${path}`, !!(await p.$("h1"))); }
 } catch (e) { check("test run finished", false, e.message); }

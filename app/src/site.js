@@ -97,3 +97,11 @@ if (SB && KEY) fetch(`${SB}/rest/v1/site_settings?select=key,value&key=in.(site,
   .then((r) => (r.ok ? r.json() : [])).then((rows) => { const m = Object.fromEntries(rows.map((r) => [r.key, r.value])); if (m.theme) applyBrand(m.theme); if (m.site) applySite(m.site); }).catch(() => {});
 // Anonymous page view for the admin Analytics page (see api/track.js; no cookies, skipped with "Do Not Track").
 if (import.meta.env.PROD && navigator.doNotTrack !== "1") fetch("/api/track", { method: "POST", keepalive: true, headers: { "content-type": "text/plain" }, body: JSON.stringify({ path: location.pathname, ref: document.referrer }) }).catch(() => {});
+
+// Download panel: QR code to the APK (scan it from a computer) and the live version number.
+import qrcode from "qrcode-generator";
+const qrBox = document.getElementById("dl-qr");
+if (qrBox) { const q = qrcode(0, "M"); q.addData(location.origin + "/download/android"); q.make(); qrBox.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); }
+fetch("/version.json", { cache: "no-store" }).then((r) => r.json()).then((j) => { const v = document.getElementById("dl-ver"); if (v && j.version) v.textContent = `Version ${j.version}`; }).catch(() => {});
+// Never leave content hidden: anything near the screen that the scroll animation hasn't shown within 2.5 s appears anyway.
+setTimeout(() => document.querySelectorAll(".reveal:not(.in)").forEach((el) => { if (el.getBoundingClientRect().top < innerHeight * 1.5) el.classList.add("in"); }), 2500);

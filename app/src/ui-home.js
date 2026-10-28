@@ -85,8 +85,8 @@ export function install(ctx) {
   function homeLite() {
     const now = new Date(), d = now.getDay(), nm = now.getHours() * 60 + now.getMinutes();
     const free = ctx.freeRoomsAt(d, nm, nm + 60).slice(0, 4);
-    const tiles = [["vault", "vault", "yellow", "Study Vault", "Notes, past papers"], ["rooms", "building", "blue", "Free Rooms", "Find empty classrooms"], ["faculty", "users", "purple", "Faculty", "Directory & reviews"]]
-      .concat(S().role === "faculty" ? [["focus", "target", "pink", "Focus", "Deep-work timer"]] : [["cover", "file", "green", "Cover Page", "Make a PDF cover"]]);
+    const tiles = (S().role === "faculty" ? [["teach", "briefcase", "purple", "Teaching hub", "Consultations & announcements"], ["rooms", "building", "blue", "Free Rooms", "Find empty classrooms"], ["blog", "notes", "green", "Blog", "Share tips with students"], ["jobs", "briefcase", "orange", "Jobs & research", "Post an opening"]]
+      : [["alumhub", "cap", "purple", "Alumni hub", "Mentor students"], ["jobs", "briefcase", "blue", "Jobs & internships", "Post an opening"], ["blog", "notes", "green", "Blog", "Write your story"], ["alumni", "community", "orange", "Alumni", "Where graduates are now"]]);
     return `<section class="hero-banner"><h1><small>${ctx.greeting()},</small>${esc(ctx.firstName())}!</h1><p>${S().role === "faculty" ? "Rooms, notes and your faculty profile in one place." : "Stay connected with EWU."}</p></section>
       <div class="mt"><a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Remind me 30 min before”</span></span>${icon("arrow")}</a></div>
       <div class="dtiles mt">${tiles.map(([id, ic, tone, t, dd]) => `<a class="dtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span><div class="min0"><b>${t}</b><span>${dd}</span></div></a>`).join("")}</div>
@@ -118,11 +118,12 @@ export function install(ctx) {
     const role = S().role;
     const rk = { faculty: "f", alumni: "a" }[role] || "s", p = S().profile || {};
     const GROUPS = [
-      ["Academics", [["alarms", "bell", "pink", "Class Alarms", "Warn me before class", "s"], ["courses", "book", "teal", "My Courses", "Course hubs and notes", "s"], ["planner", "calcheck", "green", "Advising Planner", "Plan your next semester", "s"], ["marks", "notes", "blue", "Marks Estimator", "Predict your grades", "s"],
+      ["Teaching", [["teach", "briefcase", "purple", "Teaching hub", "Office hours, consultations", "f"]]], ["Alumni", [["alumhub", "cap", "green", "Alumni hub", "Mentoring and openings", "a"]]],
+      ["Academics", [["office", "clock", "teal", "Office hours", "Book a consultation", "s"], ["alarms", "bell", "pink", "Class Alarms", "Warn me before class", "s"], ["courses", "book", "teal", "My Courses", "Course hubs and notes", "s"], ["planner", "calcheck", "green", "Advising Planner", "Plan your next semester", "s"], ["marks", "notes", "blue", "Marks Estimator", "Predict your grades", "s"],
         ["degree", "cap", "yellow", "Degree Progress", "Credits by requirement", "s"], ["exams", "exam", "orange", "Exam Planner", "Revision plan for exams", "s"], ["fees", "receipt", "red", "Fees & Deadlines", "Track payments and tasks", "s"], ["sync", "sync", "teal", "Sync Portal", "Import from the EWU portal", "s"]]],
       ["Study", [["focus", "target", "pink", "Focus Timer", "Pomodoro and analytics", "sf"], ["cards", "cards", "pink", "Flashcards", "Spaced repetition decks", "sf"], ["vault", "vault", "blue", "Study Vault", "Notes, past papers, slides", "sfa"], ["me", "award", "purple", "Achievements", "View your badges and stats", "sf"]]],
       ["Campus", [["map", "map", "purple", "Campus Map", "Find rooms, walk in 3D", "sfa"], ["rooms", "building", "purple", "Free Rooms", "Find empty classrooms", "sfa"], ["idcard", "user", "teal", "My ID Card", "Your 3D student pass", "s"], ["faculty", "users", "purple", "Faculty & Reviews", "Contacts and ratings", "sfa"], ["cover", "file", "green", "Cover Page", "Assignment cover PDF", "sa"]]],
-      ["Community", [["notices", "megaphone", "orange", "Notice Board", "Official EWU notices", "sfa"], ["news", "globe", "blue", "Campus News", "Stories from EWU", "sfa"], ["alumni", "community", "green", "Alumni", "Where graduates are now", "sfa"]]]
+      ["Community", [["notices", "megaphone", "orange", "Notice Board", "Official EWU notices", "sfa"], ["news", "globe", "blue", "Campus News", "Stories from EWU", "sfa"], ["alumni", "community", "green", "Alumni", "Where graduates are now", "sfa"], ["blog", "notes", "purple", "Blog", "Tips and stories", "sfa"], ["jobs", "briefcase", "blue", "Jobs", "Jobs & internships", "sfa"], ["mentors", "heart", "pink", "Mentors", "Ask alumni for advice", "s"]]]
     ].map(([g, list]) => [g, list.filter((t) => t[5].includes(rk) && (!ctx.PAGE_FEATURE[t[0]] || ctx.content.feature(ctx.PAGE_FEATURE[t[0]])))]).filter(([, list]) => list.length);
     return `<a class="me-card" href="#/profile"><span class="avatar lg">${esc(ctx.initials(p.name || "EWU Student"))}</span><span class="grow min0"><b class="ellipsis">${esc(p.name || "Set up your profile")}</b><span class="ellipsis">${esc([p.id, p.program || p.department].filter(Boolean).join(" · ") || ctx.roleLabel())}</span>
         <span class="me-sync ${ctx.C.user ? "on" : ""}">${icon(ctx.C.user ? "cloud" : "database", "sm")} ${ctx.C.user ? "Synced on all your devices" : "Saved on this device"}</span></span>${icon("chevR")}</a>
@@ -248,34 +249,31 @@ export function install(ctx) {
       <p class="small muted mt">Version ${ctx.APP_VERSION}. Made by EWU students, for EWU students. EWUdiots is not affiliated with, endorsed by or connected to East West University. Always confirm important information on the official portal.</p>
       <div class="row center mt"><a class="btn sm" href="/privacy.html" target="_blank" rel="noopener">Privacy policy</a><a class="btn sm" href="/terms.html" target="_blank" rel="noopener">Terms</a></div></section></div>`;
 
-  /* ═════════════ ONBOARDING (full screen) ═════════════ */
-  const obShell = (inner, { back = "", skip = "", foot = "" } = {}) => `<div class="ob"><div class="ob-card">
-    <div class="ob-top">${back ? `<a class="icon-btn" style="border:0;box-shadow:none" href="${back}" aria-label="Back">${icon("chevL")}</a>` : "<span></span>"}${skip ? `<button class="lnk" id="ob-skip">${skip}</button>` : ""}</div>
-    <div class="ob-body">${inner}</div>${foot ? `<div class="ob-foot">${foot}</div>` : ""}</div></div>`;
-  const dots = (i) => `<div class="ob-dots" aria-label="Step ${i + 1} of 3">${[0, 1, 2].map((k) => `<i class="${k === i ? "on" : ""}"></i>`).join("")}</div>`;
-  const FEATURES = [["calendar", "purple", "Smart Routine", "Never miss a class again."], ["bars", "green", "Track CGPA", "Plan smarter, do better."], ["checksq", "teal", "Get Reminders", "Deadlines, exams, fees and more."],
-    ["cap", "purple", "Advising Planner", "Find the best course combination."], ["books", "purple", "Study Tools", "Flashcards, notes, past papers."], ["users", "orange", "Campus Extras", "Free rooms, faculty reviews and more."]];
-  pages.welcome = () => {
-    const i = Math.min(2, Math.max(0, Number(ctx.qparam("s")) || 0));
-    if (i === 0) return obShell(`<div class="ob-word"><span class="w">EWU<i>diots</i>${spark}</span><p>Your Uni Life, In One App</p><span class="unoff">Unofficial · not affiliated with EWU</span></div>
-      <div class="ob-hero"><img src="/img/onboard-hero.webp" alt="EWUdiots mascot pointing, surrounded by notes: Classes, CGPA, Routine, Deadlines, Uni Life" width="438" height="450"><div class="sheet"><h2 style="font-size:24px">More than just a timetable</h2><p class="muted" style="margin-top:8px">Manage your classes, CGPA, deadlines, fees and study life — all in one place.</p></div></div>`,
-      { skip: "Skip", foot: `${dots(0)}<button class="ob-next" id="ob-next" aria-label="Next">${icon("arrow")}</button>` });
-    if (i === 1) return obShell(`<span class="eyebrow">Stay ahead</span><h1 style="margin-top:8px">Everything you need for a <span class="hl">smarter uni life</span></h1>
-      <div class="fgrid">${FEATURES.map(([ic, tone, t, d]) => `<div><span class="itile ${tone}">${icon(ic)}</span><b>${t}</b><span>${d}</span></div>`).join("")}</div>
-      <img src="/img/mascot-study.webp" alt="" width="420" height="165" style="margin:14px -24px 0;width:calc(100% + 48px);max-width:none">`,
-      { back: "#/welcome?s=0", skip: "Skip", foot: `<button class="ob-prev" id="ob-prev" aria-label="Previous">${icon("chevL")}</button>${dots(1)}<button class="ob-next" id="ob-next" aria-label="Next">${icon("arrow")}</button>` });
-    return obShell(`<span class="eyebrow">Get started</span><h1 style="margin-top:8px">Sync your data from the <span class="hl">EWU portal</span></h1><p class="muted" style="margin-top:8px">Bring your routine, courses, marks and more in a few seconds.</p>
-      <div class="mt">${[["scan", "purple", "Upload a Screenshot", "Take or upload a screenshot from your portal."], ["paste", "green", "Paste Data", "Copy and paste directly from the portal."], ["chrome", "blue", "Use Chrome Extension", "Sync with one click using our browser extension."]]
-        .map(([ic, tone, t, d]) => `<div class="method" style="cursor:default"><span class="itile ${tone}">${icon(ic)}</span><span class="grow"><b>${t}</b><span>${d}</span></span></div>`).join("")}</div>
-      <div class="privacy">${icon("shield")}<div><b>Your Privacy, Our Priority</b><p>We never read your NID, address, phone or password. Your data stays on your device and is used only to make your experience better.</p></div></div>`,
-      { back: "#/welcome?s=1", skip: "Skip", foot: `<div class="stack grow" style="gap:12px;align-items:center"><button class="btn primary lg block" id="ob-start">Let's Sync My Data ${icon("arrow")}</button>${dots(2)}</div>` });
-  };
-  const afterWelcome = () => ctx.go(ctx.cloud.enabled ? "#/login" : "#/role");
+  /* ═════════════ ONBOARDING + ACCOUNTS (full screen) ═════════════
+     Split layout: a brand panel (logo, promise, live-looking cards drawn in CSS) and the form. No cropped pictures. */
+  const BRAND_FEATS = [["calendar", "Routine, alarms and next class"], ["bars", "CGPA, degree progress and advising"], ["megaphone", "Official notices and campus news"], ["community", "Alumni mentors, jobs and the blog"]];
+  const obShell = (inner, { back = "", skip = "", foot = "" } = {}) => `<div class="auth">
+    <aside class="auth-brand" aria-hidden="true"><div class="ab-glow"></div><div class="ab-grid"></div>
+      <div class="ab-inner"><div class="ab-logo"><img src="/logo-mark.png" alt="" width="52" height="52"><span class="word">EWU<i>diots</i></span></div>
+        <h2>Your whole EWU life, <span>in one place.</span></h2><p>Made by EWU students for students, teachers and alumni.</p>
+        <ul class="ab-feats">${BRAND_FEATS.map(([ic, t]) => `<li><span>${icon(ic, "sm")}</span>${t}</li>`).join("")}</ul>
+        <div class="ab-cards"><div class="ab-card abc1"><span class="ab-dot"></span><div><b>CSE207 · starts in 25 min</b><small>FUB-603 · 5th floor</small></div></div>
+          <div class="ab-card abc2"><span class="ab-ring">3.62</span><div><b>CGPA this semester</b><small>▲ 0.14 since last term</small></div></div>
+          <div class="ab-card abc3">${icon("bell", "sm")}<div><b>Alarm set</b><small>30 min before every class</small></div></div></div>
+        <p class="ab-unoff">Unofficial · not affiliated with East West University</p></div></aside>
+    <main class="auth-main"><div class="auth-card">
+      <div class="auth-top">${back ? `<a class="icon-btn" href="${back}" aria-label="Back">${icon("chevL")}</a>` : "<span></span>"}<span class="auth-mlogo"><img src="/logo-mark.png" alt="" width="30" height="30"><span class="word">EWU<i>diots</i></span></span>${skip ? `<button class="lnk" id="ob-skip">${skip}</button>` : "<span></span>"}</div>
+      <div class="auth-body">${inner}</div>${foot ? `<div class="auth-foot">${foot}</div>` : ""}</div></main></div>`;
+  pages.welcome = () => obShell(`<span class="eyebrow">Welcome</span><h1 class="auth-h">Let's get you set up</h1>
+      <p class="muted">One account for the phone app, the web, Windows, Mac and the Chrome extension.</p>
+      <div class="stack mt" style="gap:10px">
+        <button class="choice" data-go="#/login?m=signup"><span class="itile purple">${icon("plus")}</span><span class="grow"><b>Create an account</b><span>Students, teachers and alumni</span></span>${icon("chevR")}</button>
+        <button class="choice" data-go="#/login?m=signin"><span class="itile blue">${icon("user")}</span><span class="grow"><b>I already have an account</b><span>Sign in with your ID or email and password</span></span>${icon("chevR")}</button>
+        <button class="choice ghosty" id="ob-local"><span class="itile teal">${icon("database")}</span><span class="grow"><b>Try without an account</b><span>Everything stays on this device</span></span>${icon("chevR")}</button></div>
+      <div class="trust mt">${[["shield", "Never asks for your portal password"], ["wifioff", "Works offline"], ["heart", "Free for every student"]].map(([ic, t]) => `<span>${icon(ic, "sm")} ${t}</span>`).join("")}</div>`);
   pages.welcome.mount = (el) => {
-    const i = Number(ctx.qparam("s")) || 0;
-    const on = (s, fn) => { const b = $(s, el); b && b.addEventListener("click", fn); };
-    on("#ob-next", () => ctx.go(`#/welcome?s=${i + 1}`)); on("#ob-prev", () => ctx.go(`#/welcome?s=${i - 1}`));
-    on("#ob-skip", afterWelcome); on("#ob-start", afterWelcome);
+    $$("[data-go]", el).forEach((b) => b.addEventListener("click", () => ctx.go(ctx.cloud.enabled ? b.dataset.go : "#/role")));
+    $("#ob-local", el)?.addEventListener("click", () => ctx.go("#/role"));
   };
 
   /* ── Accounts: sign in (ID/email + password) · create account (students: both sides of the ID card) · verify the
@@ -289,8 +287,9 @@ export function install(ctx) {
     const m = ctx.qparam("m"); if (m && ["signin", "signup", "forgot"].includes(m) && auth.mode !== "verify" && auth.mode !== "reset") auth.mode = m;
     if (!ctx.cloud.enabled) return obShell(`<h1>Sign in</h1><p class="muted mt-s">Cloud accounts aren't connected in this build. Everything works on this device.</p>`, { back, foot: `<button class="btn primary lg block" id="lg-skip">Continue</button>` });
     if (ctx.C.user) return obShell(`<div class="empty"><span class="ill">${icon("checkc")}</span><h3>You're signed in</h3><p>${esc(ctx.C.user.email)}</p></div>`, { back, foot: `<button class="btn primary lg block" id="lg-skip">Continue</button>` });
-    const brand = `<div class="ob-word" style="padding-top:12px"><span class="w" style="font-size:34px">EWU<i>diots</i>${spark}</span><div><span class="unoff">Unofficial · not affiliated with EWU</span></div></div>`;
-    const tabs = auth.mode === "signin" || auth.mode === "signup" ? `<div class="seg auth-tabs mt" role="tablist">${[["signin", "Sign in"], ["signup", "Create account"]].map(([v, l]) => `<button role="tab" data-am="${v}" aria-selected="${auth.mode === v}">${l}</button>`).join("")}</div>` : "";
+    const brand = auth.mode === "signin" ? `<h1 class="auth-h">Welcome back</h1><p class="muted">Sign in to sync your data on every device.</p>`
+      : auth.mode === "signup" ? `<h1 class="auth-h">Create your account</h1><p class="muted">Every new account is checked with a 6-digit code sent to its email.</p>` : "";
+    const tabs = auth.mode === "signin" || auth.mode === "signup" ? `<div class="seg auth-tabs mt-l" role="tablist">${[["signin", "Sign in"], ["signup", "Create account"]].map(([v, l]) => `<button role="tab" data-am="${v}" aria-selected="${auth.mode === v}">${l}</button>`).join("")}</div>` : "";
     let body = "";
     if (auth.mode === "signin") body = `<form id="au-in" class="stack mt" novalidate>
         <label class="field">Student ID or email<span class="searchbar">${icon("user")}<input class="input" name="who" autocomplete="username" placeholder="2024-1-60-123 or you@gmail.com" value="${esc(auth.email)}" required></span></label>
@@ -304,7 +303,7 @@ export function install(ctx) {
         ${auth.role === "student" ? (auth.card ? `<div class="card soft row nowrap"><span class="itile green">${icon("checkc")}</span><div class="grow min0"><b>${esc(auth.card.name || "ID card added")}</b><p class="small muted">${esc(auth.card.id)}@std.ewubd.edu · both sides added</p></div><button type="button" class="btn sm ghost" id="au-card">${icon("reset", "sm")} Redo</button></div>`
             : `<button type="button" class="id-cta" id="au-card"><span class="itile purple">${icon("scan")}</span><span class="grow"><b>Scan both sides of your ID card</b><span>Required. We read your student ID and send the code to your EWU mail.</span></span>${icon("chevR")}</button>`)
           : `<label class="field">Full name<input class="input" name="name" autocomplete="name" required value="${esc(auth.name)}" placeholder="Your name"></label>
-             <label class="field">Email<span class="searchbar">${icon("mail")}<input class="input" name="email" type="email" autocomplete="email" required value="${esc(auth.email)}" placeholder="you@gmail.com"></span><span class="hint">Your personal email (Gmail is fine). We send a code to check it.</span></label>`}
+             <label class="field">${auth.role === "faculty" ? "University email" : "Personal email"}<span class="searchbar">${icon("mail")}<input class="input" name="email" type="email" autocomplete="email" required value="${esc(auth.email)}" placeholder="${auth.role === "faculty" ? "yourname@ewubd.edu" : "you@gmail.com"}"></span><span class="hint">${auth.role === "faculty" ? "Teachers must use their EWU university email (@ewubd.edu). We send a code to it." : "The email you use now (Gmail is fine). We send a code to check it."}</span></label>`}
         ${pwField("password", "Create a password", "new-password")}${pwField("password2", "Confirm password", "new-password")}
         <p class="xs">At least 8 characters, with letters and numbers.</p>
         <div id="au-err"></div><button class="btn primary lg block" ${auth.role === "student" && !auth.card ? "disabled" : ""}>${icon("mail")} Create account &amp; send code</button></form>`;
@@ -362,7 +361,9 @@ export function install(ctx) {
       e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), btn = e.target.querySelector("button.primary");
       const email = auth.role === "student" ? auth.card && `${auth.card.id}@std.ewubd.edu` : String(f.email || "").trim().toLowerCase();
       if (auth.role === "student" && !auth.card) return fail("Scan both sides of your ID card first.");
-      if (auth.role !== "student") { auth.name = String(f.name || "").trim(); auth.email = email; if (auth.name.length < 2) return fail("Please enter your name."); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Please enter a valid email."); if (/@std\.ewubd\.edu$/.test(email)) return fail("Students: choose Student above and scan your ID card."); }
+      if (auth.role !== "student") { auth.name = String(f.name || "").trim(); auth.email = email; if (auth.name.length < 2) return fail("Please enter your name."); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Please enter a valid email."); if (/@std\.ewubd\.edu$/.test(email)) return fail("Students: choose Student above and scan your ID card.");
+        if (auth.role === "faculty" && !/^[^@\s]+@ewubd\.edu$/.test(email)) return fail("Teachers must use their EWU university email (name@ewubd.edu).");
+        if (auth.role === "alumni" && /@ewubd\.edu$/.test(email)) return fail("Alumni: please use your personal email. EWU staff should choose Teacher."); }
       if (!pwOk(f.password)) return fail("Use at least 8 characters with letters and numbers.");
       if (f.password !== f.password2) return fail("The two passwords don't match.");
       busy(btn, true, "Creating…");
