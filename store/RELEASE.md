@@ -1,6 +1,6 @@
 # Launch guide: website, Play Store, Chrome extension (iOS later)
 
-Do these in order. Costs: Supabase free tier, Cloudflare Pages free, a domain (~$10/yr), Google Play $25 once, Chrome Web Store $5 once, and Anthropic API usage for Smart scan (pay as you go, capped at 20 scans per student per day).
+Do these in order. Costs: Supabase free tier, Cloudflare Pages free, a domain (~$10/yr), Google Play $25 once, Chrome Web Store $5 once. Screenshot and ID card reading runs on the phone, so there are no AI or per-scan costs.
 
 ---
 
@@ -11,15 +11,8 @@ Do these in order. Costs: Supabase free tier, Cloudflare Pages free, a domain (~
 4. **Authentication → Email Templates → Magic Link**: make the body show the code, e.g.
    `Your EWUdiots code is <b>{{ .Token }}</b>. It expires in 10 minutes.`
 5. **Authentication → SMTP**: set up a custom SMTP sender (Resend or Brevo have free tiers). Supabase's built-in mailer allows only a few emails per hour, which is not enough for launch day.
-6. **Smart scan function** (needs the Supabase CLI: `npm i -g supabase`):
-   ```
-   supabase login
-   supabase link --project-ref YOUR_REF
-   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
-   supabase functions deploy parse-screenshot
-   ```
-7. **Project Settings → API**: copy the URL and the anon key into `app/.env` (template in `app/.env.example`).
-8. Test: `cd app && npm run dev`, open http://localhost:5500/app.html → Account → sign in with your @std.ewubd.edu email.
+6. **Project Settings → API**: copy the URL and the anon key into `app/.env` (template in `app/.env.example`).
+7. Test: `cd app && npm run dev`, open http://localhost:5500/app.html → Account → sign in with your @std.ewubd.edu email.
 
 ## 2. Website (~15 min)
 1. Push this folder to a GitHub repo. `.gitignore` already excludes your portal screenshots and secrets.
@@ -40,7 +33,7 @@ Your site now serves: `/` landing page · `/app.html` the web app (installable P
    Any machine with Java: `keytool -genkeypair -v -keystore upload.jks -alias ewudiots -keyalg RSA -keysize 2048 -validity 10000`
    (No Java on your PC? Install Android Studio, which bundles it, or run the command in a free GitHub Codespaces terminal.)
 3. GitHub repo → Settings → Secrets → add: `ANDROID_KEYSTORE_BASE64` (`base64 -w0 upload.jks`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (`ewudiots`), `ANDROID_KEY_PASSWORD`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-4. GitHub → Actions → **Android release** → Run workflow. Download the `.aab` artifact.
+4. GitHub → Actions → **Android release** → Run workflow. Download `EWUdiots.aab` from the release: it is the Play build, without the in-app updater (see §18).
 5. Play Console → Create app "EWUdiots: EWU Student Hub" → fill every section with `store/play-listing.md` and `store/data-safety.md`. Upload graphics from `store/graphics` and `store/screenshots`.
 6. **Testing → Closed testing**: upload the .aab. New personal developer accounts must run a closed test with at least **12 testers for 14 continuous days** before production access is granted. Recruit classmates early.
 7. Apply for production, then roll out.
@@ -134,7 +127,7 @@ For an important fix, set `minVersion` in `release.json` to the new version: old
 - **Sign in** with password, with an emailed code ("Email me a code"), or by scanning the front of the ID card: the ID is read and a code goes to that student's EWU mail. An ID with no account opens sign-up with the ID filled in.
 - **OCR fixes:** the English data now ships unzipped (`eng.traineddata`) because Android's packager unzips `*.gz` assets and drops the extension, so the phone app couldn't load it. The parser re-joins table rows that wrap in phone screenshots and fixes common misreads; zoomed-out screenshots get a second, larger pass. The ID card reader retries sideways/upside-down/larger. Probes: `node scripts/ocr-phone-probe.mjs` (portal pages at phone width) and `node scripts/card-probe.mjs` (synthetic card photos).
 - **In-app updates (Android):** `ApkUpdaterPlugin.java` downloads the new APK with a progress bar and opens Android's installer; the student taps **Update** once. The first time, Android asks to "Allow from this source". The update sheet shows again whenever the app is opened (at most every 6 hours after "Later"; always for a required update). Apps older than 2.10 still download the first update in the browser.
-- **Google Play note:** the Play Store build must not self-update (Play policy). Before uploading to Play, remove `REQUEST_INSTALL_PACKAGES` and the plugin, or make the update button open the Play listing.
+- **Google Play note:** the Play Store build must not self-update (Play policy). The release workflow handles it: see §18.
 
 ## 17. v2.11: portal sign-in, calendar, scholarships, materials, Classroom, analytics, sync fix
 - **Sync fix:** each part of the state (profile, routine, grades…) carries its last edit time (`state._t`, `src/syncmerge.js`); devices merge part by part before every upload, so a stale device can't overwrite newer edits. Required update (`minVersion` 2.11.0).
@@ -152,3 +145,8 @@ For an important fix, set `minVersion` in `release.json` to the new version: old
 3. OAuth consent screen → External → app name EWUdiots, support email ewudiots@gmail.com, add the scopes `classroom.courses.readonly`, `classroom.coursework.me.readonly`, `classroom.courseworkmaterials.readonly`, `classroom.topics.readonly`. While the app is "Testing", add up to 100 test users (student emails); "Publish" and Google verification lift the limit.
 4. Credentials → Create credentials → OAuth client ID → Web application → Authorized JavaScript origins: `https://ewudiots.vercel.app` (and `http://localhost:5500` for dev).
 5. Put the client ID in Vercel env `VITE_GOOGLE_CLIENT_ID` (and in `app/.env`), then redeploy. If EWU's Google Workspace blocks third-party apps, the EWU IT office must allow the app.
+
+## 18. Launch clean-up (v2.11.1)
+- **Two Android files per release.** `EWUdiots.apk` (website download) keeps the in-app updater. `EWUdiots.aab` (Google Play) is built a second time with `VITE_STORE=play` and `app/scripts/play-strip.mjs`, which removes `ApkUpdaterPlugin` and `REQUEST_INSTALL_PACKAGES`; its update button opens the Play Store listing instead. The workflow fails if the bundle still asks to install packages.
+- **Admin console** is no longer linked from the student sign-in page. Open it directly at `/admin.html` (not indexed by search engines). Its demo mode is gone from production; it exists only in the test build (`vite --mode test`, `admin.html#demo`) for the end-to-end tests.
+- **Student demo** ("Just exploring? Try with demo data") stays: it is labelled on every page, stays on the device and is replaced by the first real sync. Its sample teachers and student use `example.com` addresses.

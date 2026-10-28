@@ -1,6 +1,6 @@
 /* Supabase connection. The app is local-first: everything works offline and
    without an account; signing in adds backup/sync across devices and unlocks
-   the shared features (faculty directory, reviews, vault, free rooms, smart scan). */
+   the shared features (faculty directory, reviews, vault, free rooms, course materials). */
 import { createClient } from "@supabase/supabase-js";
 
 const URL = import.meta.env.VITE_SUPABASE_URL;

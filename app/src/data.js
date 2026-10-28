@@ -21,7 +21,7 @@ export const SLOTS = ["08:30-10:00", "10:10-11:40", "11:50-13:20", "13:30-15:00"
 export const DEMO = {
   profile: {
     name: "Demo Student", id: "2026-2-60-000", program: "B.Sc. in Computer Science and Engineering", department: "CSE",
-    semester: currentSemester(), advisor: "Dr. Sample Advisor", advisorInitial: "SAMP", email: "2026-2-60-000@std.ewubd.edu",
+    semester: currentSemester(), advisor: "Dr. Sample Advisor", advisorInitial: "SAMP", email: "demo.student@example.com",
     creditsDone: 33, creditsTotal: 140, cgpa: 3.52, source: "demo"
   },
   routine: [
@@ -52,12 +52,12 @@ export const DEMO = {
   rules: { maxCredit: 15, minCredit: 9, maxPerDay: 3, maxCourses: 6, minCourses: 3 },
   // Fictional faculty — the live directory is crowd-sourced from class-schedule syncs.
   faculty: [
-    { init: "NHR", name: "Dr. Nadia H. Rahman (demo)", dept: "CSE", email: "nhr.demo@ewubd.edu", room: "Room 642", hours: "Sun & Tue 12:00–1:30", rating: 4.7, reviews: 128 },
-    { init: "SAK", name: "Sabbir A. Khan (demo)", dept: "EEE", email: "sak.demo@ewubd.edu", room: "Room 538", hours: "Mon & Wed 3:00–4:30", rating: 4.2, reviews: 64 },
-    { init: "MZH", name: "Dr. M. Zahid Hossain (demo)", dept: "MPS", email: "mzh.demo@ewubd.edu", room: "Room 455", hours: "Sun & Tue 3:00–4:30", rating: 3.9, reviews: 91 },
-    { init: "FRB", name: "Farhana R. Bushra (demo)", dept: "MPS", email: "frb.demo@ewubd.edu", room: "Room 318", hours: "Mon & Wed 10:10–11:40", rating: 4.5, reviews: 52 },
-    { init: "TJN", name: "Tasnim J. Noor (demo)", dept: "ENG", email: "tjn.demo@ewubd.edu", room: "Room 120", hours: "Sat 2:00–3:30", rating: 4.8, reviews: 77 },
-    { init: "NSA", name: "Dr. Nusrat S. Alam (demo)", dept: "CSE", email: "nsa.demo@ewubd.edu", room: "Room 640", hours: "Mon & Wed 12:00–1:30", rating: 4.6, reviews: 143 }
+    { init: "NHR", name: "Dr. Nadia H. Rahman (demo)", dept: "CSE", email: "nhr@example.com", room: "Room 642", hours: "Sun & Tue 12:00–1:30", rating: 4.7, reviews: 128 },
+    { init: "SAK", name: "Sabbir A. Khan (demo)", dept: "EEE", email: "sak@example.com", room: "Room 538", hours: "Mon & Wed 3:00–4:30", rating: 4.2, reviews: 64 },
+    { init: "MZH", name: "Dr. M. Zahid Hossain (demo)", dept: "MPS", email: "mzh@example.com", room: "Room 455", hours: "Sun & Tue 3:00–4:30", rating: 3.9, reviews: 91 },
+    { init: "FRB", name: "Farhana R. Bushra (demo)", dept: "MPS", email: "frb@example.com", room: "Room 318", hours: "Mon & Wed 10:10–11:40", rating: 4.5, reviews: 52 },
+    { init: "TJN", name: "Tasnim J. Noor (demo)", dept: "ENG", email: "tjn@example.com", room: "Room 120", hours: "Sat 2:00–3:30", rating: 4.8, reviews: 77 },
+    { init: "NSA", name: "Dr. Nusrat S. Alam (demo)", dept: "CSE", email: "nsa@example.com", room: "Room 640", hours: "Mon & Wed 12:00–1:30", rating: 4.6, reviews: 143 }
   ],
   offered: {
     CSE246: { title: "Algorithms", cr: 3, sections: [

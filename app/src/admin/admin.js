@@ -78,11 +78,7 @@ function signIn(msg = "") {
     ${msg ? `<div class="alert amber mt">${icon("alert")}<div><b>${esc(msg)}</b></div></div>` : ""}
     ${live ? (otpEmail ? `<form id="lg-code" class="stack mt"><label class="field">Code sent to ${esc(otpEmail)}<input class="input otp" name="code" inputmode="numeric" maxlength="6" required autocomplete="one-time-code"></label><button class="btn primary lg block">Verify</button><button type="button" class="btn ghost block" id="lg-back">Use another email</button></form>`
       : `<form id="lg-mail" class="stack mt"><label class="field">Admin email<input class="input" name="email" type="email" required autocomplete="email" placeholder="you@example.com"></label><button class="btn primary lg block">Send me a code</button></form>`)
-      : `<p class="small muted mt">This build isn't connected to the EWUdiots server yet (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY), so there's nothing live to manage.</p>`}
-    <div class="or-line"><span>or</span></div>
-    <button class="btn outline block" id="lg-demo">${icon("play")} Explore demo mode</button>
-    <p class="xs mt-s">Demo mode keeps everything in this browser. Nothing you do there reaches students.</p></div></div>`;
-  $("#lg-demo").addEventListener("click", () => { api = demoBackend(); start(); });
+      : `<p class="small muted mt">This build isn't connected to the EWUdiots server yet (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY), so there's nothing live to manage.</p>`}</div></div>`;
   $("#lg-back")?.addEventListener("click", () => { otpEmail = ""; signIn(); });
   $("#lg-mail")?.addEventListener("submit", async (e) => { e.preventDefault(); const b = e.target.querySelector("button"); busy(b, true);
     try { const email = String(new FormData(e.target).get("email")).trim().toLowerCase(); const r = await cloud.sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } }); if (r.error) throw r.error; otpEmail = email; signIn(); } catch (err) { busy(b, false); toast(err.message, "error"); } });
@@ -549,7 +545,8 @@ async function exportAll() {
 
 /* ── boot ── */
 (async () => {
-  if (location.hash === "#demo") { api = demoBackend(); return start(); }
+  // Demo sandbox for the end-to-end tests only (vite --mode test); production builds drop it.
+  if (import.meta.env.MODE === "test" && location.hash === "#demo") { api = demoBackend(); return start(); }
   if (cloud.enabled) { const u = await cloud.currentUser(); if (u) return checkAdmin(u); }
   signIn();
 })();

@@ -91,8 +91,8 @@ try {
   // ── Admin panel (demo mode) ──
   await p.goto(BASE + "/admin.html", { waitUntil: "networkidle2" }); await p.evaluate(() => localStorage.removeItem("ewudiots.admin.demo"));
   await p.reload({ waitUntil: "networkidle2" }); await wait(400);
-  check("admin: sign-in screen with demo option", /EWUdiots Admin/.test(await text()) && !!(await p.$("#lg-demo")));
-  await click("#lg-demo", 1200);
+  check("admin: sign-in screen without a demo option", /EWUdiots Admin/.test(await text()) && !(await p.$("#lg-demo")));
+  await p.goto(BASE + "/admin.html#demo"); await p.reload({ waitUntil: "networkidle2" }); await wait(1200);
   t = await text();
   check("admin overview: KPIs + live feeds", (await p.$$eval(".kpi", (k) => k.length)) === 10 && /Sign-ups, last 30 days/.test(t) && /Live feeds/.test(t) && /Demo mode/.test(t));
   check("admin: feeds healthy", (await p.$$eval("#feeds .itile.green", (i) => i.length)) === 2);

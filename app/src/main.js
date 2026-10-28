@@ -34,6 +34,9 @@ import { snapshot, stamp, merge } from "./syncmerge.js";
 
 const APP_VERSION = __APP_VERSION__; // from package.json (vite.config.js)
 const SITE = import.meta.env.VITE_SITE_URL || "https://ewudiots.vercel.app";
+// Google Play build (VITE_STORE=play): Play forbids self-updates, so updates open the Play Store instead.
+const PLAY = import.meta.env.VITE_STORE === "play";
+const PLAY_URL = "https://play.google.com/store/apps/details?id=com.ewudiots.app";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -701,7 +704,7 @@ async function checkUpdate() {
     const j = await (await fetch((native.isNative ? SITE : "") + "/version.json", { cache: "no-store" })).json();
     if (!newer(j.version, APP_VERSION)) return;
     const required = newer(j.minVersion || "0", APP_VERSION);
-    C.update = { version: j.version, notes: (j.notes || []).slice(0, 6), required, url: native.isNative ? SITE + (j.apk || "/download/android") : "" };
+    C.update = { version: j.version, notes: (j.notes || []).slice(0, 6), required, url: PLAY ? PLAY_URL : native.isNative ? SITE + (j.apk || "/download/android") : "" };
     if (currentRoute === "home") rerender();
     showUpdate();
   } catch { /* offline or no version file (dev) */ }
@@ -732,11 +735,12 @@ function showUpdate() {
 let afterPermission = null; // set while we wait for the "install unknown apps" switch; runs once when the app is back
 function openUpdateSheet() {
   const u = C.update; if (!u) return;
-  const self = native.canSelfUpdate();
+  const self = !PLAY && native.canSelfUpdate();
   openModal(`<div class="upd-sheet"><div class="upd-ill" aria-hidden="true">${icon("download")}</div><p class="xs">${u.required ? "Required update" : "Update available"}</p>
     <h2 id="modal-title">EWUdiots ${esc(u.version)}</h2><p class="small muted">You have ${esc(APP_VERSION)}.${u.required ? " This update fixes something important, so please install it to keep using the app." : ""}</p>
     ${u.notes.length ? `<ul class="upd-notes">${u.notes.map((n) => `<li>${icon("check", "sm")}<span>${esc(n)}</span></li>`).join("")}</ul>` : ""}
     <div id="upd-act">${self ? `<button class="btn primary lg block" id="upd-now">${icon("download")} Update now</button><p class="xs mt-s">Downloads inside the app, then tap <b>Update</b> in the Android window. Your data stays.</p>`
+      : PLAY ? `<a class="btn primary lg block" id="upd-now" href="${esc(u.url)}" target="_blank" rel="noopener">${icon("download")} Update on Google Play</a><p class="xs mt-s">Tap <b>Update</b> on the Play Store page. Your data stays.</p>`
       : `<a class="btn primary lg block" id="upd-now" href="${esc(u.url)}" target="_blank" rel="noopener">${icon("download")} Update now</a><p class="xs mt-s">Open the downloaded file and tap Install. Your data stays. After this update, the next ones install from inside the app.</p>`}</div>
     ${u.required ? "" : `<button class="btn ghost block" data-close>Later</button>`}</div>`, (m) => {
     if (u.required) { const head = m.querySelector(".grabber"); head && head.remove(); }

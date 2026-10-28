@@ -38,13 +38,14 @@ jobs:
       - run: npx cap sync android
       - name: Decode keystore
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/upload.jks"
-      - name: Build signed APK and bundle
+      - name: Build signed APK (direct download, updates itself)
         working-directory: app/android
         run: |
           chmod +x gradlew
           VERSION_CODE=$(( $(date +%s) / 60 ))
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
           VERSION_NAME=$(node -p "require('../package.json').version")
-          ./gradlew assembleRelease bundleRelease \
+          ./gradlew assembleRelease \
             -Pandroid.injected.version.code=$VERSION_CODE \
             -Pandroid.injected.version.name=$VERSION_NAME \
             -Pandroid.injected.signing.store.file="$RUNNER_TEMP/upload.jks" \
@@ -53,7 +54,28 @@ jobs:
             -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
           mkdir -p "$RUNNER_TEMP/out"
           cp app/build/outputs/apk/release/*.apk "$RUNNER_TEMP/out/EWUdiots.apk"
+      # Google Play forbids self-updating apps: rebuild the web part with VITE_STORE=play (updates open the
+      # Play Store) and remove the in-app updater and REQUEST_INSTALL_PACKAGES before building the bundle.
+      - name: Build web app for Google Play
+        run: npm run build && npx cap sync android && node scripts/play-strip.mjs
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SITE_URL: ${{ secrets.SITE_URL }}
+          VITE_STORE: play
+      - name: Build signed bundle (Google Play)
+        working-directory: app/android
+        run: |
+          VERSION_NAME=$(node -p "require('../package.json').version")
+          ./gradlew bundleRelease \
+            -Pandroid.injected.version.code=$VERSION_CODE \
+            -Pandroid.injected.version.name=$VERSION_NAME \
+            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/upload.jks" \
+            -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
           cp app/build/outputs/bundle/release/*.aab "$RUNNER_TEMP/out/EWUdiots.aab"
+          if unzip -p "$RUNNER_TEMP/out/EWUdiots.aab" base/manifest/AndroidManifest.xml | grep -a -q REQUEST_INSTALL_PACKAGES; then echo "Play bundle still asks to install packages"; exit 1; fi
       - name: Package Chrome extension
         working-directory: extension
         env:
@@ -73,4 +95,4 @@ jobs:
           TAG="app-v$VERSION-${{ github.run_number }}"
           gh release create "$TAG" "$RUNNER_TEMP"/out/* --repo "${{ github.repository }}" --target "${{ github.sha }}" --latest \
             --title "EWUdiots $VERSION (build ${{ github.run_number }})" \
-            --notes "Android app (EWUdiots.apk: install directly; EWUdiots.aab: for Google Play) and the Chrome extension (EWUdiots-extension.zip: unzip, then chrome://extensions → Developer mode → Load unpacked). Unofficial · not affiliated with EWU."
+            --notes "Android app (EWUdiots.apk: install directly; EWUdiots.aab: for Google Play, without the in-app updater) and the Chrome extension (EWUdiots-extension.zip: unzip, then chrome://extensions → Developer mode → Load unpacked). Unofficial · not affiliated with EWU."

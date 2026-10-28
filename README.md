@@ -12,13 +12,13 @@ app/                 Website + web app + Android project (Vite, vanilla JS)
   src/art.js         Mascot, confetti, chime, ambient sounds
   src/site.js        Landing page: install button, scroll reveal
   src/parser.js      EWU portal text → structured data (tested)
-  src/cloud.js       Supabase: sign-in, backup, faculty, reviews, vault, smart scan
+  src/cloud.js       Supabase: sign-in, backup, faculty, reviews, vault, course materials
   src/native.js      Android/iOS: notifications, share, back button
   tests/             Parser tests (node --test)
   scripts/           e2e browser test, extension privacy test, icon builder
   android/           Generated Capacitor Android project
 extension/           Chrome MV3 extension (allow-list portal reader)
-supabase/            Database schema (RLS) + Smart-scan edge function (Claude vision)
+supabase/            Database schema (RLS); functions/parse-screenshot is unused (Smart scan was removed in 2.11)
 brand/               Logo source (SVG)
 store/               Play listing, data safety, release guide, graphics, screenshots
 .github/workflows/   Cloud builds: website, signed Android .aab

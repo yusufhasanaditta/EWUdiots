@@ -390,7 +390,7 @@ export function install(ctx) {
 
   /* ── Accounts: sign in (ID/email + password, or a code by email, or by scanning the ID card → code to the student mail)
      · create account (students: student email, verify with the ID card later — or scan both sides now) · verify the
-     email with a 6-digit code · forgot password (code by email → new password). Admins use the admin console. ── */
+     email with a 6-digit code · forgot password (code by email → new password). ── */
   const auth = { mode: "signin", role: "student", sMethod: "email", sid: "", codeSent: false, email: "", card: null, name: "", pendingRole: "" };
   const pwOk = (p) => p.length >= 8 && /[A-Za-z]/.test(p) && /\d/.test(p);
   const pwField = (name, label, auto) => `<label class="field">${label}<span class="pw-wrap"><input class="input" name="${name}" type="password" autocomplete="${auto}" minlength="8" required><button type="button" class="pw-eye" data-eye aria-label="Show password">${icon("eye", "sm")}</button></span></label>`;
@@ -443,7 +443,7 @@ export function install(ctx) {
         <form id="au-rs" class="stack mt" novalidate><label class="field">Code<input class="input otp" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label>
         ${pwField("password", "New password", "new-password")}${pwField("password2", "Confirm new password", "new-password")}<div id="au-err"></div>
         <button class="btn primary lg block">${icon("check")} Save password &amp; sign in</button><button type="button" class="btn ghost block" data-am="forgot">Send a new code</button></form>`;
-    return obShell(`${brand}${tabs}${body}<p class="xs mt" style="text-align:center">One account for the phone app, web, Windows, Mac and the Chrome extension. Admins sign in at <a href="/admin.html">the admin console</a>.</p>`,
+    return obShell(`${brand}${tabs}${body}<p class="xs mt" style="text-align:center">One account for the phone app, web, Windows, Mac and the Chrome extension.</p>`,
       { back, foot: from === "profile" ? "" : `<button class="btn ghost block" id="lg-skip">Continue without an account</button>` });
   };
   pages.login.mount = (el) => {

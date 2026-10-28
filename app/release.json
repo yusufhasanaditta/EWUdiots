@@ -1,6 +1,7 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
+    "Cleaner sign-in page and launch polish",
     "Fixed: changes made on one device no longer get undone by another",
     "Sign in to the EWU portal from the app and sync everything at once (Android)",
     "Academic calendar: holidays, payment deadlines and your final exam dates",
