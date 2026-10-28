@@ -121,3 +121,9 @@ For an important fix, set `minVersion` in `release.json` to the new version: old
 - **Media library**, **Analytics** (cookie-free, `api/track.js`), **Scheduled jobs** (run now), **Change history** (compare and restore) and **Roles & permissions** (owner / admin / editor / moderator, enforced in the database by `public.can()`).
 - Server secrets: `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET` live only in Vercel's encrypted env and `.secrets/server.env`.
 - New logo: `brand/logo.png` → `npm run icons`, then `npx @capacitor/assets generate --android`.
+
+## 15. Events, profile photo, 2-hourly feeds (v2.9)
+- **Events** (`#/events`, migration `0010_events.sql`): official events are read from ewubd.edu/events by `api/cron.js` (job `events`) and go live by themselves. Students, teachers and alumni **suggest** events (up to 3 a day); each waits in **Admin → Events** until someone with `events.review` approves or rejects it. The poster gets an inbox message either way. Admins can also add, edit, pin and unpublish events.
+- **Every 2 hours:** `.github/workflows/refresh-feeds.yml` calls `/api/cron?job=news,notices,events` with the `CRON_SECRET` repo secret. The daily Vercel cron still runs everything. GitHub pauses scheduled workflows in a repo with no commits for 60 days; push anything (or press "Enable workflow" in Actions) to wake it.
+- **Profile:** a photo (cropped to a 320 px JPEG, saved with the rest of the student's data, so it follows them to every device), the details the Chrome extension read from the portal Profile page ("Fill from extension" checks the account's inbox), and an "About me" card (headline, bio, phone, hometown, skills, interests, clubs, links). About-me details are private to the account.
+- Fix in `0011_fix_revisions.sql`: change history failed on tables without a `key` column, so admin edits of posts, feed items and alumni were refused. Revisions now read the row key through jsonb.

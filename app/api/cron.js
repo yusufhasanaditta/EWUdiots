@@ -3,6 +3,7 @@
 import { fetchNews } from "../src/news.js";
 import { fetchNotices } from "../src/notices.js";
 import { fetchNewsletters } from "../src/newsletters.js";
+import { fetchEvents } from "../src/events.js";
 import { db, hasService } from "./_db.js";
 
 const now = () => new Date().toISOString();
@@ -18,6 +19,15 @@ const JOBS = {
     const items = await fetchNotices(3);
     if (items.length) await upsert(items.map((n) => ({ id: `notice:${n.id}`.slice(0, 200), kind: "notice", title: n.title.slice(0, 300), url: n.url || "", pdf: n.pdf || "", date: n.date || null, category: n.cat || "", source: "auto", fetched_at: now() })));
     return `${items.length} notices`;
+  },
+  // Official events go in approved. Rows that already exist are left alone, so an admin's edit, pin or rejection stays.
+  async events() {
+    const today = new Date(Date.now() + 6 * 36e5).toISOString().slice(0, 10); // Dhaka date
+    const items = await fetchEvents(2, today);
+    if (items.length) await db("/rest/v1/events?on_conflict=ext_id", { method: "POST", service: true, prefer: "resolution=ignore-duplicates,return=minimal",
+      body: items.map((e) => ({ ext_id: `ewu:${e.id}`.slice(0, 200), title: e.title.slice(0, 160), kind: e.kind, all_day: true, starts_at: `${e.start}T00:00:00+06:00`, ends_at: e.end ? `${e.end}T23:59:00+06:00` : null,
+        venue: e.venue, organizer: "East West University", link: e.url, image: e.image, status: "approved", source: "auto", created_by: null })) });
+    return `${items.length} official events checked`;
   },
   // New newsletter issues appear in the admin panel (Alumni → Newsletter import) for an admin to pull stories from.
   async newsletters() {

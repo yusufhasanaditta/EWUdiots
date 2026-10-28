@@ -265,14 +265,15 @@ export function install(ctx) {
     inboxBusy = true;
     try {
       const rows = await ctx.cloud.fetchInbox();
-      if (!rows.length) return;
+      if (!rows.length) return false;
       const latest = new Map(); // newest copy of each page kind wins
       rows.flatMap((r) => r.pages || []).forEach((p) => latest.set(p.kind || p.page, p));
       const ids = rows.map((r) => r.id), r = importExtPages([...latest.values()]);
-      if (!r) { await ctx.cloud.clearInbox(ids); return; } // nothing usable in them
+      if (!r) { await ctx.cloud.clearInbox(ids); return false; } // nothing usable in them
       r.inboxIds = ids; // deleted from the account once you Save or Discard
       toast("Portal pages from your Chrome extension", "info", "Check them and press Save.");
-    } catch (e) { console.warn("Inbox check failed", e); }
+      return true;
+    } catch (e) { console.warn("Inbox check failed", e); return false; }
     finally { inboxBusy = false; }
   }
   return { takeExtHandoff, checkInbox, openSync: (m) => { method = m; stage = m === "img" ? "pick" : m === "txt" ? "paste" : "ext"; ctx.go("#/sync"); } };

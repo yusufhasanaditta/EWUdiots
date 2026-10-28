@@ -24,7 +24,7 @@ const ALL_SECTIONS = [
   ["posts", "Posts & announcements", "megaphone", "Content", "posts.write"], ["feed", "News & notices feed", "globe", "Content", "news.edit"], ["website", "Website & theme", "layers", "Content", "site.edit"],
   ["media", "Media library", "image", "Content", "media.write"], ["messages", "Messages to users", "mail", "Content", "messages.send"], ["banner", "Home banner", "bell", "Content", "site.edit"], ["features", "Features & maintenance", "sliders", "Content", "features.edit"],
   ["users", "Users", "user", "People", "users.view"], ["alumni", "Alumni waiting", "community", "People", "alumni.review"], ["alumdb", "All alumni & import", "cap", "People", "alumni.review"], ["faculty", "Faculty listings", "users", "People", "faculty.edit"],
-  ["feedback", "Feedback inbox", "help", "Community", "feedback.handle"], ["reports", "Reports", "flag", "Community", "reports.handle"], ["rooms", "Campus rooms", "map", "Campus", "rooms.edit"],
+  ["events", "Events", "calendar", "Community", "events.review"], ["feedback", "Feedback inbox", "help", "Community", "feedback.handle"], ["reports", "Reports", "flag", "Community", "reports.handle"], ["rooms", "Campus rooms", "map", "Campus", "rooms.edit"],
   ["security", "Security centre", "lock", "System", "security.view"], ["jobs", "Scheduled jobs", "zap", "System", "jobs.run"], ["history", "Change history", "clock", "System"],
   ["roles", "Roles & permissions", "shield", "System"], ["admins", "Admins", "crown", "System"], ["activity", "Activity log", "list", "System"]
 ];
@@ -105,9 +105,9 @@ async function checkAdmin(user) {
 let drawerOpen = false;
 const closeDrawer = () => { drawerOpen = false; root.classList.remove("drawer"); };
 async function refreshBadges() {
-  try { const [a, r, f] = await Promise.all([api.count("alumni_profiles", { status: "pending" }), api.count("reports"), api.count("feedback", { status: "new" }).catch(() => 0)]); badges = { alumni: a, reports: r, feedback: f }; } catch { badges = {}; }
+  try { const [a, r, f, e] = await Promise.all([api.count("alumni_profiles", { status: "pending" }), api.count("reports"), api.count("feedback", { status: "new" }).catch(() => 0), can("events.review") ? api.count("events", { status: "pending" }).catch(() => 0) : 0]); badges = { alumni: a, reports: r, feedback: f, events: e }; } catch { badges = {}; }
   $$(".adm-nav [data-badge]").forEach((el) => { const n = badges[el.dataset.badge] || 0; el.textContent = n; el.hidden = !n; });
-  const total = (badges.alumni || 0) + (badges.reports || 0) + (badges.feedback || 0), bell = $("#adm-bell");
+  const total = (badges.alumni || 0) + (badges.reports || 0) + (badges.feedback || 0) + (badges.events || 0), bell = $("#adm-bell");
   if (bell) bell.innerHTML = `${icon("bell")}${total ? `<span class="dot-n">${total > 9 ? "9+" : total}</span>` : ""}`;
 }
 async function start() {
@@ -446,7 +446,7 @@ const VIEWS = {
   }
 };
 // Website, media, feed, alumni import, analytics, jobs, history and roles live in cms.js.
-const H = { $, $$, esc, icon, toast, openModal, closeModal, confirmAct, act, busy, sw, ago, downloadCSV, barChart, delta, api: () => api, me: () => me, go: (t) => go(t), VIEWS };
+const H = { $, $$, esc, icon, toast, openModal, closeModal, confirmAct, act, busy, sw, ago, downloadCSV, barChart, delta, refreshBadges, api: () => api, me: () => me, go: (t) => go(t), VIEWS };
 Object.assign(VIEWS, cmsViews(H));
 const logRow = (l) => `<div class="lrow"><span class="itile sm purple">${icon("clock")}</span><span class="body"><b>${esc(l.action)}${l.target ? ` · ${esc(l.target)}` : ""}</b><span>${esc(l.email)} · ${ago(l.created_at)}</span></span></div>`;
 const bindGo = (el) => $$("[data-go]", el).forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));

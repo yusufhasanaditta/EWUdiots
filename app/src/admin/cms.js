@@ -8,7 +8,7 @@ export const PERMS = [
   ["posts.write", "Write posts & announcements"], ["messages.send", "Message users"], ["site.edit", "Edit website, banner & theme"], ["features.edit", "Features & maintenance mode"],
   ["media.write", "Upload & delete media"], ["news.edit", "Edit the news & notice feed"], ["alumni.review", "Review & edit alumni"], ["faculty.edit", "Edit faculty listings"],
   ["rooms.edit", "Edit campus rooms"], ["reports.handle", "Moderate reports"], ["feedback.handle", "Handle feedback"], ["users.view", "See users"], ["users.manage", "Suspend users / end sessions"],
-  ["security.view", "See security events"], ["analytics.view", "See analytics"], ["jobs.run", "Run scheduled jobs"]
+  ["security.view", "See security events"], ["analytics.view", "See analytics"], ["jobs.run", "Run scheduled jobs"], ["events.review", "Approve & add events"], ["blog.moderate", "Moderate the blog & jobs board"]
 ];
 const SITE_FIELDS = [
   ["hero_chip", "Small headline above the title", "3D campus map, live EWU notices & ID pass", 80], ["hero_title", "Main title", "Your whole EWU life,", 60],
@@ -141,6 +141,60 @@ export function cmsViews(h) {
       }));
     },
 
+    /* ═════════ Events: approve suggestions, add your own; official ones arrive daily ═════════ */
+    async events(el) {
+      const st = el.dataset.st || "pending", rows = await api().list("events", { eq: st === "all" ? undefined : { status: st }, order: "starts_at", asc: st === "pending", limit: 400 });
+      const runs = await api().list("job_runs", { eq: { job: "events" }, order: "started_at", limit: 1 }).catch(() => []);
+      const dt = (d, allDay) => new Date(d).toLocaleString("en-GB", { timeZone: "Asia/Dhaka", day: "numeric", month: "short", year: "numeric", ...(allDay ? {} : { hour: "numeric", minute: "2-digit" }) });
+      const SRC = { auto: ["Official", "blue"], admin: ["Team", "purple"], user: ["Suggested", "amber"] };
+      el.innerHTML = `<div class="row"><div class="seg">${[["pending", "Waiting"], ["approved", "Live"], ["rejected", "Rejected"], ["all", "All"]].map(([v, l]) => `<button data-es="${v}" aria-selected="${st === v}">${l}</button>`).join("")}</div><span class="grow"></span>
+          <button class="btn outline" id="e-run">${icon("sync")} Fetch from ewubd.edu now</button><button class="btn primary" id="e-add">${icon("plus")} Add event</button></div>
+        <p class="xs mt-s">${icon("zap", "sm")} Official events come from ewubd.edu/events automatically${runs[0] ? ` · last run ${ago(runs[0].started_at)} (${esc(runs[0].detail)})` : ""}. Students, teachers and alumni suggest the rest; they appear only after you approve. The poster gets a message either way.</p>
+        <div class="adm-cards mt">${rows.length ? rows.map((e) => `<article class="card fx-rise ${new Date(e.ends_at || e.starts_at) < Date.now() - 864e5 ? "dim" : ""}"><div class="row nowrap top"><span class="itile sm ${SRC[e.source][1]}">${icon("calendar")}</span><div class="min0 grow"><b>${esc(e.title)}</b>
+            <p class="xs">${dt(e.starts_at, e.all_day)}${e.ends_at ? ` → ${dt(e.ends_at, e.all_day)}` : ""}${e.venue ? ` · ${esc(e.venue)}` : ""}</p></div></div>
+          <div class="row mt-s" style="gap:6px"><span class="pill ${SRC[e.source][1]}">${SRC[e.source][0]}</span><span class="pill">${esc(String(e.kind || "other").replace(/_/g, " "))}</span>${e.pinned ? '<span class="pill amber">Pinned</span>' : ""}${st === "all" ? `<span class="pill">${e.status}</span>` : ""}</div>
+          ${e.organizer ? `<p class="small mt-s">By ${esc(e.organizer)}${e.author_name && e.source === "user" ? ` · sent by ${esc(e.author_name)}` : ""}</p>` : e.author_name ? `<p class="small mt-s">Sent by ${esc(e.author_name)}</p>` : ""}
+          ${e.description ? `<p class="small muted mt-s">${esc(e.description.slice(0, 280))}${e.description.length > 280 ? "…" : ""}</p>` : ""}${e.link ? `<a class="xs" href="${esc(e.link)}" target="_blank" rel="noopener nofollow">${esc(e.link.slice(0, 60))}</a>` : ""}
+          ${e.review_note ? `<p class="xs mt-s">Note: ${esc(e.review_note)}</p>` : ""}
+          <div class="row mt">${e.status !== "approved" ? `<button class="btn sm primary" data-eap="${e.id}">${icon("check", "sm")} Approve</button>` : ""}${e.status !== "rejected" ? `<button class="btn sm danger-soft" data-erj="${e.id}">${icon("x", "sm")} ${e.status === "approved" ? "Unpublish" : "Reject"}</button>` : ""}
+            <button class="btn sm ghost" data-epin="${e.id}" aria-label="${e.pinned ? "Unpin" : "Pin"}">${icon("star", "sm")}</button><button class="btn sm ghost" data-eed="${e.id}" aria-label="Edit">${icon("edit", "sm")}</button><button class="btn sm ghost" data-edel="${e.id}" aria-label="Delete">${icon("trash", "sm")}</button></div></article>`).join("")
+          : `<div class="card"><p class="small muted">${st === "pending" ? "No suggestions waiting. Nice." : "Nothing here yet."}</p></div>`}</div>`;
+      const reload = () => { h.refreshBadges?.(); return h.VIEWS.events(el); }, byId = (id) => rows.find((r) => r.id === id);
+      const set = (id, patch, label) => act(label, byId(id).title, () => api().update("events", { id }, patch)).then(reload).catch((err) => toast(err.message, "error"));
+      $$("[data-es]", el).forEach((b) => b.addEventListener("click", () => { el.dataset.st = b.dataset.es; reload(); }));
+      $("#e-run", el).addEventListener("click", async (e) => { busy(e.currentTarget, true); try { const r = await api().runJob("events"); toast(r.ok ? "Updated from ewubd.edu" : "Fetch failed", r.ok ? "success" : "error", r.detail); } catch (err) { toast(err.message, "error"); } reload(); });
+      $$("[data-eap]", el).forEach((b) => b.addEventListener("click", () => set(b.dataset.eap, { status: "approved", review_note: "" }, "Approved event")));
+      $$("[data-erj]", el).forEach((b) => b.addEventListener("click", () => { const e = byId(b.dataset.erj); openModal(e.status === "approved" ? "Unpublish event" : "Reject event", `<form id="erf" class="stack"><p class="small">“${esc(e.title)}”${e.source === "user" ? " — the poster gets this note in their inbox." : ""}</p>
+        <label class="field">Reason (optional)<input class="input" name="note" maxlength="300" placeholder="e.g. Not an EWU event, or missing date and venue"></label><div class="row"><span class="grow"></span><button class="btn danger">${icon("x", "sm")} ${e.status === "approved" ? "Unpublish" : "Reject"}</button></div></form>`,
+        (m) => $("#erf", m).addEventListener("submit", (ev) => { ev.preventDefault(); closeModal(); set(e.id, { status: "rejected", review_note: String(new FormData(ev.target).get("note") || "").trim() }, "Rejected event"); })); }));
+      $$("[data-epin]", el).forEach((b) => b.addEventListener("click", () => set(b.dataset.epin, { pinned: !byId(b.dataset.epin).pinned }, byId(b.dataset.epin).pinned ? "Unpinned event" : "Pinned event")));
+      $$("[data-edel]", el).forEach((b) => b.addEventListener("click", () => confirmAct("Delete this event?", byId(b.dataset.edel).source === "auto" ? "Official events come back on the next fetch. Use Unpublish to keep one hidden." : "It can be restored from Change history.", "Delete",
+        async () => { await act("Deleted event", byId(b.dataset.edel).title, () => api().remove("events", { id: b.dataset.edel })); reload(); })));
+      const KINDS = [["workshop", "Workshop"], ["seminar", "Seminar & talk"], ["concert", "Concert"], ["cultural", "Cultural"], ["club_recruitment", "Club recruitment"], ["club_event", "Club event"], ["competition", "Competition"], ["fair", "Fair & expo"], ["sports", "Sports"], ["other", "Other"]];
+      const local = (d) => d ? new Date(new Date(d).getTime() + 6 * 36e5).toISOString().slice(0, 16) : ""; // Dhaka wall-clock for <input type=datetime-local>
+      const form = (e = { title: "", kind: "club_event", starts_at: "", ends_at: "", venue: "", organizer: "", description: "", link: "", image: "", all_day: false }) => openModal(e.id ? "Edit event" : "Add event", `<form id="ef" class="grid g2">
+          <label class="field full-row">Title<input class="input" name="title" required minlength="3" maxlength="160" value="${esc(e.title)}"></label>
+          <label class="field">Type<select class="select" name="kind">${KINDS.map(([v, l]) => `<option value="${v}" ${e.kind === v ? "selected" : ""}>${l}</option>`).join("")}</select></label><label class="field">Organizer<input class="input" name="organizer" maxlength="120" value="${esc(e.organizer)}"></label>
+          <label class="field">Starts (Dhaka time)<input class="input" name="starts_at" type="datetime-local" required value="${local(e.starts_at)}"></label><label class="field">Ends (optional)<input class="input" name="ends_at" type="datetime-local" value="${local(e.ends_at)}"></label>
+          <label class="field full-row row nowrap" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" class="check" name="all_day" ${e.all_day ? "checked" : ""}> All-day (ignore the times)</label>
+          <label class="field full-row">Venue<input class="input" name="venue" maxlength="160" value="${esc(e.venue)}"></label>
+          <label class="field full-row">Link (https)<input class="input" name="link" type="url" pattern="https://.+" value="${esc(e.link)}"></label>
+          <div class="row nowrap full-row"><label class="field grow">Image (https)<input class="input" name="image" pattern="https://.+" value="${esc(e.image)}"></label><button type="button" class="btn outline" id="ef-pick" style="align-self:flex-end">${icon("image", "sm")} Library</button></div>
+          <label class="field full-row">Description<textarea class="input" name="description" rows="4" maxlength="3000">${esc(e.description)}</textarea></label>
+          <div class="row full-row"><span class="grow"></span><button class="btn primary">${icon("check")} ${e.id ? "Save" : "Publish"}</button></div></form>`, (m) => {
+          $("#ef-pick", m).addEventListener("click", async () => { const u = await pickMedia(); if (u) m.querySelector('[name="image"]').value = u; });
+          $("#ef", m).addEventListener("submit", async (ev) => {
+            ev.preventDefault(); const f = Object.fromEntries(new FormData(ev.target)), tz = (v) => (v ? `${v}:00+06:00` : null);
+            const row = { title: f.title.trim(), kind: f.kind, organizer: f.organizer.trim(), venue: f.venue.trim(), link: f.link.trim(), image: f.image.trim(), description: f.description.trim(), starts_at: tz(f.starts_at), ends_at: tz(f.ends_at), all_day: Boolean(f.all_day) };
+            if (row.ends_at && new Date(row.ends_at) < new Date(row.starts_at)) return toast("It can't end before it starts", "warn");
+            try { await act(e.id ? "Edited event" : "Added event", row.title, () => (e.id ? api().update("events", { id: e.id }, row) : api().insert("events", { ...row, source: "admin", status: "approved", author_name: "EWUdiots team" }))); closeModal(); toast("Saved", "success", "It's live in the app now."); reload(); }
+            catch (err) { toast(err.message, "error"); }
+          });
+        });
+      $("#e-add", el).addEventListener("click", () => form());
+      $$("[data-eed]", el).forEach((b) => b.addEventListener("click", () => form(byId(b.dataset.eed))));
+    },
+
     /* ═════════ News & notices feed (automatic + manual) ═════════ */
     async feed(el) {
       const kind = el.dataset.kind || "news", rows = await api().list("feed_items", { eq: { kind }, order: "date", limit: 300 });
@@ -218,7 +272,7 @@ export function cmsViews(h) {
     /* ═════════ Scheduled jobs ═════════ */
     async jobs(el) {
       const runs = await api().list("job_runs", { order: "started_at", limit: 60 });
-      const JOBS = [["news", "globe", "Campus news", "Reads ewubd.edu/news into the feed"], ["notices", "file", "Notice board", "Reads the EWU notice board into the feed"], ["newsletters", "mail", "Newsletters", "Finds new EWU newsletters for alumni import"], ["cleanup", "trash", "Clean-up", "Empties 30-day trash, old analytics and logs"]];
+      const JOBS = [["news", "globe", "Campus news", "Reads ewubd.edu/news into the feed"], ["notices", "file", "Notice board", "Reads the EWU notice board into the feed"], ["events", "calendar", "Campus events", "Reads ewubd.edu/events into Events"], ["newsletters", "mail", "Newsletters", "Finds new EWU newsletters for alumni import"], ["cleanup", "trash", "Clean-up", "Empties 30-day trash, old analytics and logs"]];
       el.innerHTML = `<p class="small muted">These run automatically every day at about 8 AM Dhaka time. Run one now if you need fresh data.</p>
         <div class="adm-cards mt">${JOBS.map(([id, ic, t, d]) => { const last = runs.find((r) => r.job === id); return `<article class="card"><div class="row nowrap"><span class="itile ${last && !last.ok ? "red" : "purple"}">${icon(ic)}</span><div class="grow"><b>${t}</b><p class="xs">${d}</p></div></div>
           <p class="small mt-s">${last ? `${last.ok ? "✓" : "✗"} ${ago(last.started_at)} · ${esc(last.detail)} · ${last.ms} ms` : "Hasn't run yet"}</p><button class="btn sm primary mt-s" data-run="${id}">${icon("play", "sm")} Run now</button></article>`; }).join("")}</div>
@@ -230,8 +284,8 @@ export function cmsViews(h) {
     async history(el) {
       const rows = await api().list("revisions", { limit: 200 }), f = el.dataset.f || "all";
       const shown = rows.filter((r) => f === "all" || r.table_name === f);
-      const label = (r) => r.table_name === "site_settings" ? `Setting: ${r.row_key}` : r.table_name === "posts" ? `Post: ${r.data.title}` : r.table_name === "feed_items" ? `Feed: ${r.data.title_override || r.data.title}` : `Alumni: ${r.data.name}`;
-      el.innerHTML = `<div class="seg">${[["all", "Everything"], ["posts", "Posts"], ["site_settings", "Settings"], ["feed_items", "Feed"], ["alumni_profiles", "Alumni"]].map(([v, l]) => `<button data-hf="${v}" aria-selected="${f === v}">${l}</button>`).join("")}</div>
+      const label = (r) => r.table_name === "site_settings" ? `Setting: ${r.row_key}` : r.table_name === "posts" ? `Post: ${r.data.title}` : r.table_name === "feed_items" ? `Feed: ${r.data.title_override || r.data.title}` : r.table_name === "events" ? `Event: ${r.data.title}` : `Alumni: ${r.data.name}`;
+      el.innerHTML = `<div class="seg">${[["all", "Everything"], ["posts", "Posts"], ["site_settings", "Settings"], ["feed_items", "Feed"], ["events", "Events"], ["alumni_profiles", "Alumni"]].map(([v, l]) => `<button data-hf="${v}" aria-selected="${f === v}">${l}</button>`).join("")}</div>
         <p class="xs mt-s">Every change keeps the version before it. Compare it with what's live now, and restore it if needed.</p>
         <section class="card mt tight">${shown.map((r) => `<div class="lrow"><span class="itile sm purple">${icon("clock")}</span><span class="body"><b>${esc(label(r))}</b><span>Version from before ${ago(r.created_at)} · changed by ${esc(r.actor)}</span></span><button class="btn sm" data-hv="${r.id}">${icon("eye", "sm")} Compare</button></div>`).join("") || '<p class="small muted">No changes recorded yet.</p>'}</section>`;
       $$("[data-hf]", el).forEach((b) => b.addEventListener("click", () => { el.dataset.f = b.dataset.hf; h.VIEWS.history(el); }));

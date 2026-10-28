@@ -143,6 +143,47 @@ try {
   check("admin: fits a phone screen", await noHScroll());
   await shot("admin-phone");
 
+  // ── Admin: events (demo data has one suggestion waiting) ──
+  await p.setViewport({ width: 1440, height: 900 }); await wait(400);
+  await click('[data-tab="events"]', 900);
+  t = await text();
+  check("admin: events section lists the waiting suggestion", /Programming Club recruitment/.test(t) && !!(await p.$("[data-eap]")));
+  await click("[data-eap]", 900);
+  check("admin: approving moves it out of Waiting", !/Programming Club recruitment/.test(await text()));
+  await click('[data-es="approved"]', 900);
+  check("admin: approved events listed as live", /Programming Club recruitment/.test(await text()) && /Spring concert/.test(await text()));
+  await click("#e-add", 500);
+  await p.type('#ef [name="title"]', "Debate night"); await p.$eval('#ef [name="starts_at"]', (i) => { i.value = "2030-01-15T17:00"; });
+  await click("#ef button.primary", 900);
+  check("admin: add an event", /Debate night/.test(await text()));
+
+  // ── App: profile photo, portal details, about me ──
+  await p.goto(BASE + "/privacy.html", { waitUntil: "networkidle2" });
+  await p.evaluate((s) => { localStorage.setItem("ewudiots.v2", JSON.stringify(s)); }, { ...STATE, profile: { ...STATE.profile, program: "B.Sc. in CSE", advisor: "Dr. Sample Advisor", advisorInitial: "SMA", cgpa: 3.71 } });
+  await go("#/profile").catch(() => {}); await p.goto(BASE + "/app.html#/profile", { waitUntil: "networkidle2" }); await wait(1000);
+  t = await text();
+  check("profile: portal details card", /From your EWU portal/.test(t) && /Dr\. Sample Advisor \(SMA\)/.test(t) && /3\.71/.test(t) && /2026-1-60-001@std\.ewubd\.edu/.test(t));
+  await (await p.$("#pf-photo")).uploadFile(resolve("public/logo-mark.png")); await wait(1200);
+  check("profile: photo upload shows everywhere", (await p.$$eval(".pf-photo .avatar img, #side-user .avatar img", (i) => i.length)) === 2);
+  check("profile: photo saved small", await p.evaluate(() => { const s = JSON.parse(localStorage.getItem("ewudiots.v2")); return /^data:image\/jpeg;base64,/.test(s.profile.photo) && s.profile.photo.length < 120000; }));
+  await click("#pf-about", 500);
+  await p.type('#ab-form [name="headline"]', "CSE student and photographer"); await p.type('#ab-form [name="linkedin"]', "linkedin.com/in/x");
+  await click("#ab-form button.primary", 400);
+  check("profile: bad link is caught", /must be a full link/.test(await text()));
+  await p.$eval('#ab-form [name="linkedin"]', (i) => { i.value = "https://linkedin.com/in/tanvir"; });
+  await p.$$eval('#ab-form [name="club"]', (c) => c.forEach((x) => { x.checked = /^(Photography|Robotics) Club$/.test(x.value); }));
+  await click("#ab-form button.primary", 700);
+  t = await text();
+  check("profile: about me saved", /CSE student and photographer/.test(t) && /linkedin\.com\/in\/tanvir/.test(t) && /Photography Club/.test(t));
+  await click("#pf-ext", 900);
+  check("profile: fill-from-extension explains the steps", /Open your Profile page on the portal/.test(await text()));
+  await p.keyboard.press("Escape"); await wait(300);
+  await p.setViewport({ width: 390, height: 844 }); await wait(500);
+  check("profile: fits a phone screen", await noHScroll());
+  await shot("profile-phone");
+  await go("#/events");
+  check("events page: explains it needs the server in a local build", /Events/.test(await text()) && /Needs the EWUdiots server/.test(await text()));
+
   // ── Landing ──
   await p.setViewport({ width: 1440, height: 900 });
   await p.goto(BASE + "/", { waitUntil: "networkidle0" }); await wait(800);

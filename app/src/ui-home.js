@@ -1,4 +1,6 @@
 /* Home dashboard, onboarding (welcome → login → role → profile), notifications, More, Profile & settings, Help, About. */
+import { CLUBS } from "./campus-data.js";
+
 export function install(ctx) {
   const { pages, icon, esc, $, $$, toast, openModal, closeModal, modalHead, confirmModal, busy } = ctx;
   const S = () => ctx.S;
@@ -60,13 +62,13 @@ export function install(ctx) {
           <div class="mascot-card green"><img src="/img/mascot-thumbs.webp" alt="" width="110"><span class="scribble">“Same campus.<br>Brighter you.”${ctx.swoosh}</span></div>
         </div>
       </div>
-      <div class="grid g2 mt">${deadlines}<div class="grid g2">${streakCard}${attCard}</div></div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}</div>`;
+      <div class="grid g2 mt">${deadlines}<div class="grid g2">${streakCard}${attCard}</div></div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}${eventsCard()}</div>`;
 
     const dueToday = St.tasks.filter((t) => !t.done && new Date(t.due).toDateString() === now.toDateString()).length;
     const todayStrip = todays.length ? `<div class="today-strip" role="list" aria-label="Today's classes">${todays.map((b) => { const live = b.s <= nowM && nowM < b.e, past = b.e <= nowM;
       return `<a role="listitem" class="tchip${live ? " live" : ""}${past ? " past" : ""}" href="#/course?c=${encodeURIComponent(b.code)}" style="--cc:${ctx.colorFor(b.code)}"><span class="tt">${ctx.fmtShort(b.s)}</span><b>${esc(b.code)}${b.lab ? " Lab" : ""}</b><span class="tr">${live ? "Now" : esc(ctx.baseRoom(b.room) || "TBA")}</span></a>`; }).join("")}</div>` : "";
     const mobile = `<div class="m-only">
-      <div class="m-hello"><a class="avatar" href="#/profile" aria-label="Your profile">${esc(ctx.initials(p.name || "EWU Student"))}</a>
+      <div class="m-hello">${ctx.myAvatar("", "a", 'href="#/profile" aria-label="Your profile"')}
         <div class="grow min0"><p class="hi">${ctx.greeting()}</p><h1 class="ellipsis">${first}</h1></div>
         <a class="streak-chip" href="#/me" aria-label="${str} day study streak">${icon("flame", "sm")}<b>${str}</b></a></div>
       <div class="m-summary">${[[todays.length ? `${todays.filter((b) => b.e > nowM).length}` : "0", todays.length === 1 ? "class today" : "classes today", "#/routine"], [dueToday, "due today", "#/tasks"], [shown ? shown.toFixed(2) : "—", "CGPA", "#/grades"]]
@@ -74,12 +76,18 @@ export function install(ctx) {
       <a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Remind me 30 min before”</span></span>${icon("arrow")}</a>
       ${ncCard}${todayStrip}${navStrip}
       <h2 class="mgroup-h">Quick access</h2><div class="qgrid">${TILES.map(([id, ic, tone, t]) => `<a class="qtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span>${t}</a>`).join("")}</div>
-      <div class="mt">${deadlines}</div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}
+      <div class="mt">${deadlines}</div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}${eventsCard()}
       <div class="g2m mt">${streakCard}${attCard}</div></div>`;
     const b = ctx.content.banner();
     const banner = b ? `<div class="alert ${b.tone || "purple"} admin-banner fx-rise"><span class="a-ic">${icon(b.tone === "red" ? "alert" : "megaphone")}</span><div class="grow"><b>${esc(b.title || "From the EWUdiots team")}</b><p>${esc(b.text)}</p></div>${b.link ? `<a class="btn sm" href="${esc(b.link)}" ${/^https:/.test(b.link) ? 'target="_blank" rel="noopener"' : ""}>${esc(b.cta || "Open")}</a>` : ""}</div>` : "";
     const up = ctx.C.update && ctx.native.isNative ? `<a class="alert green update-card" href="${esc(ctx.C.update.url)}" target="_blank" rel="noopener"><span class="a-ic">${icon("download")}</span><div class="grow"><b>Update available: EWUdiots ${esc(ctx.C.update.version)}</b><p>Tap to download, then install over this app. Your data stays.</p></div>${icon("chevR")}</a>` : "";
     return `${up}${banner}${ctx.demoBanner()}${mobile}${desktop}${ctx.community.homeNews()}`;
+  };
+  // Next few campus events (approved), with a link to the full list.
+  const eventsCard = () => {
+    const list = ctx.events?.upcoming(3) || [];
+    if (!list.length) return "";
+    return `<section class="card mt"><div class="card-h"><h2>Upcoming events</h2><a class="see" href="#/events">See All</a></div>${list.map((e) => { const [ic, tone] = ctx.events.look(e.kind); return `<a class="lrow" href="#/events?id=${e.id}"><span class="itile ${tone}">${icon(ic)}</span><span class="body"><b class="ellipsis">${esc(e.title)}</b><span>${ctx.events.when(e)}${e.venue ? ` · ${esc(e.venue)}` : ""}</span></span>${icon("chevR", "chev")}</a>`; }).join("")}</section>`;
   };
   /* Faculty / alumni home: campus tools only. */
   function homeLite() {
@@ -90,7 +98,7 @@ export function install(ctx) {
     return `<section class="hero-banner"><h1><small>${ctx.greeting()},</small>${esc(ctx.firstName())}!</h1><p>${S().role === "faculty" ? "Rooms, notes and your faculty profile in one place." : "Stay connected with EWU."}</p></section>
       <div class="mt"><a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Remind me 30 min before”</span></span>${icon("arrow")}</a></div>
       <div class="dtiles mt">${tiles.map(([id, ic, tone, t, dd]) => `<a class="dtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span><div class="min0"><b>${t}</b><span>${dd}</span></div></a>`).join("")}</div>
-      ${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}
+      ${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}${eventsCard()}
       <section class="card mt"><div class="card-h"><h2>Free for the next hour</h2><a class="see" href="#/rooms">See All</a></div>
         ${free.length ? free.map((r) => `<div class="lrow"><span class="itile green">${icon("door")}</span><div class="body"><b>${esc(r)}</b><span>No class scheduled</span></div><span class="pill green">Available</span></div>`).join("") : `<p class="small muted">Room data comes from synced timetables. ${ctx.cloud.enabled ? "Sign in to see campus-wide rooms." : ""}</p>`}</section>`;
   }
@@ -123,9 +131,9 @@ export function install(ctx) {
         ["degree", "cap", "yellow", "Degree Progress", "Credits by requirement", "s"], ["exams", "exam", "orange", "Exam Planner", "Revision plan for exams", "s"], ["fees", "receipt", "red", "Fees & Deadlines", "Track payments and tasks", "s"], ["sync", "sync", "teal", "Sync Portal", "Import from the EWU portal", "s"]]],
       ["Study", [["focus", "target", "pink", "Focus Timer", "Pomodoro and analytics", "sf"], ["cards", "cards", "pink", "Flashcards", "Spaced repetition decks", "sf"], ["vault", "vault", "blue", "Study Vault", "Notes, past papers, slides", "sfa"], ["me", "award", "purple", "Achievements", "View your badges and stats", "sf"]]],
       ["Campus", [["map", "map", "purple", "Campus Map", "Find rooms, walk in 3D", "sfa"], ["rooms", "building", "purple", "Free Rooms", "Find empty classrooms", "sfa"], ["idcard", "user", "teal", "My ID Card", "Your 3D student pass", "s"], ["faculty", "users", "purple", "Faculty & Reviews", "Contacts and ratings", "sfa"], ["cover", "file", "green", "Cover Page", "Assignment cover PDF", "sa"]]],
-      ["Community", [["notices", "megaphone", "orange", "Notice Board", "Official EWU notices", "sfa"], ["news", "globe", "blue", "Campus News", "Stories from EWU", "sfa"], ["alumni", "community", "green", "Alumni", "Where graduates are now", "sfa"], ["blog", "notes", "purple", "Blog", "Tips and stories", "sfa"], ["jobs", "briefcase", "blue", "Jobs", "Jobs & internships", "sfa"], ["mentors", "heart", "pink", "Mentors", "Ask alumni for advice", "s"]]]
+      ["Community", [["notices", "megaphone", "orange", "Notice Board", "Official EWU notices", "sfa"], ["news", "globe", "blue", "Campus News", "Stories from EWU", "sfa"], ["events", "calendar", "pink", "Events", "Workshops, concerts, clubs", "sfa"], ["alumni", "community", "green", "Alumni", "Where graduates are now", "sfa"], ["blog", "notes", "purple", "Blog", "Tips and stories", "sfa"], ["jobs", "briefcase", "blue", "Jobs", "Jobs & internships", "sfa"], ["mentors", "heart", "pink", "Mentors", "Ask alumni for advice", "s"]]]
     ].map(([g, list]) => [g, list.filter((t) => t[5].includes(rk) && (!ctx.PAGE_FEATURE[t[0]] || ctx.content.feature(ctx.PAGE_FEATURE[t[0]])))]).filter(([, list]) => list.length);
-    return `<a class="me-card" href="#/profile"><span class="avatar lg">${esc(ctx.initials(p.name || "EWU Student"))}</span><span class="grow min0"><b class="ellipsis">${esc(p.name || "Set up your profile")}</b><span class="ellipsis">${esc([p.id, p.program || p.department].filter(Boolean).join(" · ") || ctx.roleLabel())}</span>
+    return `<a class="me-card" href="#/profile">${ctx.myAvatar("lg")}<span class="grow min0"><b class="ellipsis">${esc(p.name || "Set up your profile")}</b><span class="ellipsis">${esc([p.id, p.program || p.department].filter(Boolean).join(" · ") || ctx.roleLabel())}</span>
         <span class="me-sync ${ctx.C.user ? "on" : ""}">${icon(ctx.C.user ? "cloud" : "database", "sm")} ${ctx.C.user ? "Synced on all your devices" : "Saved on this device"}</span></span>${icon("chevR")}</a>
       ${GROUPS.map(([g, list]) => `<h2 class="mgroup-h">${g}</h2><div class="mtiles">${list.map(([id, ic, tone, t, d]) => `<a class="mtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span><div class="min0"><b>${t}</b><span>${d}</span></div></a>`).join("")}</div>`).join("")}
       ${ctx.C.install ? `<button class="get-app mt" id="mo-install" style="width:100%;text-align:left;cursor:pointer"><span class="itile green">${icon("download")}</span><span class="grow"><b>Install EWUdiots on this device</b><span>Its own window, works offline, same account</span></span>${icon("chevR", "chev")}</button>` : ""}
@@ -153,8 +161,9 @@ export function install(ctx) {
     const row = (id, ic, t, d, right = "") => `<button class="lrow" id="${id}"><span class="itile purple">${icon(ic)}</span><span class="body"><b>${t}</b><span>${d}</span></span>${right ? `<span class="small muted">${right}</span>` : ""}${icon("chevR", "chev")}</button>`;
     return `${ctx.subHead("Profile &amp; Settings", "", "#/more")}
       <div style="max-width:760px;margin:0 auto">
-      <a class="card row nowrap" href="#" id="pf-edit2" style="gap:14px;text-decoration:none;color:inherit"><span class="avatar lg">${esc(ctx.initials(p.name || "EWU Student"))}</span><div class="grow min0"><b style="font-size:19px">${esc(p.name || "Your name")}</b>
-        <p class="small muted">${[p.id && `ID: ${p.id}`, p.program || p.department, ctx.roleLabel() !== "Student" ? ctx.roleLabel() : "", "East West University"].filter(Boolean).map(esc).join("<br>")}</p></div>${icon("chevR")}</a>
+      ${profileHero(p)}
+      ${St.role === "student" ? portalCard(p, St) : ""}
+      ${aboutCard(p)}
       <div class="card mt stats-strip">${[["star", "yellow", L.n, "Level"], ["shield", "green", ctx.study.unlockedCount(), "Badges"], ["bars", "blue", Math.round(x.totalMin / 60), "Study Hours"], ["flame", "orange", x.streak, "Day Streak"]]
         .map(([ic, tone, v, l]) => `<div><span class="itile sm ${tone}">${icon(ic)}</span><div><b class="num">${v}</b><span>${l}</span></div></div>`).join("")}</div>
       <section class="card settings-list mt">${row("pf-edit", "userpen", "Edit Profile", "Update your name, ID and program")}<a class="lrow" href="#/idcard"><span class="itile purple">${icon("scan")}</span><span class="body"><b>My ID Card</b><span>${St.idcard ? `${esc(St.idcard.id)}${St.idcard.verified ? " · verified" : ""}` : "Scan your card for a 3D student pass"}</span></span>${icon("chevR", "chev")}</a>${row("pf-acad", "book", "Academic Info", "Role, program, semester and credits")}${row("pf-priv", "shield", "Privacy &amp; Security", "Manage your data and account security")}</section>
@@ -178,6 +187,74 @@ export function install(ctx) {
       </section>
       <p class="xs mt" style="text-align:center">EWUdiots ${ctx.APP_VERSION} · Unofficial · not affiliated with East West University</p></div>`;
   };
+  /* Profile header: photo (tap to change), name, role, and how complete the profile is. */
+  const ABOUT = [["headline", "Headline", "text", "CSE student · competitive programmer", 80], ["bio", "About me", "area", "A few lines about you, what you're into and what you're looking for.", 500],
+    ["phone", "Phone", "tel", "01XXXXXXXXX", 20], ["hometown", "Hometown", "text", "e.g. Chattogram", 60], ["skills", "Skills", "text", "Python, UI design, public speaking", 200],
+    ["interests", "Interests", "text", "AI, photography, football", 200], ["clubs", "Clubs", "clubs", "", 300], ["linkedin", "LinkedIn", "url", "https://linkedin.com/in/…", 200],
+    ["github", "GitHub", "url", "https://github.com/…", 200], ["website", "Website / portfolio", "url", "https://…", 200]];
+  const completeness = (p) => {
+    const keys = ["photo", "name", ...(S().role === "student" ? ["id", "program", "department", "advisor"] : ["department"]), "headline", "bio", "skills", "interests", "linkedin"];
+    return Math.round((keys.filter((k) => p[k]).length / keys.length) * 100);
+  };
+  function profileHero(p) {
+    const pc = completeness(p);
+    return `<section class="card pf-hero">
+      <div class="pf-photo">${ctx.myAvatar("xl")}<label class="pf-cam" aria-label="${p.photo ? "Change" : "Add"} your photo">${icon("image", "sm")}<input type="file" id="pf-photo" accept="image/*" hidden></label></div>
+      <div class="grow min0"><b class="pf-name">${esc(p.name || "Your name")}</b>
+        ${p.headline ? `<p class="small">${esc(p.headline)}</p>` : ""}
+        <p class="small muted">${[p.id && `ID ${p.id}`, p.program || p.department, ctx.roleLabel(), "East West University"].filter(Boolean).map(esc).join(" · ")}</p>
+        <div class="pf-meter mt-s" title="Profile ${pc}% complete"><span style="width:${pc}%"></span></div>
+        <p class="xs mt-s">${pc >= 100 ? "Your profile is complete." : `Profile ${pc}% complete${p.photo ? "" : " · add a photo"}`}</p>
+        <div class="row mt-s"><button class="btn sm" id="pf-edit2">${icon("userpen", "sm")} Edit name</button>${p.photo ? `<button class="btn sm ghost" id="pf-photo-x">${icon("trash", "sm")} Remove photo</button>` : ""}</div></div></section>`;
+  }
+  /* Everything the Chrome extension (or a screenshot) brought in from the EWU portal. */
+  function portalCard(p, St) {
+    const rows = [["Student ID", p.id], ["University email", p.email || (p.id ? `${p.id}@std.ewubd.edu` : "")], ["Program", p.program], ["Department", p.department],
+      ["Advisor", p.advisor && `${p.advisor}${p.advisorInitial ? ` (${p.advisorInitial})` : ""}`], ["Advisor email", p.advisorEmail], ["CGPA (portal)", p.cgpa && Number(p.cgpa).toFixed(2)],
+      ["Credits", p.creditsDone != null && `${p.creditsDone} of ${p.creditsTotal || 140} done`], ["Admitted", p.admitted], ["Current semester", p.semester]];
+    const have = rows.filter(([, v]) => v);
+    return `<section class="card mt"><div class="card-h"><h2><span class="itile sm blue">${icon("chrome")}</span> From your EWU portal</h2>${St.lastImport ? `<span class="xs">Synced ${ctx.fmtDate(St.lastImport)}</span>` : ""}</div>
+      ${have.length ? `<dl class="pf-dl">${have.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>` : `<p class="small muted">Nothing synced yet. The Chrome extension reads your Profile page on the portal and fills this in for you.</p>`}
+      <div class="row mt"><button class="btn primary sm" id="pf-ext">${icon("download", "sm")} Fill from extension</button><button class="btn sm" id="pf-acad2">${icon("edit", "sm")} Edit</button></div>
+      <p class="xs mt-s">${icon("shield", "sm")} Only academic details are read. Your portal password, NID, phone, address, date of birth and blood group are never read from the portal.</p></section>`;
+  }
+  function aboutCard(p) {
+    const link = (u) => `<a href="${esc(u)}" target="_blank" rel="noopener nofollow">${esc(u.replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, ""))}</a>`;
+    const shown = ABOUT.filter(([k]) => p[k] && k !== "headline");
+    return `<section class="card mt"><div class="card-h"><h2><span class="itile sm green">${icon("user")}</span> About me</h2><button class="btn sm" id="pf-about">${icon(shown.length ? "edit" : "plus", "sm")} ${shown.length ? "Edit" : "Add details"}</button></div>
+      ${shown.length ? `<dl class="pf-dl">${shown.map(([k, l, type]) => `<div class="${k === "bio" ? "full" : ""}"><dt>${l}</dt><dd>${type === "url" && /^https:\/\//.test(p[k]) ? link(p[k]) : k === "clubs" ? p[k].split("|").filter(Boolean).map((c) => `<span class="tag">${esc(c)}</span>`).join(" ") : esc(p[k]).replace(/\n/g, "<br>")}</dd></div>`).join("")}</dl>`
+        : `<p class="small muted">Add a headline, a short bio, your skills, interests, clubs and links. It's saved to your account and follows you to every device.</p>`}</section>`;
+  }
+  // Square-crop and shrink a picked photo to a small JPEG so it syncs quickly with the rest of your data.
+  async function photoData(file) {
+    if (!/^image\//.test(file.type)) throw new Error("Pick an image file.");
+    if (file.size > 15e6) throw new Error("That image is too large (15 MB max).");
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("Couldn't open that image. Try a JPG or PNG.")); i.src = url; });
+      const s = Math.min(img.naturalWidth, img.naturalHeight), c = document.createElement("canvas"); c.width = c.height = 320;
+      c.getContext("2d").drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, 320, 320);
+      return c.toDataURL("image/jpeg", 0.85);
+    } finally { URL.revokeObjectURL(url); }
+  }
+  function aboutForm() {
+    const p = S().profile || {}, mine = new Set(String(p.clubs || "").split("|").filter(Boolean));
+    openModal(ctx.modalHead("About me") + `<form id="ab-form" class="grid g2" novalidate>${ABOUT.map(([k, l, type, ph, max]) => type === "clubs"
+      ? `<fieldset class="field full-row"><legend>${l}</legend><div class="chips">${CLUBS.map((c) => `<label class="chip"><input type="checkbox" name="club" value="${esc(c)}" ${mine.has(c) ? "checked" : ""}> ${esc(c)}</label>`).join("")}</div></fieldset>`
+      : type === "area" ? `<label class="field full-row">${l}<textarea class="input" name="${k}" rows="3" maxlength="${max}" placeholder="${esc(ph)}">${esc(p[k] || "")}</textarea></label>`
+      : `<label class="field ${["headline", "skills", "interests"].includes(k) ? "full-row" : ""}">${l}<input class="input" name="${k}" type="${type}" maxlength="${max}" value="${esc(p[k] || "")}" placeholder="${esc(ph)}" ${type === "tel" ? 'inputmode="tel" autocomplete="tel"' : ""}></label>`).join("")}
+      <div id="ab-err" class="full-row"></div><p class="xs full-row">${icon("lock", "sm")} Private to your account. Nothing here is shown to other users.</p>
+      <div class="row full-row"><span class="grow"></span><button class="btn primary">${icon("check")} Save</button></div></form>`, (m) => {
+      $("#ab-form", m).addEventListener("submit", (e) => {
+        e.preventDefault(); const fd = new FormData(e.target), f = {};
+        ABOUT.forEach(([k, , type, , max]) => { f[k] = type === "clubs" ? fd.getAll("club").join("|") : String(fd.get(k) || "").trim().slice(0, max); });
+        const bad = ABOUT.find(([k, , type]) => type === "url" && f[k] && !/^https:\/\/[^\s]+\.[^\s]+/i.test(f[k]));
+        if (bad) { $("#ab-err", m).innerHTML = `<div class="alert red">${icon("alert")}<div><p>${bad[1]} must be a full link starting with https://</p></div></div>`; m.querySelector(`[name="${bad[0]}"]`).focus(); return; }
+        if (f.phone && !/^\+?[\d\s-]{7,20}$/.test(f.phone)) { $("#ab-err", m).innerHTML = `<div class="alert red">${icon("alert")}<div><p>Use digits only for the phone number.</p></div></div>`; return; }
+        S().profile = Object.assign(S().profile || {}, f); ctx.save(); closeModal(); ctx.rerender(); toast("Profile saved");
+      });
+    });
+  }
   function profileForm(title, keys) {
     const p = S().profile || {};
     const L = { name: "Full Name", id: "Student ID", program: "Program", department: "Department", advisor: "Advisor", creditsTotal: "Credits required for degree", semester: "Current semester", year: "Year" };
@@ -197,10 +274,29 @@ export function install(ctx) {
   pages.profile.mount = (el) => {
     const on = (sel, ev, fn) => { const x = $(sel, el); x && x.addEventListener(ev, fn); };
     on("#pf-edit", "click", () => profileForm("Edit Profile", ["name", "id", "department"]));
-    on("#pf-edit2", "click", (e) => { e.preventDefault(); profileForm("Edit Profile", ["name", "id", "department"]); });
+    on("#pf-edit2", "click", () => profileForm("Edit Profile", S().role === "student" ? ["name", "id", "department"] : ["name", "department"]));
+    on("#pf-about", "click", aboutForm);
+    on("#pf-photo", "change", async (e) => {
+      const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+      try { S().profile = Object.assign(S().profile || {}, { photo: await photoData(f) }); ctx.save(); ctx.rerender(); toast("Photo updated", "success", ctx.C.user ? "It's saved to your account." : ""); }
+      catch (x) { toast(x.message, "error"); }
+    });
+    on("#pf-photo-x", "click", () => { delete S().profile.photo; ctx.save(); ctx.rerender(); toast("Photo removed", "info"); });
+    on("#pf-ext", "click", async (e) => {
+      const b = e.currentTarget; busy(b, true, "Checking…");
+      const got = ctx.C.user ? await ctx.sync.checkInbox() : false;
+      busy(b, false); if (got) return;
+      openModal(ctx.modalHead("Fill your profile from the portal") + `<div class="stack">
+        <div class="lrow"><span class="itile blue">${icon("chrome")}</span><span class="body"><b>1. Install the EWUdiots extension</b><span>On a computer, in Chrome or Edge. ${ctx.C.user ? "Sign in to it with this account." : ""}</span></span></div>
+        <div class="lrow"><span class="itile purple">${icon("user")}</span><span class="body"><b>2. Open your Profile page on the portal</b><span>portal.ewubd.edu → Profile. Open Grade Report and Class Schedule too for CGPA and routine.</span></span></div>
+        <div class="lrow"><span class="itile green">${icon("sync")}</span><span class="body"><b>3. Press "Send to EWUdiots"</b><span>${ctx.C.user ? "Your pages arrive here on every device. Tap Fill from extension again." : "The app opens with your details to review."}</span></span></div>
+        <div class="row"><a class="btn" href="/download/extension" target="_blank" rel="noopener">${icon("download", "sm")} Get the extension</a><button class="btn primary" id="pf-ext-go">${icon("sync", "sm")} Other ways to sync</button></div></div>`,
+        (m) => $("#pf-ext-go", m).addEventListener("click", () => { closeModal(); ctx.sync.openSync("ext"); }));
+    });
     on("#pf-acad", "click", () => profileForm("Academic Info", ["program", "semester", "advisor", "creditsTotal"]));
+    on("#pf-acad2", "click", () => profileForm("Academic Info", ["program", "semester", "advisor", "creditsTotal"]));
     on("#pf-priv", "click", () => openModal(ctx.modalHead("Privacy & Security") + `<div class="stack">
-      <div class="privacy" style="margin:0">${icon("shield")}<div><b>What we never read</b><p>Your portal password, NID, phone, address, date of birth, blood group and photo are never read or stored.</p></div></div>
+      <div class="privacy" style="margin:0">${icon("shield")}<div><b>What we never read</b><p>Your portal password, NID, phone, address, date of birth, blood group and portal photo are never read from the portal. A profile photo or phone number is stored only if you add it yourself.</p></div></div>
       <p class="small">Your routine, grades, fees and notes are stored on this device${ctx.C.user ? " and in your private, encrypted cloud backup that only you can access" : ""}. Reviews are anonymous.</p>
       <div class="row"><a class="btn sm" href="/privacy.html" target="_blank" rel="noopener">Privacy policy</a><a class="btn sm" href="/terms.html" target="_blank" rel="noopener">Terms</a></div></div>`));
     on("#pf-theme", "click", () => openModal(ctx.modalHead("Theme") + `<div class="stack" style="gap:0">${[["auto", "System", "Match your device"], ["light", "Light", "Bright and clean"], ["dark", "Dark", "Easy on the eyes at night"]].map(([v, l, d]) => `<button class="lrow" data-th="${v}"><span class="itile purple">${icon(v === "dark" ? "moon" : v === "light" ? "sun" : "theme")}</span><span class="body"><b>${l}</b><span>${d}</span></span>${S().theme === v ? icon("check") : ""}</button>`).join("")}</div>`,

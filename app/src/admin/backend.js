@@ -3,7 +3,7 @@
    nothing done in demo mode reaches students. Both expose the same small API. */
 import * as cloud from "../cloud.js";
 
-const TABLES = ["feed_items", "media_items", "revisions", "job_runs", "newsletter_issues", "role_permissions", "users", "user_messages", "feedback", "posts", "site_settings", "alumni_profiles", "faculty_overrides", "campus_rooms", "reports", "reviews", "resources", "admins", "admin_invites", "admin_log"];
+const TABLES = ["events", "feed_items", "media_items", "revisions", "job_runs", "newsletter_issues", "role_permissions", "users", "user_messages", "feedback", "posts", "site_settings", "alumni_profiles", "faculty_overrides", "campus_rooms", "reports", "reviews", "resources", "admins", "admin_invites", "admin_log"];
 const KEYS = { media_items: "path", role_permissions: "role", newsletter_issues: "url", site_settings: "key", faculty_overrides: "slug", campus_rooms: "code", admins: "user_id", admin_invites: "email" };
 
 export function supabaseBackend(user) {
@@ -66,9 +66,11 @@ function seed() {
     feed_items: [
       { id: "news:sample-1", kind: "news", title: "EWU students win a national programming contest", url: "https://www.ewubd.edu/news", date: ago(1).slice(0, 10), image: "", excerpt: "A sample automatic news item.", tag: "Achievement", category: "", source: "auto", hidden: false, pinned: false, title_override: "", tag_override: "", pdf: "", fetched_at: now(), updated_at: now() },
       { id: "notice:sample-1", kind: "notice", title: "Sample notice: class schedule for the next semester", url: "https://www.ewubd.edu/notice-board", date: ago(2).slice(0, 10), image: "", excerpt: "", tag: "", category: "Exams", source: "auto", hidden: false, pinned: false, title_override: "", tag_override: "", pdf: "", fetched_at: now(), updated_at: now() }],
+    events: [{ id: "ev-demo-1", title: "Programming Club recruitment (sample)", kind: "club_recruitment", starts_at: new Date(Date.now() + 3 * 864e5).toISOString(), ends_at: null, all_day: true, venue: "Room 630", organizer: "Computer Programming Club", description: "A sample suggestion waiting for approval.", link: "", image: "", status: "pending", review_note: "", source: "user", pinned: false, author_name: "Sample Student", created_at: ago(0.1) },
+      { id: "ev-demo-2", title: "Spring concert (sample)", kind: "concert", starts_at: new Date(Date.now() + 9 * 864e5).toISOString(), ends_at: null, all_day: false, venue: "Manzur Elahi Auditorium", organizer: "Club for Performing Arts", description: "", link: "", image: "", status: "approved", review_note: "", source: "admin", pinned: true, author_name: "EWUdiots team", created_at: ago(1) }],
     newsletter_issues: [{ url: "https://www.ewubd.edu/storage/app/uploads/public/sample.pdf", title: "Newsletter Summer 2026 (sample)", image: "", date: ago(5).slice(0, 10), status: "new", found_at: ago(1) }],
-    role_permissions: [{ role: "admin", perms: ["posts.write", "messages.send", "site.edit", "features.edit", "media.write", "news.edit", "alumni.review", "faculty.edit", "rooms.edit", "reports.handle", "feedback.handle", "users.view", "users.manage", "security.view", "analytics.view", "jobs.run"] },
-      { role: "editor", perms: ["posts.write", "messages.send", "site.edit", "media.write", "news.edit", "alumni.review", "faculty.edit", "rooms.edit", "analytics.view"] }, { role: "moderator", perms: ["reports.handle", "feedback.handle", "alumni.review", "users.view"] }],
+    role_permissions: [{ role: "admin", perms: ["posts.write", "messages.send", "site.edit", "features.edit", "media.write", "news.edit", "alumni.review", "faculty.edit", "rooms.edit", "reports.handle", "feedback.handle", "users.view", "users.manage", "security.view", "analytics.view", "jobs.run", "blog.moderate", "events.review"] },
+      { role: "editor", perms: ["posts.write", "messages.send", "site.edit", "media.write", "news.edit", "alumni.review", "faculty.edit", "rooms.edit", "analytics.view", "blog.moderate", "events.review"] }, { role: "moderator", perms: ["reports.handle", "feedback.handle", "alumni.review", "users.view", "blog.moderate", "events.review"] }],
     job_runs: [{ id: id++, job: "news", ok: true, detail: "12 news items", ms: 820, trigger: "schedule", started_at: ago(0.4) }],
     user_messages: [{ id: id++, user_id: null, title: "Welcome to EWUdiots", body: "Tell us what you'd like next from Help → Send feedback.", link: "", created_at: ago(3) }],
     feedback: [{ id: id++, user_id: "u2", email: "2024-1-60-002@std.ewubd.edu", kind: "idea", body: "Please add a bus schedule for the university shuttle.", status: "new", app_version: "2.5.0", created_at: ago(0.3) },
@@ -82,7 +84,7 @@ export function demoBackend() {
   let db; try { db = JSON.parse(localStorage.getItem(DEMO_KEY)) || seed(); } catch { db = seed(); }
   const persist = () => { try { localStorage.setItem(DEMO_KEY, JSON.stringify(db)); } catch { /* storage full */ } };
   const match = (row, m) => Object.entries(m).every(([k, v]) => row[k] === v);
-  const rev = (table, old) => { if (["posts", "site_settings", "feed_items", "alumni_profiles"].includes(table)) db.revisions.unshift({ id: db._id++, table_name: table, row_key: String(old.key || old.id), data: structuredClone(old), actor: "you@demo", created_at: now() }); };
+  const rev = (table, old) => { if (["posts", "site_settings", "feed_items", "alumni_profiles", "events"].includes(table)) db.revisions.unshift({ id: db._id++, table_name: table, row_key: String(old.key || old.id), data: structuredClone(old), actor: "you@demo", created_at: now() }); };
   TABLES.forEach((t) => { db[t] = db[t] || []; });
   persist();
   return {
@@ -121,7 +123,7 @@ export function demoBackend() {
     async sendReset() {},
     async upload(path, blob) { return new Promise((res) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsDataURL(blob); }); },
     async removeFile(path) { db.media_items = db.media_items.filter((m) => m.path !== path); persist(); },
-    async runJob(job) { const detail = { news: "12 news items (demo)", notices: "20 notices (demo)", newsletters: "0 new issue(s)", cleanup: "old trash and logs removed" }[job] || "done";
+    async runJob(job) { const detail = { news: "12 news items (demo)", notices: "20 notices (demo)", newsletters: "0 new issue(s)", events: "6 official events checked (demo)", cleanup: "old trash and logs removed" }[job] || "done";
       db.job_runs.unshift({ id: db._id++, job, ok: true, detail, ms: 640, trigger: "admin", started_at: now() }); persist(); return { job, ok: true, detail }; },
     reset() { localStorage.removeItem(DEMO_KEY); },
     signOut: async () => {}

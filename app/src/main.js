@@ -22,6 +22,7 @@ import { install as installCommunity } from "./ui-community.js";
 import { install as installAlarms } from "./ui-alarms.js";
 import { install as installAsk } from "./ui-ask.js";
 import { install as installPeople } from "./ui-people.js";
+import { install as installEvents } from "./ui-events.js";
 import { createContent, FEATURES } from "./content.js";
 import { applyBrand } from "./theme.js";
 
@@ -67,7 +68,7 @@ const loadDirectory = () => (dirP = dirP || fetch("/data/faculty.json").then((r)
 // A faculty photo that fails to load falls back to the initials underneath it.
 addEventListener("error", (e) => { const t = e.target; if (t.tagName === "IMG" && t.closest(".face")) t.remove(); }, true);
 let study = null; // study-mode API, installed at boot (src/study.js)
-let campus = null, idcard = null, notices = null, community = null, people = null;
+let campus = null, idcard = null, notices = null, community = null, people = null, events = null;
 const content = createContent(cloud); // admin-managed posts, settings, overrides // campus map + ID card APIs (src/ui-map.js, src/ui-idcard.js)
 async function pushNow() {
   if (!C.user) return false;
@@ -136,6 +137,8 @@ const fmtCountdown = (m) => m < 60 ? `${m} min` : m < 1440 ? `${Math.floor(m / 6
 const daysUntil = (iso) => Math.ceil((new Date(iso + (iso.length === 10 ? "T23:59:59" : "")) - Date.now()) / 864e5);
 const fmtDate = (d, o = { day: "numeric", month: "short", year: "numeric" }) => new Date(d).toLocaleDateString("en-GB", o);
 const firstName = () => { const n = S.profile?.name || ""; return n.split(" ").find((w) => w && !/^(md|mohammad|mohammed|muhammad|dr)\.?$/i.test(w)) || n.split(" ")[0] || "there"; };
+// Your own avatar: the photo you added on Profile, otherwise your initials.
+const myAvatar = (cls = "", tag = "span", attrs = "") => { const p = S.profile || {}; return `<${tag} class="avatar ${cls}" ${attrs}>${p.photo && /^data:image\/(jpeg|png|webp);base64,/.test(p.photo) ? `<img src="${p.photo}" alt="">` : esc(initials(p.name || "EWU Student"))}</${tag}>`; };
 const initials = (n) => String(n || "?").split(/\s+/).filter((w) => w && !/^(md|dr|mr|ms)\.?$/i.test(w)).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good Morning" : h < 17 ? "Good Afternoon" : h < 21 ? "Good Evening" : "Good Night"; };
 const nextSemesterGuess = () => { const [t, y] = currentSemester().split("-"); return t === "Spring" ? `Summer-${y}` : t === "Summer" ? `Fall-${y}` : `Spring-${Number(y) + 1}`; };
@@ -216,6 +219,7 @@ const NAV = [
   { id: "alumhub", label: "Alumni hub", icon: "cap", roles: "a" },
   { id: "office", label: "Office hours", icon: "clock", roles: "s" },
   { id: "mentors", label: "Alumni mentors", icon: "heart", roles: "s" },
+  { id: "events", label: "Events", icon: "calendar", roles: "sfa" },
   { id: "jobs", label: "Jobs & internships", icon: "briefcase", roles: "sfa" },
   { id: "blog", label: "Blog", icon: "notes", roles: "sfa" },
   { id: "map", label: "Campus Map", icon: "map", roles: "sfa", feature: "map" },
@@ -236,7 +240,7 @@ function renderNav(route) {
   const dueSoon = S.tasks.filter((t) => !t.done && new Date(t.due) - Date.now() < 3 * 864e5 && new Date(t.due) > Date.now()).length;
   $("#side-nav").innerHTML = navFor().map((n) => `<a href="#/${n.id}" ${active === n.id ? 'aria-current="page"' : ""}>${icon(n.icon)}<span>${n.label}</span>${n.id === "tasks" && dueSoon ? `<span class="badge-n">${dueSoon}</span>` : ""}${n.id === "notices" && notices?.unseenCount() ? `<span class="badge-n">${notices.unseenCount()}</span>` : ""}</a>`).join("");
   const p = S.profile;
-  $("#side-user").innerHTML = `<span class="avatar sm">${esc(initials(p?.name || "EWU Student"))}</span><div class="grow min0"><b class="ellipsis">${esc(p?.name || "Set up profile")}</b><span class="ellipsis" style="display:block">${esc(p ? (p.program || p.department || roleLabel()) : "Tap to start")}</span></div>${icon("chevR", "sm")}`;
+  $("#side-user").innerHTML = `${myAvatar("sm")}<div class="grow min0"><b class="ellipsis">${esc(p?.name || "Set up profile")}</b><span class="ellipsis" style="display:block">${esc(p ? (p.program || p.department || roleLabel()) : "Tap to start")}</span></div>${icon("chevR", "sm")}`;
   const B = S.role === "student" ? [["home", "home", "Home"], ["routine", "calendar", "Routine"], ["fab"], ["grades", "bars", "CGPA"], ["more", "grid", "More"]]
     : S.role === "faculty" ? [["home", "home", "Home"], ["teach", "briefcase", "Teaching"], ["fab"], ["blog", "notes", "Blog"], ["more", "grid", "More"]]
     : [["home", "home", "Home"], ["alumhub", "cap", "Hub"], ["fab"], ["jobs", "briefcase", "Jobs"], ["more", "grid", "More"]];
@@ -292,7 +296,7 @@ function inbox() {
 }
 
 /* ───────────── Command palette (Ctrl+K / search) ───────────── */
-const PAGES_SEARCH = [["ask", "Ask EWUdiots (assistant)", "sparkle"], ["blog", "Blog: tips and stories", "notes"], ["write", "Write a blog post", "edit"], ["jobs", "Jobs & internships", "briefcase"], ["mentors", "Alumni mentors", "heart"], ["office", "Teachers' office hours & consultations", "clock"], ["teach", "Teaching hub (teachers)", "briefcase"], ["alumhub", "Alumni hub", "cap"], ["home", "Home", "home"], ["routine", "My routine", "calendar"], ["alarms", "Class alarms (remind me before class)", "bell"], ["planner", "Advising planner", "calcheck"], ["courses", "My courses", "book"], ["grades", "CGPA", "bars"], ["degree", "Degree progress", "cap"],
+const PAGES_SEARCH = [["ask", "Ask EWUdiots (assistant)", "sparkle"], ["blog", "Blog: tips and stories", "notes"], ["write", "Write a blog post", "edit"], ["events", "Campus events: workshops, concerts, club recruitment", "calendar"], ["jobs", "Jobs & internships", "briefcase"], ["mentors", "Alumni mentors", "heart"], ["office", "Teachers' office hours & consultations", "clock"], ["teach", "Teaching hub (teachers)", "briefcase"], ["alumhub", "Alumni hub", "cap"], ["home", "Home", "home"], ["routine", "My routine", "calendar"], ["alarms", "Class alarms (remind me before class)", "bell"], ["planner", "Advising planner", "calcheck"], ["courses", "My courses", "book"], ["grades", "CGPA", "bars"], ["degree", "Degree progress", "cap"],
   ["whatif", "What-if calculator", "calc"], ["marks", "Marks & attendance estimator", "percent"], ["tasks", "Deadlines", "clipboard"], ["exams", "Exam planner", "exam"], ["fees", "Fees & payments", "wallet"], ["vault", "Study vault", "vault"],
   ["rooms", "Free rooms", "door"], ["map", "Campus map & directions", "map"], ["notices", "EWU notice board", "megaphone"], ["news", "Campus news", "globe"], ["alumni", "Alumni: where are they now", "community"], ["idcard", "My ID card", "user"], ["faculty", "Faculty & reviews", "users"], ["focus", "Focus timer", "focus"], ["cards", "Flashcards", "cards"], ["me", "Achievements", "award"], ["cover", "Cover page", "file"],
   ["sync", "Sync portal", "sync"], ["notifications", "Notifications", "bell"], ["profile", "Profile & settings", "settings"]];
@@ -603,8 +607,8 @@ async function restoreOrBackup(user) {
 /* ───────────── Boot ───────────── */
 const ctx = {
   get S() { return S; }, resetState, pages, save, rerender, route: () => currentRoute, go, qparam, toast, openModal, closeModal, modalHead, confirmModal, modalOpen, busy,
-  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
-  afterSignIn: () => signInDone, LETTER, toMin, fmt12, fmtShort, dayIdx, expand, overlaps, toneFor, colorFor, HEX, TONES, gradePoint, cgpaOf, fmtMoney, fmtCountdown, daysUntil, fmtDate, firstName, initials, greeting,
+  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, get events() { return events; }, get sync() { return sync; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
+  afterSignIn: () => signInDone, LETTER, toMin, fmt12, fmtShort, dayIdx, expand, overlaps, toneFor, colorFor, HEX, TONES, gradePoint, cgpaOf, fmtMoney, fmtCountdown, daysUntil, fmtDate, firstName, initials, myAvatar, greeting,
   nextClass, nextPayment, markAttendance, facultyIndex, facBy, facName, offered, sectionBlocks, roomData, freeRoomsAt, baseRoom, enableNotifications, taskLine, duePill, TASK_IC, inbox, loadDemo, onSignedIn,
   isDark, applyTheme, palette, roleLabel, navFor, nextSemesterGuess, DAY_NAMES, WEEK, SLOTS, GRADES, NON_GPA, DEMO, parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey
 };
@@ -620,6 +624,7 @@ community = installCommunity(ctx);
 installAlarms(ctx);
 installAsk(ctx);
 people = installPeople(ctx);
+events = installEvents(ctx);
 content.onChange(() => { facCache = null; applyTheme(); rerender(); });
 content.refresh();
 setInterval(() => { if (document.visibilityState === "visible") { content.refresh(); loadMessages(); } }, 10 * 60e3);

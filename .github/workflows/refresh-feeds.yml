@@ -1,0 +1,19 @@
+# Pulls new ewubd.edu news, notices and events into the app every 2 hours (Vercel's free cron only runs once a day).
+# It calls the same /api/cron job with the CRON_SECRET repo secret; the daily Vercel run still does newsletters and clean-up.
+name: Refresh news, notices and events
+on:
+  schedule:
+    - cron: "15 */2 * * *"
+  workflow_dispatch:
+permissions: {}
+concurrency: { group: refresh-feeds, cancel-in-progress: false }
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run the feed jobs
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -fsS --max-time 240 -H "Authorization: Bearer $CRON_SECRET" "https://ewudiots.vercel.app/api/cron?job=news,notices,events"

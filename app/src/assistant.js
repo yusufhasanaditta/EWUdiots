@@ -140,6 +140,12 @@ export function createAssistant(ctx) {
   });
   const facCard = (f) => card("user", f.name || f.init, [f.designation, f.deptName || f.dept, f.email, f.room].filter(Boolean).join(" · "), `#/prof?i=${encodeURIComponent(f.init)}`, "blue");
 
+  // Campus events
+  on((q) => /\b(events?|concerts?|recruitment|recruiting|workshops?|seminars?|fest|fair|happening|club events?)\b/.test(q), () => {
+    const list = ctx.events?.upcoming(5) || [];
+    return list.length ? A("Coming up on campus:", list.map((e) => card("calendar", e.title, [ctx.events.when(e), e.venue].filter(Boolean).join(" · "), `#/events?id=${e.id}`, "pink")), [{ label: "All events", href: "#/events" }])
+      : A("I don't see any upcoming events yet. Official EWU events and ones students suggest appear on the Events page.", [], [{ label: "Open Events", href: "#/events" }]);
+  });
   // Notices / news / alumni
   on((q) => /(notice|holiday|closed|closure|admission|convocation|exam schedule|announcement|circular|registrar)/.test(q), (q) => {
     const list = ctx.notices.list(), team = ctx.content.posts("announcement").map((p) => ({ title: p.title, date: p.starts_at?.slice(0, 10), team: true }));

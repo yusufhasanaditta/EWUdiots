@@ -1,10 +1,10 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Blog: write tips and stories, read what others share",
-    "Alumni mentors and a jobs & internships board",
-    "Teachers: office hours, consultations and course announcements",
-    "A cleaner, faster sign-in and welcome screen"
+    "Events: workshops, concerts, club recruitment and club events. Suggest one and an admin approves it",
+    "Profile photo, plus more about you: bio, skills, interests, clubs and links",
+    "Fill your profile from the Chrome extension in one tap",
+    "News, notices and official events now update every 2 hours"
   ],
   "minVersion": "2.3.0",
   "extension": "1.7.0"
