@@ -20,7 +20,7 @@ export function createContent(cloud) {
           sb.from("site_settings").select("key, value"),
           sb.from("faculty_overrides").select("slug, hidden, init, room"),
           sb.from("campus_rooms").select("code, name, kind, block, floor, u, v"),
-          sb.from("alumni_profiles").select("id, name, role, org, country, dept, grad_year, sector, note, linkedin").eq("status", "approved").limit(1000)
+          sb.from("alumni_profiles").select("id, name, role, org, country, dept, grad_year, sector, note, linkedin, source, source_url, kind").eq("status", "approved").limit(2000)
         ]);
         const before = JSON.stringify({ ...data, at: 0 });
         data = { at: Date.now(), posts: pick(posts), settings: Object.fromEntries(pick(settings).map((s) => [s.key, s.value])), faculty: pick(faculty), rooms: pick(rooms), alumni: pick(alumni) };

@@ -56,7 +56,7 @@
 
   <header class="top">
     <div class="wrap">
-      <a class="brand" href="/" aria-label="EWUdiots home"><img src="/icons/icon-192.png" alt="" width="38" height="38"><span><span class="word">EWU<i>diots</i></span><small>Unofficial · not affiliated with EWU</small></span></a>
+      <a class="brand" href="/" aria-label="EWUdiots home"><img src="/logo-mark.png" alt="" width="38" height="38"><span><span class="word">EWU<i>diots</i></span><small>Unofficial · not affiliated with EWU</small></span></a>
       <nav aria-label="Site"><a href="#features">Features</a><a href="#campus">3D Campus</a><a href="#notices">Notices</a><a href="#alumni">Alumni</a><a href="#download">Download</a><a href="#faq">FAQ</a></nav>
       <a class="btn primary sm" href="/app.html">Open the app</a>
     </div>
@@ -67,12 +67,12 @@
       <div class="liquid" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       <div class="wrap">
         <div>
-          <a class="chip" href="#campus"><b>NEW</b> 3D campus map, live EWU notices &amp; ID pass <svg class="i inline"><use href="#i-arrow"/></svg></a>
-          <h1>Your whole EWU life, <span class="hl">in one app.<svg viewBox="0 0 300 16" preserveAspectRatio="none" aria-hidden="true"><path d="M4 11c70-8 180-10 292-4" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg></span></h1>
-          <p class="lead">Sync your portal once and EWUdiots builds your routine, CGPA and fee reminders. Find any room in a 3D campus, see official notices the moment they're posted, and look up every teacher.</p>
+          <a class="chip" href="#campus"><b>NEW</b> <span data-cms="hero_chip">3D campus map, live EWU notices &amp; ID pass</span> <svg class="i inline"><use href="#i-arrow"/></svg></a>
+          <h1><span data-cms="hero_title">Your whole EWU life,</span> <span class="hl"><span data-cms="hero_highlight">in one app.</span><svg viewBox="0 0 300 16" preserveAspectRatio="none" aria-hidden="true"><path d="M4 11c70-8 180-10 292-4" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg></span></h1>
+          <p class="lead" data-cms="hero_lead">Sync your portal once and EWUdiots builds your routine, CGPA and fee reminders. Find any room in a 3D campus, see official notices the moment they're posted, and look up every teacher.</p>
           <div class="cta">
             <a class="btn primary lg" href="/app.html"><svg class="i"><use href="#i-globe"/></svg> Open the web app</a>
-            <a class="btn lg" href="https://play.google.com/store/apps/details?id=com.ewudiots.app" rel="noopener"><svg class="i"><use href="#i-play"/></svg> Google Play</a>
+            <a class="btn lg" href="/download/android" download><svg class="i"><use href="#i-play"/></svg> Download for Android</a>
           </div>
           <ul class="trust">
             <li><svg class="i"><use href="#i-checkc"/></svg> Free for every student</li>
@@ -261,7 +261,7 @@
     <section id="faq" class="section">
       <div class="wrap">
         <div class="center"><p class="kicker">FAQ</p><h2>Questions, answered.</h2></div>
-        <div class="faq">
+        <div class="faq" data-cms-list="faq">
           <details><summary>Is this the official EWU app?</summary><p>No. EWUdiots is an independent app made by students. It is not affiliated with, endorsed by or connected to East West University. Always confirm important information on the official portal and notice board.</p></details>
           <details><summary>Where do the notices and faculty details come from?</summary><p>From EWU's own public pages: the notice board at ewubd.edu and each department's faculty pages. Every notice and profile links back to the original. Faculty members can ask us to update or remove a listing.</p></details>
           <details><summary>How accurate is the 3D map?</summary><p>Blocks, floor counts, lift lobbies and links between blocks come from the official campus map, to within about 3 metres. Room positions are worked out from the room number and EWU's office lists, and each one shows how sure we are. Students can add rooms and floor plans to make it better.</p></details>
@@ -283,9 +283,10 @@
 
   <footer class="foot">
     <div class="wrap">
-      <a class="brand" href="/"><img src="/icons/icon-192.png" alt="" width="30" height="30"><span class="word" style="font-size:20px">EWU<i>diots</i></span></a>
+      <a class="brand" href="/"><img src="/logo-mark.png" alt="" width="30" height="30"><span class="word" style="font-size:20px">EWU<i>diots</i></span></a>
       <p>Unofficial student project. Not affiliated with East West University.</p>
-      <nav aria-label="Legal"><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="/delete-account.html">Delete account</a><a href="mailto:civicframe01@gmail.com">Contact</a></nav>
+      <nav aria-label="Legal"><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="/delete-account.html">Delete account</a><a href="mailto:civicframe01@gmail.com" data-cms-mail="contact_email">Contact</a></nav>
+      <nav class="social" aria-label="Social" data-cms-social hidden></nav>
     </div>
   </footer>
   <script type="module" src="/src/site.js"></script>

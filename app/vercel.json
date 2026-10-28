@@ -21,7 +21,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; media-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self' mailto:; object-src 'none'; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; media-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self' mailto:; object-src 'none'; frame-src 'self'; upgrade-insecure-requests"
         },
         {
           "key": "X-Content-Type-Options",
@@ -29,7 +29,7 @@
         },
         {
           "key": "X-Frame-Options",
-          "value": "DENY"
+          "value": "SAMEORIGIN"
         },
         {
           "key": "Referrer-Policy",
@@ -101,6 +101,12 @@
           "value": "no-cache"
         }
       ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron?job=all",
+      "schedule": "0 2 * * *"
     }
   ]
 }

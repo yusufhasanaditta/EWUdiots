@@ -157,3 +157,8 @@
 .upd-notes { list-style: none; padding: 0; margin: 14px 0 16px; text-align: left; display: grid; gap: 8px; }
 .upd-notes li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 14px; background: var(--surface-2); font-size: 14px; }
 .upd-notes .icon { color: var(--success, #22c55e); flex: none; margin-top: 2px; }
+
+/* Logo mark (brand/logo.png) beside the wordmark */
+.logo:has(.lmark) { display: inline-grid; grid-template-columns: auto auto; column-gap: 10px; align-items: center; justify-content: start; }
+.logo .lmark { grid-row: 1 / span 2; border-radius: 22%; box-shadow: 0 4px 12px rgba(176, 0, 18, .25); }
+img.adm-logo { object-fit: cover; background: none; padding: 0; box-shadow: 0 4px 12px rgba(176, 0, 18, .25); }

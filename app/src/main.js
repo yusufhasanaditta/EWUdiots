@@ -22,6 +22,7 @@ import { install as installCommunity } from "./ui-community.js";
 import { install as installAlarms } from "./ui-alarms.js";
 import { install as installAsk } from "./ui-ask.js";
 import { createContent, FEATURES } from "./content.js";
+import { applyBrand } from "./theme.js";
 
 const APP_VERSION = __APP_VERSION__; // from package.json (vite.config.js)
 const SITE = import.meta.env.VITE_SITE_URL || "https://ewudiots.vercel.app";
@@ -192,7 +193,8 @@ const isDark = () => S.theme === "dark" || (S.theme === "auto" && matchMedia("(p
 function applyTheme() {
   const root = document.documentElement;
   if (S.theme === "auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", S.theme);
-  $('meta[name="theme-color"]').setAttribute("content", isDark() ? "#0b0f1e" : "#7C3AED");
+  const brand = applyBrand(content.data.settings.theme);
+  $('meta[name="theme-color"]').setAttribute("content", isDark() ? "#0b0f1e" : brand);
 }
 
 /* ───────────── Navigation (role-aware) ───────────── */
@@ -350,11 +352,17 @@ function route({ animate = false } = {}) {
     let done = false; t.finished?.then(() => { done = true; }, () => { done = true; });
     setTimeout(() => { if (!done) t.skipTransition?.(); }, 700);
   } else paint();
-  lastPainted = id;
+  lastPainted = id; track(id);
   study && study.paintTimer();
   if (changed) { window.scrollTo(0, 0); target.focus?.({ preventScroll: true }); }
 }
 window.addEventListener("hashchange", () => route({ animate: true }));
+// Anonymous page views for the admin Analytics page (no cookies; skipped when "Do Not Track" is on). text/plain avoids a CORS preflight.
+let lastTracked = "";
+function track(id) {
+  if (id === lastTracked || navigator.doNotTrack === "1" || !import.meta.env.PROD) return; lastTracked = id;
+  try { fetch((native.isNative ? SITE : "") + "/api/track", { method: "POST", keepalive: true, headers: { "content-type": "text/plain" }, body: JSON.stringify({ path: "/app/" + id, ref: document.referrer, app: native.isNative }) }).catch(() => {}); } catch { /* never block the app */ }
+}
 const rerender = () => route();
 const qparam = (k) => new URLSearchParams(location.hash.split("?")[1] || "").get(k);
 // Maintenance mode (admin panel → Features & maintenance): one screen for everyone, with a way into your own offline data.
@@ -599,7 +607,7 @@ notices = installNotices(ctx);
 community = installCommunity(ctx);
 installAlarms(ctx);
 installAsk(ctx);
-content.onChange(() => { facCache = null; rerender(); });
+content.onChange(() => { facCache = null; applyTheme(); rerender(); });
 content.refresh();
 setInterval(() => { if (document.visibilityState === "visible") { content.refresh(); loadMessages(); } }, 10 * 60e3);
 

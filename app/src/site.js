@@ -71,3 +71,29 @@ const top = $(".top");
 addEventListener("scroll", () => top && top.classList.toggle("scrolled", scrollY > 8), { passive: true });
 
 if ("serviceWorker" in navigator && import.meta.env.PROD) navigator.serviceWorker.register("/sw.js").catch(() => {});
+
+/* Website content and theme managed in the admin panel (Website section): text, FAQ, announcement bar, contact and
+   social links. Read straight from the public site_settings table; the page keeps its built-in text if that fails. */
+import { applyBrand } from "./theme.js";
+const SB = import.meta.env.VITE_SUPABASE_URL, KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const safeUrl = (u) => (/^(https:\/\/|mailto:|\/|#)/.test(u || "") ? u : "");
+function applySite(c = {}) {
+  document.querySelectorAll("[data-cms]").forEach((el) => { const v = c[el.dataset.cms]; if (typeof v === "string" && v.trim()) el.textContent = v.trim(); });
+  if (Array.isArray(c.faq) && c.faq.length) {
+    const box = document.querySelector("[data-cms-list='faq']");
+    if (box) box.replaceChildren(...c.faq.filter((f) => f.q && f.a).map((f) => { const d = document.createElement("details"), s = document.createElement("summary"), p = document.createElement("p"); s.textContent = f.q; p.textContent = f.a; d.append(s, p); return d; }));
+  }
+  if (/^[^@\s]+@[^@\s]+$/.test(c.contact_email || "")) document.querySelectorAll("[data-cms-mail]").forEach((a) => { a.href = "mailto:" + c.contact_email; });
+  const soc = document.querySelector("[data-cms-social]"), links = [["facebook", "Facebook"], ["instagram", "Instagram"], ["linkedin", "LinkedIn"], ["youtube", "YouTube"]].filter(([k]) => /^https:\/\//.test(c[k] || ""));
+  if (soc && links.length) { soc.replaceChildren(...links.map(([k, l]) => Object.assign(document.createElement("a"), { href: c[k], textContent: l, rel: "noopener", target: "_blank" }))); soc.hidden = false; }
+  if (c.announce_on && c.announce_text) {
+    const bar = document.createElement("div"); bar.className = "announce";
+    const t = document.createElement("span"); t.textContent = c.announce_text; bar.append(t);
+    const link = safeUrl(c.announce_link); if (link) bar.append(Object.assign(document.createElement("a"), { href: link, textContent: c.announce_cta || "Learn more" }));
+    document.body.prepend(bar);
+  }
+}
+if (SB && KEY) fetch(`${SB}/rest/v1/site_settings?select=key,value&key=in.(site,theme)`, { headers: { apikey: KEY, authorization: `Bearer ${KEY}` } })
+  .then((r) => (r.ok ? r.json() : [])).then((rows) => { const m = Object.fromEntries(rows.map((r) => [r.key, r.value])); if (m.theme) applyBrand(m.theme); if (m.site) applySite(m.site); }).catch(() => {});
+// Anonymous page view for the admin Analytics page (see api/track.js; no cookies, skipped with "Do Not Track").
+if (import.meta.env.PROD && navigator.doNotTrack !== "1") fetch("/api/track", { method: "POST", keepalive: true, headers: { "content-type": "text/plain" }, body: JSON.stringify({ path: location.pathname, ref: document.referrer }) }).catch(() => {});

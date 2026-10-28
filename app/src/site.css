@@ -283,3 +283,8 @@ img { max-width: 100%; height: auto; display: block; }
 .dl-how { margin-top: 10px; font-size: 13.5px; text-align: left; }
 .dl-how summary { cursor: pointer; font-weight: 600; color: var(--primary, #7c3aed); }
 .dl-how ol { margin: 8px 0 0; padding-left: 18px; line-height: 1.6; }
+
+/* Announcement bar (admin → Website) and social links */
+.announce { display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 16px; background: var(--grad, #7c3aed); color: #fff; font-weight: 600; font-size: 14px; text-align: center; }
+.announce a { color: #fff; text-decoration: underline; font-weight: 800; }
+.foot .social { display: flex; gap: 14px; flex-wrap: wrap; }

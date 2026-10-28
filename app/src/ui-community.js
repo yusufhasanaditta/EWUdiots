@@ -69,8 +69,12 @@ export function install(ctx) {
   const people = () => {
     if (!alum) return [];
     const F = alum.fields || [];
-    const fromNewsletter = (alum.alumni || []).map((row) => { const o = Object.fromEntries(F.map((k, i) => [k, row[i]])); return { ...o, source: alum.issues[o.issue] }; });
-    const fromApp = ctx.content.data.alumni.map((a) => ({ name: a.name, role: a.role, org: a.org, country: a.country || "Bangladesh", dept: a.dept, sector: a.sector || "Other", kind: "job", note: [a.grad_year && `Class of ${a.grad_year}`, a.note].filter(Boolean).join(" · "), linkedin: a.linkedin, verified: true }));
+    // Once the newsletter stories are in the database (admins can edit them there), the bundled copy is only an offline fallback.
+    const db = ctx.content.data.alumni, inDb = db.some((a) => a.source === "newsletter");
+    const titleOf = Object.fromEntries(Object.values(alum.issues || {}).map((i) => [i.url, i.title]));
+    const fromNewsletter = inDb ? [] : (alum.alumni || []).map((row) => { const o = Object.fromEntries(F.map((k, i) => [k, row[i]])); return { ...o, source: alum.issues[o.issue] }; });
+    const fromApp = db.map((a) => ({ name: a.name, role: a.role, org: a.org, country: a.country || "Bangladesh", dept: a.dept, sector: a.sector || "Other", kind: a.kind || "job", note: [a.grad_year && `Class of ${a.grad_year}`, a.note].filter(Boolean).join(" · "), linkedin: a.linkedin,
+      source: a.source_url ? { url: a.source_url, title: titleOf[a.source_url] || "EWU Newsletter" } : null, verified: a.source !== "newsletter" }));
     return [...fromApp, ...fromNewsletter];
   };
   pages.alumni = () => {
@@ -137,6 +141,6 @@ export function install(ctx) {
     });
   }
   // For the assistant: the news feed and every alumni record (newsletter stories + approved profiles).
-  const alumniRows = async () => { await loadAlumni(); const F = alum.fields || [], extra = ctx.content.data.alumni || []; return (alum.alumni || []).map((row) => ({ ...Object.fromEntries(F.map((k, i) => [k, row[i]])), source: alum.issues[row[F.indexOf("issue")]] })).concat(extra); };
+  const alumniRows = async () => { await loadAlumni(); return people(); };
   return { homeNews, refreshNews: refresh, newsList: () => feed?.news || [], alumniRows };
 }

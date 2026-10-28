@@ -10,6 +10,7 @@ import { icon } from "../icons.js";
 import { FEATURES } from "../content.js";
 import { BLOCKS, floorsOf, floorLabel, parseRoom } from "../campus-data.js";
 import { supabaseBackend, demoBackend } from "./backend.js";
+import { cmsViews } from "./cms.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -17,13 +18,18 @@ const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const ago = (d) => { if (!d) return ""; const m = Math.round((Date.now() - new Date(d)) / 6e4); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); };
 const root = $("#admin");
 
-const SECTIONS = [
-  ["overview", "Overview", "grid", "Workspace"], ["assistant", "Ask the assistant", "brain", "Workspace"],
-  ["posts", "Posts & announcements", "megaphone", "Content"], ["messages", "Messages to users", "mail", "Content"], ["banner", "Home banner", "bell", "Content"], ["features", "Features & maintenance", "sliders", "Content"],
-  ["users", "Users", "user", "People"], ["alumni", "Alumni profiles", "community", "People"], ["faculty", "Faculty listings", "users", "People"],
-  ["feedback", "Feedback inbox", "help", "Community"], ["reports", "Reports", "flag", "Community"], ["rooms", "Campus rooms", "map", "Campus"],
-  ["security", "Security centre", "lock", "System"], ["admins", "Admins", "shield", "System"], ["activity", "Activity log", "clock", "System"]
+// [id, label, icon, group, permission needed]. The sidebar shows only what your role allows; the server enforces it too.
+const ALL_SECTIONS = [
+  ["overview", "Overview", "grid", "Workspace"], ["assistant", "Ask the assistant", "brain", "Workspace"], ["analytics", "Analytics", "chart", "Workspace", "analytics.view"],
+  ["posts", "Posts & announcements", "megaphone", "Content", "posts.write"], ["feed", "News & notices feed", "globe", "Content", "news.edit"], ["website", "Website & theme", "layers", "Content", "site.edit"],
+  ["media", "Media library", "image", "Content", "media.write"], ["messages", "Messages to users", "mail", "Content", "messages.send"], ["banner", "Home banner", "bell", "Content", "site.edit"], ["features", "Features & maintenance", "sliders", "Content", "features.edit"],
+  ["users", "Users", "user", "People", "users.view"], ["alumni", "Alumni waiting", "community", "People", "alumni.review"], ["alumdb", "All alumni & import", "cap", "People", "alumni.review"], ["faculty", "Faculty listings", "users", "People", "faculty.edit"],
+  ["feedback", "Feedback inbox", "help", "Community", "feedback.handle"], ["reports", "Reports", "flag", "Community", "reports.handle"], ["rooms", "Campus rooms", "map", "Campus", "rooms.edit"],
+  ["security", "Security centre", "lock", "System", "security.view"], ["jobs", "Scheduled jobs", "zap", "System", "jobs.run"], ["history", "Change history", "clock", "System"],
+  ["roles", "Roles & permissions", "shield", "System"], ["admins", "Admins", "crown", "System"], ["activity", "Activity log", "list", "System"]
 ];
+let SECTIONS = ALL_SECTIONS, me = { role: "owner", perms: null };
+const can = (p) => !p || me.role === "owner" || (me.perms || []).includes(p);
 /* CSV that opens cleanly in Excel (UTF-8 BOM keeps Bangla text) and can't run formulas (=, +, -, @ are escaped). */
 function downloadCSV(name, rows, cols) {
   const cell = (v) => { let t = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
@@ -68,7 +74,7 @@ let otpEmail = "";
 function signIn(msg = "") {
   const live = cloud.enabled;
   root.innerHTML = `<div class="adm-login"><div class="card fx-rise">
-    <div class="row nowrap"><span class="adm-logo">${icon("shield")}</span><div><h1 style="font-size:22px">EWUdiots Admin</h1><p class="xs">Unofficial · not affiliated with EWU</p></div></div>
+    <div class="row nowrap"><img class="adm-logo" src="/logo-mark.png" alt=""><div><h1 style="font-size:22px">EWUdiots Admin</h1><p class="xs">Unofficial · not affiliated with EWU</p></div></div>
     ${msg ? `<div class="alert amber mt">${icon("alert")}<div><b>${esc(msg)}</b></div></div>` : ""}
     ${live ? (otpEmail ? `<form id="lg-code" class="stack mt"><label class="field">Code sent to ${esc(otpEmail)}<input class="input otp" name="code" inputmode="numeric" maxlength="6" required autocomplete="one-time-code"></label><button class="btn primary lg block">Verify</button><button type="button" class="btn ghost block" id="lg-back">Use another email</button></form>`
       : `<form id="lg-mail" class="stack mt"><label class="field">Admin email<input class="input" name="email" type="email" required autocomplete="email" placeholder="you@example.com"></label><button class="btn primary lg block">Send me a code</button></form>`)
@@ -104,10 +110,12 @@ async function refreshBadges() {
   const total = (badges.alumni || 0) + (badges.reports || 0) + (badges.feedback || 0), bell = $("#adm-bell");
   if (bell) bell.innerHTML = `${icon("bell")}${total ? `<span class="dot-n">${total > 9 ? "9+" : total}</span>` : ""}`;
 }
-function start() {
+async function start() {
+  me = (await api.rpc("my_admin").catch(() => null)) || { role: "owner", perms: null };
+  SECTIONS = ALL_SECTIONS.filter((s) => can(s[4]));
   tab = SECTIONS.some((s) => s[0] === location.hash.slice(1)) ? location.hash.slice(1) : "overview";
   const groups = [...new Set(SECTIONS.map((s) => s[3]))];
-  root.innerHTML = `<aside class="adm-side"><div class="adm-brand"><span class="adm-logo">${icon("shield")}</span><div><b>EWU<i>diots</i></b><span class="xs">Admin console</span></div></div>
+  root.innerHTML = `<aside class="adm-side"><div class="adm-brand"><img class="adm-logo" src="/logo-mark.png" alt=""><div><b>EWU<i>diots</i></b><span class="xs">Admin console</span></div></div>
       <nav class="adm-nav">${groups.map((g) => `<p class="adm-group">${g}</p>${SECTIONS.filter((s) => s[3] === g).map(([id, l, ic]) => `<a href="#${id}" data-tab="${id}">${icon(ic)}<span class="grow">${l}</span><span class="badge-n" data-badge="${id}" hidden></span></a>`).join("")}`).join("")}</nav>
       <div class="adm-me"><span class="avatar sm">${esc(api.email.slice(0, 2).toUpperCase())}</span><div class="min0 grow"><b class="ellipsis" style="display:block">${esc(api.email)}</b><span class="xs">${api.kind === "demo" ? "Demo mode" : "Signed in"}</span></div><button class="icon-btn" id="adm-out" aria-label="Sign out">${icon("logout")}</button></div></aside>
     <div class="adm-scrim" id="adm-scrim"></div>
@@ -437,6 +445,9 @@ const VIEWS = {
     el.innerHTML = `<section class="card tight">${rows.length ? rows.map(logRow).join("") : '<p class="small muted">No activity yet.</p>'}</section>`;
   }
 };
+// Website, media, feed, alumni import, analytics, jobs, history and roles live in cms.js.
+const H = { $, $$, esc, icon, toast, openModal, closeModal, confirmAct, act, busy, sw, ago, downloadCSV, barChart, delta, api: () => api, me: () => me, go: (t) => go(t), VIEWS };
+Object.assign(VIEWS, cmsViews(H));
 const logRow = (l) => `<div class="lrow"><span class="itile sm purple">${icon("clock")}</span><span class="body"><b>${esc(l.action)}${l.target ? ` · ${esc(l.target)}` : ""}</b><span>${esc(l.email)} · ${ago(l.created_at)}</span></span></div>`;
 const bindGo = (el) => $$("[data-go]", el).forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));
 
@@ -503,12 +514,13 @@ async function postForm(p = {}) {
     <label class="field">Tag<input class="input" name="tag" maxlength="30" value="${esc(p.tag || "")}" placeholder="Advising, Exams…"></label>
     <label class="field full-row">Title<input class="input" name="title" required minlength="3" maxlength="200" value="${esc(p.title || "")}"></label>
     <label class="field full-row">Text<textarea class="input" name="body" rows="5" maxlength="8000">${esc(p.body || "")}</textarea></label>
-    <label class="field">Image URL (https)<input class="input" name="image_url" type="url" pattern="https://.+" value="${esc(p.image_url || "")}"></label>
+    <div class="row nowrap"><label class="field grow">Image URL (https)<input class="input" name="image_url" id="pf-img" type="url" pattern="https://.+" value="${esc(p.image_url || "")}"></label><button type="button" class="btn outline" id="pf-pick" style="align-self:flex-end">${icon("image", "sm")} Library</button></div>
     <label class="field">Link (https)<input class="input" name="link" type="url" pattern="https://.+" value="${esc(p.link || "")}"></label>
     <label class="field">Show from<input class="input" name="starts_at" type="datetime-local" value="${local(p.starts_at) || local(new Date())}"></label>
     <label class="field">Hide after (optional)<input class="input" name="ends_at" type="datetime-local" value="${local(p.ends_at)}"></label>
     <div class="full-row stack" style="gap:0">${sw("pf-pub", p.published !== false, "Published (students can see it)")}${sw("pf-pin", p.pinned, "Pin to the top")}</div>
     <div class="row full-row"><span class="grow"></span><button type="button" class="btn neutral" data-close>Cancel</button><button class="btn primary">${icon("check")} ${p.id ? "Save" : "Publish"}</button></div></form>`, (m) => {
+    $("#pf-pick", m).addEventListener("click", async () => { const keep = Object.fromEntries(new FormData($("#pf", m))); const u = await H.pickMedia(); postForm({ ...p, ...keep, published: p.published, pinned: p.pinned, image_url: u || keep.image_url }); });
     $("#pf", m).addEventListener("submit", async (e) => {
       e.preventDefault(); const d = Object.fromEntries(new FormData(e.target)), btn = e.target.querySelector("button.primary"); busy(btn, true);
       const row = { kind: d.kind, tag: d.tag.trim(), title: d.title.trim(), body: d.body.trim(), image_url: d.image_url.trim(), link: d.link.trim(), published: $("#pf-pub", m).checked, pinned: $("#pf-pin", m).checked,

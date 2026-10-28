@@ -114,3 +114,10 @@ Before each release, bump `version` in `app/package.json` (and `extension/manife
 - **Web / installed desktop app:** a bar "New version available · Refresh".
 - **Chrome extension:** an "Update available" banner in the popup with the download link.
 For an important fix, set `minVersion` in `release.json` to the new version: older phone apps then can't dismiss the prompt, and open web apps reload once by themselves.
+
+## 14. Website editor, media, automatic feeds, analytics, permissions (v2.7)
+- **Automatic content:** `api/cron.js` runs daily (Vercel Cron, `vercel.json` → `crons`). It pulls ewubd.edu news and notices into `feed_items` and finds new newsletters. Admins hide, pin, rename or add items in **News & notices feed**, and their changes survive the next update. **All alumni & import** reads a new newsletter's "Alumni Success Story" pages and drafts entries for review.
+- **Website & theme:** homepage text, announcement bar, FAQ, contact and social links, and the brand colour, with a live desktop/tablet/phone preview.
+- **Media library**, **Analytics** (cookie-free, `api/track.js`), **Scheduled jobs** (run now), **Change history** (compare and restore) and **Roles & permissions** (owner / admin / editor / moderator, enforced in the database by `public.can()`).
+- Server secrets: `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET` live only in Vercel's encrypted env and `.secrets/server.env`.
+- New logo: `brand/logo.png` → `npm run icons`, then `npx @capacitor/assets generate --android`.
