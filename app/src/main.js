@@ -23,8 +23,14 @@ import { install as installAlarms } from "./ui-alarms.js";
 import { install as installAsk } from "./ui-ask.js";
 import { install as installPeople } from "./ui-people.js";
 import { install as installEvents } from "./ui-events.js";
+import { install as installCalendar } from "./ui-calendar.js";
+import { install as installScholar } from "./ui-scholar.js";
+import { install as installMaterials } from "./ui-materials.js";
+import { install as installClassroom } from "./ui-classroom.js";
+import { install as installInsights } from "./ui-insights.js";
 import { createContent, FEATURES } from "./content.js";
 import { applyBrand } from "./theme.js";
+import { snapshot, stamp, merge } from "./syncmerge.js";
 
 const APP_VERSION = __APP_VERSION__; // from package.json (vite.config.js)
 const SITE = import.meta.env.VITE_SITE_URL || "https://ewudiots.vercel.app";
@@ -51,15 +57,18 @@ S.study = Object.assign(studyDefaults(), S.study || {});
 const alarmDefaults = (st) => Object.assign({ on: true, offsets: [st.remindMin || 10], perCourse: {}, ring: true }, st.alarms || {});
 S.settings.alarms = alarmDefaults(S.settings);
 if (S.profile && !S.onboarded) S.onboarded = true; // existing users skip the welcome flow
+let snap = snapshot(S); // what each part looked like at the last save/sync (src/syncmerge.js)
 let pushTimer = null;
 function save({ silent = false } = {}) {
-  S.updatedAt = Date.now(); facCache = null;
-  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* storage full or blocked */ }
-  if (C.user && !silent) { clearTimeout(pushTimer); pushTimer = setTimeout(pushNow, 1500); }
+  facCache = null;
+  const changed = stamp(S, snap); // edit times per part, so devices merge part by part
+  if (changed.length) S.updatedAt = Date.now();
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { console.warn("Couldn't save on this device", e); }
+  if (C.user && changed.length) { clearTimeout(pushTimer); pushTimer = setTimeout(pushNow, silent ? 4000 : 1200); }
   scheduleReminders();
 }
 // updatedAt stays 0, so a cloud backup always wins over a cleared device.
-const resetState = () => { const th = S.theme; S = blank(); S.theme = th; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* storage blocked */ } clearBlobs("id:"); idcard?.forget(); };
+const resetState = () => { const th = S.theme; S = blank(); S.theme = th; snap = snapshot(S); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* storage blocked */ } clearBlobs("id:"); idcard?.forget(); };
 const C = { user: null, faculty: null, sections: null, vault: null, votes: new Set(), syncing: false, directory: null };
 /* Official faculty directory, from EWU's public profile pages (scripts/scrape-faculty.mjs). Loaded on first use. */
 let dirP = null;
@@ -68,12 +77,33 @@ const loadDirectory = () => (dirP = dirP || fetch("/data/faculty.json").then((r)
 // A faculty photo that fails to load falls back to the initials underneath it.
 addEventListener("error", (e) => { const t = e.target; if (t.tagName === "IMG" && t.closest(".face")) t.remove(); }, true);
 let study = null; // study-mode API, installed at boot (src/study.js)
-let campus = null, idcard = null, notices = null, community = null, people = null, events = null;
+let campus = null, idcard = null, notices = null, community = null, people = null, events = null, acal = null, materials = null;
 const content = createContent(cloud); // admin-managed posts, settings, overrides // campus map + ID card APIs (src/ui-map.js, src/ui-idcard.js)
 async function pushNow() {
   if (!C.user) return false;
-  try { C.syncing = true; const { theme, syncedAt, ...data } = S; const at = await cloud.pushData(C.user.id, data); S.lastSync = at; S.syncedAt = new Date(at).getTime(); localStorage.setItem(KEY, JSON.stringify(S)); return true; }
+  clearTimeout(pushTimer);
+  if (C.syncing) { pushTimer = setTimeout(pushNow, 1500); return false; } // a sync is running: try again right after it
+  try {
+    C.syncing = true;
+    stamp(S, snap);
+    // Another device saved since we last synced: merge its newer parts in first, so nothing of theirs is overwritten.
+    const remote = await cloud.pullData(C.user.id);
+    const remoteAt = remote ? new Date(remote.updated_at).getTime() : 0;
+    if (remote?.data && remoteAt > (S.syncedAt || 0)) { const m = merge(S, remote.data); takeMerged(m.state, remoteAt); if (m.fromRemote && !modalOpen()) rerender(); }
+    const { theme, syncedAt, ...data } = S;
+    const at = await cloud.pushData(C.user.id, data); S.lastSync = at; S.syncedAt = new Date(at).getTime();
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* storage blocked */ }
+    return true;
+  }
   catch (e) { console.warn("Backup failed", e); return false; } finally { C.syncing = false; }
+}
+// Take a merged copy (see pushNow / pullNow / sign-in) as this device's state.
+function takeMerged(state, at) {
+  const theme = S.theme;
+  S = Object.assign(blank(), state, { theme, syncedAt: at, lastSync: new Date(at).toISOString() });
+  S.study = Object.assign(studyDefaults(), S.study || {}); S.settings.alarms = alarmDefaults(S.settings || {});
+  snap = snapshot(S); facCache = null;
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* storage blocked */ }
 }
 /* One account everywhere (phone app, web, Windows, Chrome): when another device saved a newer backup than the
    one this device last saw, and nothing newer changed here, take it. Runs on focus and every minute. */
@@ -85,10 +115,11 @@ async function pullNow() {
     const remote = await cloud.pullData(C.user.id);
     const at = remote ? new Date(remote.updated_at).getTime() : 0;
     if (!remote?.data?.profile || at <= (S.syncedAt || 0)) return;
-    if ((S.updatedAt || 0) > at) { await pushNow(); return; } // this device has the newer edits
-    adopt(remote.data, at);
-    if (!modalOpen()) rerender();
-    toast("Updated from your other device", "info");
+    stamp(S, snap);
+    const m = merge(S, remote.data);
+    takeMerged(m.state, at);
+    if (m.fromRemote) { idcard?.forget(); if (!modalOpen()) rerender(); toast("Updated from your other device", "info"); }
+    if (m.keepLocal) await pushNow(); // this device has newer edits of some parts
   } catch (e) { console.warn("Cloud check failed", e); }
   finally { pulling = false; }
 }
@@ -96,7 +127,7 @@ function adopt(data, at) {
   const theme = S.theme;
   S = Object.assign(blank(), data, { theme, syncedAt: at, lastSync: new Date(at).toISOString() });
   S.study = Object.assign(studyDefaults(), S.study || {}); S.settings.alarms = alarmDefaults(S.settings || {});
-  facCache = null; idcard?.forget();
+  snap = snapshot(S); facCache = null; idcard?.forget();
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* storage blocked */ }
 }
 /* Activity log shown in Notifications (sync results, badges…). */
@@ -209,8 +240,11 @@ const NAV = [
   { id: "planner", label: "Advising Planner", icon: "calcheck", roles: "s" },
   { id: "courses", label: "Courses", icon: "book", roles: "s" },
   { id: "grades", label: "CGPA", icon: "grid", roles: "s" },
+  { id: "insights", label: "Analytics", icon: "chart", roles: "s" },
   { id: "tasks", label: "Deadlines", icon: "clipboard", roles: "s" },
   { id: "fees", label: "Fees", icon: "wallet", roles: "s" },
+  { id: "scholarship", label: "Scholarships", icon: "trophy", roles: "s" },
+  { id: "classroom", label: "Google Classroom", icon: "school", roles: "s" },
   { id: "vault", label: "Study Vault", icon: "vault", roles: "sfa", feature: "vault" },
   { id: "notices", label: "Notice Board", icon: "megaphone", roles: "sfa", feature: "notices" },
   { id: "news", label: "Campus News", icon: "globe", roles: "sfa", feature: "news" },
@@ -219,6 +253,7 @@ const NAV = [
   { id: "alumhub", label: "Alumni hub", icon: "cap", roles: "a" },
   { id: "office", label: "Office hours", icon: "clock", roles: "s" },
   { id: "mentors", label: "Alumni mentors", icon: "heart", roles: "s" },
+  { id: "calendar", label: "Academic calendar", icon: "calcheck", roles: "sfa" },
   { id: "events", label: "Events", icon: "calendar", roles: "sfa" },
   { id: "jobs", label: "Jobs & internships", icon: "briefcase", roles: "sfa" },
   { id: "blog", label: "Blog", icon: "notes", roles: "sfa" },
@@ -233,7 +268,7 @@ const roleKey = () => ({ faculty: "f", alumni: "a" }[S.role] || "s");
 const navFor = () => NAV.filter((n) => n.roles.includes(roleKey()) && (!n.feature || content.feature(n.feature)));
 // Pages an admin switched off (Settings → Features) are closed for everyone.
 const PAGE_FEATURE = { notices: "notices", news: "news", alumni: "alumni", map: "map", vault: "vault", file: "vault", idcard: "idcard", focus: "focus", cards: "focus", exams: "focus" };
-const SUB = { course: "courses", marks: "courses", degree: "grades", whatif: "grades", plan: "planner", combos: "planner", fee: "fees", prof: "faculty", file: "vault", cards: "focus", exams: "tasks", account: "more", profile: "more", notifications: "home", help: "more", about: "more", cover: "more", sync: "more", idcard: "more", alarms: "routine", ask: "ask", post: "blog", write: "blog" };
+const SUB = { insights: "grades", scholarship: "grades", calendar: "routine", course: "courses", marks: "courses", degree: "grades", whatif: "grades", plan: "planner", combos: "planner", fee: "fees", prof: "faculty", file: "vault", cards: "focus", exams: "tasks", account: "more", profile: "more", notifications: "home", help: "more", about: "more", cover: "more", sync: "more", idcard: "more", alarms: "routine", ask: "ask", post: "blog", write: "blog" };
 const prefersReduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 function renderNav(route) {
   const active = SUB[route] || route;
@@ -296,7 +331,7 @@ function inbox() {
 }
 
 /* ───────────── Command palette (Ctrl+K / search) ───────────── */
-const PAGES_SEARCH = [["ask", "Ask EWUdiots (assistant)", "sparkle"], ["blog", "Blog: tips and stories", "notes"], ["write", "Write a blog post", "edit"], ["events", "Campus events: workshops, concerts, club recruitment", "calendar"], ["jobs", "Jobs & internships", "briefcase"], ["mentors", "Alumni mentors", "heart"], ["office", "Teachers' office hours & consultations", "clock"], ["teach", "Teaching hub (teachers)", "briefcase"], ["alumhub", "Alumni hub", "cap"], ["home", "Home", "home"], ["routine", "My routine", "calendar"], ["alarms", "Class alarms (remind me before class)", "bell"], ["planner", "Advising planner", "calcheck"], ["courses", "My courses", "book"], ["grades", "CGPA", "bars"], ["degree", "Degree progress", "cap"],
+const PAGES_SEARCH = [["ask", "Ask EWUdiots (assistant)", "sparkle"], ["blog", "Blog: tips and stories", "notes"], ["write", "Write a blog post", "edit"], ["calendar", "Academic calendar: holidays, payment deadlines, final exams", "calcheck"], ["insights", "Analytics: CGPA trend, credits, grades, study time", "chart"], ["scholarship", "Scholarships: how to get one, what CGPA you need", "trophy"], ["classroom", "Google Classroom: import materials and assignments", "school"], ["events", "Campus events: workshops, concerts, club recruitment", "calendar"], ["jobs", "Jobs & internships", "briefcase"], ["mentors", "Alumni mentors", "heart"], ["office", "Teachers' office hours & consultations", "clock"], ["teach", "Teaching hub (teachers)", "briefcase"], ["alumhub", "Alumni hub", "cap"], ["home", "Home", "home"], ["routine", "My routine", "calendar"], ["alarms", "Class alarms (remind me before class)", "bell"], ["planner", "Advising planner", "calcheck"], ["courses", "My courses", "book"], ["grades", "CGPA", "bars"], ["degree", "Degree progress", "cap"],
   ["whatif", "What-if calculator", "calc"], ["marks", "Marks & attendance estimator", "percent"], ["tasks", "Deadlines", "clipboard"], ["exams", "Exam planner", "exam"], ["fees", "Fees & payments", "wallet"], ["vault", "Study vault", "vault"],
   ["rooms", "Free rooms", "door"], ["map", "Campus map & directions", "map"], ["notices", "EWU notice board", "megaphone"], ["news", "Campus news", "globe"], ["alumni", "Alumni: where are they now", "community"], ["idcard", "My ID card", "user"], ["faculty", "Faculty & reviews", "users"], ["focus", "Focus timer", "focus"], ["cards", "Flashcards", "cards"], ["me", "Achievements", "award"], ["cover", "Cover page", "file"],
   ["sync", "Sync portal", "sync"], ["notifications", "Notifications", "bell"], ["profile", "Profile & settings", "settings"]];
@@ -393,8 +428,9 @@ function nextClass() {
   const blocks = expand(S.routine);
   if (!blocks.length) return null;
   const now = new Date(), nd = now.getDay(), nm = now.getHours() * 60 + now.getMinutes();
-  for (let k = 0; k < 8; k++) {
-    const d = (nd + k) % 7;
+  for (let k = 0; k < 15; k++) {
+    const d = (nd + k) % 7, date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + k);
+    if (acal?.isOff(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`)) continue; // university holiday
     for (const b of blocks.filter((x) => x.day === d).sort((a, c) => a.s - c.s)) {
       if (k === 0 && b.e <= nm) continue;
       const live = k === 0 && b.s <= nm;
@@ -474,6 +510,7 @@ function scheduleReminders() {
       items.push({ key: "pay3" + p.due, title: "Tuition due in 3 days", body: `${fmtMoney(p.amount)} by ${p.due} — late fee after that`, at: new Date(at - 3 * 864e5) });
       items.push({ key: "pay1" + p.due, title: "Tuition due tomorrow", body: `${fmtMoney(p.amount)} by ${p.due}`, at: new Date(at - 864e5) });
     });
+    if (acal) items.push(...acal.reminderItems().filter((x) => x.at > Date.now()));
     const t = S.study?.timer;
     if (t?.endAt) items.push({ key: "focus" + t.endAt, title: t.kind === "focus" ? "Focus session done" : "Break's over", body: t.kind === "focus" ? "Nice work. Take a short break." : "Start your next focus session.", at: new Date(t.endAt) });
     await native.scheduleAll({ classes: expand(S.routine).map((c) => ({ ...c, offsets: alarmsFor(c.code) })).filter((c) => c.offsets.length), items }).catch(() => {});
@@ -594,8 +631,11 @@ async function restoreOrBackup(user) {
   try {
     const remote = await cloud.pullData(user.id);
     const remoteAt = remote ? new Date(remote.updated_at).getTime() : 0;
-    if (remote && remote.data?.profile && (remoteAt > (S.updatedAt || 0) || !S.profile || S.demo)) {
+    if (remote && remote.data?.profile && (!S.profile || S.demo)) {
       adopt(remote.data, remoteAt); toast("Your account is ready on this device", "success", "Routine, grades and progress restored.");
+    } else if (remote && remote.data?.profile) {
+      stamp(S, snap); const m = merge(S, remote.data); takeMerged(m.state, remoteAt);
+      if (m.keepLocal) await pushNow();
     } else if (S.profile && !S.demo) { await pushNow(); }
     idcard?.forget(); // fetch the card pictures from the account if this device doesn't have them
     sync.checkInbox(); loadMessages();
@@ -607,11 +647,12 @@ async function restoreOrBackup(user) {
 /* ───────────── Boot ───────────── */
 const ctx = {
   get S() { return S; }, resetState, pages, save, rerender, route: () => currentRoute, go, qparam, toast, openModal, closeModal, modalHead, confirmModal, modalOpen, busy,
-  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, get events() { return events; }, get sync() { return sync; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
+  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, get events() { return events; }, get acal() { return acal; }, get materials() { return materials; }, get sync() { return sync; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
   afterSignIn: () => signInDone, LETTER, toMin, fmt12, fmtShort, dayIdx, expand, overlaps, toneFor, colorFor, HEX, TONES, gradePoint, cgpaOf, fmtMoney, fmtCountdown, daysUntil, fmtDate, firstName, initials, myAvatar, greeting,
   nextClass, nextPayment, markAttendance, facultyIndex, facBy, facName, offered, sectionBlocks, roomData, freeRoomsAt, baseRoom, enableNotifications, taskLine, duePill, TASK_IC, inbox, loadDemo, onSignedIn,
   isDark, applyTheme, palette, roleLabel, navFor, nextSemesterGuess, DAY_NAMES, WEEK, SLOTS, GRADES, NON_GPA, DEMO, parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey
 };
+materials = installMaterials(ctx);
 study = installStudy(ctx);
 installHome(ctx);
 const sync = installSync(ctx);
@@ -625,6 +666,10 @@ installAlarms(ctx);
 installAsk(ctx);
 people = installPeople(ctx);
 events = installEvents(ctx);
+acal = installCalendar(ctx);
+installScholar(ctx);
+installClassroom(ctx);
+installInsights(ctx);
 content.onChange(() => { facCache = null; applyTheme(); rerender(); });
 content.refresh();
 setInterval(() => { if (document.visibilityState === "visible") { content.refresh(); loadMessages(); } }, 10 * 60e3);
@@ -738,5 +783,7 @@ setInterval(() => { if (currentRoute === "home" && !modalOpen() && document.visi
 setInterval(() => { if (document.visibilityState === "visible" && !modalOpen()) sync.checkInbox(); }, 120000);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { sync.checkInbox(); pullNow(); } else if (C.user && S.updatedAt > (S.syncedAt || 0)) pushNow(); });
 setInterval(() => { if (document.visibilityState === "visible") pullNow(); }, 60000);
+// Phone app going to the background (or being closed): send unsaved edits right away.
+native.onPause(() => { save({ silent: true }); if (C.user && S.updatedAt > (S.syncedAt || 0)) pushNow(); });
 addEventListener("online", () => pullNow());
 if ("serviceWorker" in navigator && !native.isNative && import.meta.env.PROD) navigator.serviceWorker.register("/sw.js").catch(() => {});

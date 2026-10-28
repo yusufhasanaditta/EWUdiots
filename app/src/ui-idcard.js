@@ -26,7 +26,10 @@ export function parseCardText(text) {
   const id = findStudentId(text);
   let name = "";
   const labelled = lines.map((l) => l.match(/^name\s*[:.\-]?\s*(.+)$/i)).find(Boolean);
+  // EWU cards print the name on the line right above "EWU ID: …".
+  const idAt = lines.findIndex((l) => /EWUs*ID|^IDs*[:.]/i.test(l)), above = idAt > 0 ? lines[idAt - 1] : "";
   if (labelled) name = labelled[1];
+  else if (/^[A-Za-z][A-Za-z .'-]{4,40}$/.test(above) && !SKIP.test(above) && above.split(" ").length >= 2) name = above;
   else name = lines.filter((l) => /^[A-Za-z][A-Za-z .'-]{4,40}$/.test(l) && !SKIP.test(l) && l.split(" ").length >= 2).sort((a, b) => b.length - a.length)[0] || "";
   name = name.replace(/[^A-Za-z .'-]/g, "").replace(/\s+/g, " ").trim().replace(/\b\w+/g, (w) => (w.length > 2 && w === w.toUpperCase() ? w[0] + w.slice(1).toLowerCase() : w));
   const prog = (String(text).match(/\b(B\.?\s?Sc\.?|BBA|BSS|B\.?\s?A\.?|MBA|EMBA|B\.?\s?Pharm|LL\.?\s?B|M\.?\s?Sc|MSS|M\.?\s?A)\b[^\n]{0,40}/i) || [""])[0].trim();
@@ -90,7 +93,7 @@ export function install(ctx) {
       };
       const steps = () => `<ol class="id-steps" aria-label="Steps">${(frontOnly ? [["front", "Front"], ["check", "Check"]] : [["front", "Front"], ["back", "Back"], ["check", "Check"]]).map(([k, l], i) => `<li class="${(k === "check" ? sides.front && (frontOnly || sides.back) : sides[k]) ? "done" : ""}">${sides[k] ? icon("check", "sm") : `<span>${i + 1}</span>`}${l}</li>`).join("")}</ol>`;
       const pickHTML = (side) => `${modalHead(title)}${steps()}<div class="stack">
-        <div class="id-guide ${side}" aria-hidden="true"><div class="id-frame"><span></span><span></span><span></span><span></span>${side === "front" ? `${icon("user")}<i></i><i></i><i></i>` : `<em></em><i></i><i></i>`}</div></div>
+        <div class="id-guide ${side}" aria-hidden="true"><div class="id-frame portrait"><span></span><span></span><span></span><span></span>${side === "front" ? `<b class="idf-band">STUDENT</b><b class="idf-logo"></b><b class="idf-photo">${icon("user")}</b><i></i><i class="idf-id"></i>` : `<em></em><i></i><i></i><i></i>`}</div></div>
         <div><b>${side === "front" ? "Photo of the front side" : "Now the back side"}</b><p class="small muted">${side === "front" ? "The side with your photo and student ID. Lay it flat in good light so the number is sharp. Sideways is fine." : "Turn the card over. Both sides are needed to add your card."}</p></div>
         <div class="row"><label class="btn primary grow" style="cursor:pointer">${icon("scan")} Take a photo<input type="file" data-side="${side}" accept="image/*" capture="environment" hidden></label>
           <label class="btn outline grow" style="cursor:pointer">${icon("upload")} Upload image<input type="file" data-side="${side}" accept="image/*" hidden></label></div>
@@ -152,8 +155,10 @@ export function install(ctx) {
         <label class="field">Size<input type="range" id="cb-size" min="12" max="90" value="34"></label>
         <div class="row"><button class="btn neutral grow" id="cb-skip">Skip</button><button class="btn primary grow" id="cb-ok">${icon("check")} Use photo</button></div></div>`;
       const box = $("#cb", m), sq = $("#cb-sq", m), img = $("#cb-img", m), size = $("#cb-size", m);
-      let pos = { x: 0.08, y: 0.22 };
-      const place = () => { const s = Number(size.value) / 100, bw = box.clientWidth, side = bw * s; sq.style.width = sq.style.height = `${side}px`; pos.x = Math.min(Math.max(0, pos.x), 1 - side / bw); pos.y = Math.min(Math.max(0, pos.y), 1 - side / box.clientHeight); sq.style.left = `${pos.x * 100}%`; sq.style.top = `${pos.y * 100}%`; };
+      let pos = { x: 0.08, y: 0.22 }, sized = false;
+      const place = () => {
+        // EWU cards are portrait with the photo in the middle; start the square there.
+        if (!sized && img.naturalWidth) { sized = true; if (img.naturalHeight > img.naturalWidth) { pos = { x: 0.27, y: 0.3 }; size.value = 46; } } const s = Number(size.value) / 100, bw = box.clientWidth, side = bw * s; sq.style.width = sq.style.height = `${side}px`; pos.x = Math.min(Math.max(0, pos.x), 1 - side / bw); pos.y = Math.min(Math.max(0, pos.y), 1 - side / box.clientHeight); sq.style.left = `${pos.x * 100}%`; sq.style.top = `${pos.y * 100}%`; };
       img.onload = place; size.addEventListener("input", place); if (img.complete) place();
       let drag = null;
       sq.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY, px: pos.x, py: pos.y }; sq.setPointerCapture(e.pointerId); });

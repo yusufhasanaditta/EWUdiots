@@ -178,22 +178,33 @@ export async function myVotes(userId) {
   need();
   return new Set((ok(await sb.from("resource_votes").select("resource_id").eq("user_id", userId)) || []).map((v) => v.resource_id));
 }
+/* Course materials: shared files and links per course, tagged with teacher, section, semester and topic. */
+export async function listMaterials({ course = "", faculty = "" } = {}) {
+  need();
+  let q = sb.from("resources_ranked").select("*").order("created_at", { ascending: false }).limit(400);
+  if (course) q = q.eq("course", course);
+  if (faculty) q = q.eq("faculty", faculty);
+  return ok(await q) || [];
+}
+export async function shareMaterial(userId, file, meta) {
+  need();
+  let path = null;
+  if (file) {
+    path = `${userId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]+/g, "_").slice(-80)}`;
+    ok(await sb.storage.from("vault").upload(path, file, { contentType: file.type || undefined, upsert: false }));
+  }
+  ok(await sb.from("resources").insert({ user_id: userId, file_path: path, size_bytes: file ? file.size : 0, source: file ? "upload" : meta.source || "link", ...meta }));
+}
+/* Google Classroom import: titles + links, never added twice (ext_id). */
+export async function importMaterials(userId, rows, who) {
+  need();
+  const data = rows.map((r) => ({ ...r, user_id: userId, file_path: null, size_bytes: 0, status: "published", uploader_name: (who.name || "").slice(0, 80), uploader_role: who.role }));
+  for (let i = 0; i < data.length; i += 100) ok(await sb.from("resources").upsert(data.slice(i, i + 100), { onConflict: "ext_id", ignoreDuplicates: true }));
+}
+export async function deleteMaterial(id, path) { need(); ok(await sb.from("resources").delete().eq("id", id)); if (path) await sb.storage.from("vault").remove([path]).catch(() => {}); }
 export async function downloadUrl(path) {
   need();
   return ok(await sb.storage.from("vault").createSignedUrl(path, 300)).signedUrl;
-}
-
-/* ---------- Smart scan (Claude vision via edge function) ---------- */
-export async function smartScan(file) {
-  need();
-  const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(file); });
-  const { data, error } = await sb.functions.invoke("parse-screenshot", { body: { image: b64, mediaType: file.type || "image/png" } });
-  if (error) {
-    let msg = error.message;
-    try { msg = (await error.context.json()).error || msg; } catch { /* keep default message */ }
-    throw new Error(msg);
-  }
-  return data;
 }
 
 /* ---------- Account deletion ---------- */

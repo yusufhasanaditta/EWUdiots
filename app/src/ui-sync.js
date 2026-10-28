@@ -1,6 +1,7 @@
 /* Portal sync: choose a method → scanning progress → review & confirm ("Data Sync Flow" board).
    Also the Chrome-extension bridge and the #ext= hand-off from the extension popup. */
 import { readText, isImageFile } from "./ocr.js";
+import { start as portalStart, signIn as portalSignIn, readAll as portalRead, PORTAL_PAGES } from "./portalsync.js";
 
 export function install(ctx) {
   const { pages, icon, esc, uid, $, $$, toast, openModal, closeModal, modalHead, busy } = ctx;
@@ -8,6 +9,7 @@ export function install(ctx) {
   let pending = null, method = "img", stage = "pick", scan = null, extDetected = false, rvTab = "courses";
 
   const METHODS = [
+    ["portal", "lock", "red", "Sign in to the EWU portal", "Type your student ID and portal password. Everything is read in one go."],
     ["img", "image", "purple", "Upload a Screenshot", "Take or upload a screenshot from your EWU portal (routine, marks, etc)."],
     ["txt", "paste", "green", "Paste Data", "Copy and paste directly from the portal."],
     ["ext", "chrome", "blue", "Use Chrome Extension", "Sync with one click using our browser extension."]
@@ -23,6 +25,7 @@ export function install(ctx) {
       <ol class="small muted" style="padding-left:18px;margin:10px 0 14px;line-height:1.8"><li>Open a portal page (e.g. <b>My Class Schedule</b> → Show Courses).</li><li>Press <span class="kbd">Ctrl</span>+<span class="kbd">A</span> then <span class="kbd">Ctrl</span>+<span class="kbd">C</span>.</li><li>Paste below. Repeat for Grade Report, Degree Review, Advising Slip…</li></ol>
       <label class="field">Portal text<textarea class="input" id="paste-in" rows="10" placeholder="Paste here…"></textarea></label>
       <div class="row mt"><button class="btn neutral" id="sy-back">Back</button><button class="btn primary grow" id="parse-btn">${icon("sparkle")} Read my data</button></div></div>`;
+    if (stage === "portal") return portalView();
     if (stage === "ext") return `${brandHead("#/sync")}<div style="max-width:640px;margin:0 auto">
       <h1 style="font-size:28px">Sync with the <span class="hl">Chrome extension</span></h1>
       <div class="card mt stack">
@@ -39,7 +42,6 @@ export function install(ctx) {
       <input type="file" id="file-in" accept="image/*" multiple class="sr-only">
       <details class="card soft mt shot-tips"><summary><span class="itile sm yellow">${icon("bulb")}</span><b>Tips for screenshots that read well</b></summary>
         <div class="stack mt-s">${TIPS.map(([ic, t, d]) => `<div class="row nowrap top"><span class="itile sm purple">${icon(ic)}</span><div><b class="small">${t}</b><p class="xs">${d}</p></div></div>`).join("")}</div></details>
-      ${ctx.cloud.enabled && ctx.C.user ? `<label class="row small mt-s"><input type="checkbox" class="check" id="smart" checked> ${icon("sparkle", "sm")} <b>Smart scan</b> (AI) reads tables more accurately</label>` : ""}
       <div class="privacy">${icon("shield")}<div><b>Your Privacy, Our Priority</b><p>We never read your NID, address, phone or password. Your data stays on your device and is used only to make your experience better.</p></div></div>
       <div class="row nowrap mt" style="align-items:flex-end"><div class="mascot-card" style="background:none;padding:0;min-height:0;flex:1"><img src="/img/mascot-thumbs.webp" alt="" style="width:120px;margin:0"><span class="scribble" style="font-size:22px;transform:rotate(-8deg)">Easy and<br>Secure!${ctx.swoosh}</span></div>
         <button class="btn primary lg" id="sy-go">Continue ${icon("arrow")}</button></div>
@@ -74,10 +76,11 @@ export function install(ctx) {
       });
       return;
     }
+    if (stage === "portal") { mountPortal(el); return; }
     if (stage === "ext") { $("#ext-pull", el).addEventListener("click", requestExtension); window.postMessage({ type: "EWUD_APP_PING" }, location.origin); return; }
     $$("[data-m]", el).forEach((b) => b.addEventListener("click", () => { method = b.dataset.m; $$("[data-m]", el).forEach((x) => x.setAttribute("aria-pressed", x === b)); if (method === "img") $("#file-in", el).click(); }));
     $("#file-in", el).addEventListener("change", (e) => { const files = [...e.target.files]; e.target.value = ""; readImages(files); });
-    $("#sy-go", el).addEventListener("click", () => { if (method === "img") $("#file-in", el).click(); else { stage = method === "txt" ? "paste" : "ext"; ctx.rerender(); } });
+    $("#sy-go", el).addEventListener("click", () => { if (method === "img") $("#file-in", el).click(); else { stage = { txt: "paste", portal: "portal" }[method] || "ext"; ctx.rerender(); } });
     const demo = $("#sy-demo", el); demo && demo.addEventListener("click", (e) => { e.preventDefault(); ctx.loadDemo(); });
   };
   document.addEventListener("paste", (e) => {
@@ -86,25 +89,15 @@ export function install(ctx) {
     if (files.length) { e.preventDefault(); readImages(files); }
   });
 
-  /* Normalise Smart-scan output to the on-device parser's shape. */
-  function fromSmart(j) {
-    const clean = (o) => Object.fromEntries(Object.entries(o || {}).filter(([, v]) => v !== "" && v !== 0 && v !== null));
-    const rowFix = (r) => { const o = { ...r, start: r.start?.slice(0, 5), end: r.end?.slice(0, 5) }; if (!o.capacity) { delete o.capacity; delete o.enrolled; } return o; };
-    return { profile: clean(j.profile), rules: clean(j.rules), routine: (j.routine || []).map(rowFix), offered: (j.offered || []).map(rowFix),
-      grades: (j.grades || []).map((g) => ({ ...g, sem: ctx.normSemester(g.sem) })), faculty: j.faculty || [], degree: [], recommended: [],
-      payments: { schedule: (j.payments || []).filter((p) => p.due && p.amount), fees: {} } };
-  }
   const paint = () => { if (ctx.route() === "sync") ctx.rerender(); };
   async function readImages(files) {
     files = files.filter(isImageFile);
     if (!files.length) return toast("Choose a screenshot (PNG or JPG)", "warn", "Pick the picture from your gallery or files.");
-    const smart = $("#smart")?.checked;
     stage = "scan"; scan = { up: 1, ocr: 0, id: 0, prep: 0, cur: "ocr", found: "" }; paint();
     const results = [], raws = [];
     for (const [i, f] of files.entries()) {
       try {
-        if (smart) { results.push(fromSmart(await ctx.cloud.smartScan(f))); }
-        else {
+        {
           const prog = (pr) => { scan.ocr = (i + pr) / files.length; const b = $(".steps .sp:nth-child(2) .bar span"); if (b) b.style.width = Math.round(scan.ocr * 100) + "%"; };
           let t = await readText(f, prog), r = ctx.parsePortalText(t);
           // Zoomed-out pages have tiny text: if rows were clearly missed, read once more at a bigger size and keep the better result.
@@ -117,7 +110,7 @@ export function install(ctx) {
     const r = mergeResults(results);
     scan.id = 1; scan.cur = "prep"; scan.found = summary(r) || ""; paint();
     if (isEmptyResult(r)) { scan.error = "We couldn't find portal data in that screenshot."; scan.cur = ""; paint(); return; }
-    setTimeout(() => { scan.prep = 1; paint(); setTimeout(() => finishParse(null, smart ? "smart scan" : "screenshot", raws.join("\n\n—\n\n"), r), 600); }, 500);
+    setTimeout(() => { scan.prep = 1; paint(); setTimeout(() => finishParse(null, "screenshot", raws.join("\n\n—\n\n"), r), 600); }, 500);
   }
   const rowsOf = (r) => r.routine.length + r.offered.length + r.grades.length + r.recommended.length + r.payments.schedule.length;
   const missedRows = (t, r) => {
@@ -239,6 +232,60 @@ export function install(ctx) {
     }
   }
 
+  /* ───────── EWU portal sign-in (Android app, src/portalsync.js) ─────────
+     The password is typed into EWU's own login form inside the phone and goes only to EWU; it is never stored or
+     sent to EWUdiots. The student answers EWU's small sum; the app then reads the pages and shows them for review. */
+  const portal = { st: null, steps: {}, error: "", opening: false, id: "" };
+  function portalView() {
+    const id = portal.id || S().profile?.id || (ctx.C.user?.email || "").split("@")[0].replace(/[^\d-]/g, "");
+    if (!ctx.native.canPortalSync()) return `${brandHead("#/sync")}<div style="max-width:560px;margin:0 auto"><div class="card">${ctx.empty("icon:lock", "Portal sign-in works in the Android app", "Browsers don't let one website sign in to another for you. On a computer, the Chrome extension does the same in one click.", `<a class="btn primary" href="${ctx.native.isNative ? ctx.SITE : ""}/#download">${icon("download")} Get the Android app</a><button class="btn" id="ps-ext">${icon("chrome")} Use the extension</button>`)}</div><button class="btn ghost block mt" id="sy-back">Back</button></div>`;
+    const st = portal.st, steps = Object.entries(portal.steps), ready = Boolean(st && (st.first || st.login === false));
+    return `${brandHead("#/sync")}<div style="max-width:560px;margin:0 auto">
+      <div class="ps-hero"><span class="ps-lock">${icon("lock")}</span><div><h1>Sign in to the <span class="hl">EWU portal</span></h1><p class="muted">Your routine, grades, CGPA, advisor and fees, read straight from portal.ewubd.edu.</p></div></div>
+      ${steps.length ? `<section class="card mt ps-steps">${steps.map(([l, v]) => `<div class="ps-step ${v}"><span class="ps-dot">${v === "done" ? icon("check", "sm") : v === "skipped" ? icon("minus", "sm") : '<i class="spin"></i>'}</span><b>${esc(l)}</b><span class="xs">${v === "done" ? "Read" : v === "skipped" ? "Not available" : v === "reading" ? "Reading…" : "Waiting"}</span></div>`).join("")}</section>`
+      : `<form id="ps-form" class="card mt stack" novalidate autocomplete="off">
+        <label class="field">Student ID<input class="input" name="id" inputmode="numeric" value="${esc(id)}" placeholder="2024-1-60-123" required></label>
+        ${st && st.login === false ? `<div class="alert green">${icon("checkc")}<div><b>Already signed in to the portal on this phone</b></div></div>` : `<label class="field">Portal password<span class="pw-wrap"><input class="input" name="password" type="password" autocomplete="off" required><button type="button" class="pw-eye" data-eye aria-label="Show password">${icon("eye", "sm")}</button></span></label>
+        <label class="field">EWU's check: what is <b>${st && st.first ? `${esc(st.first)} + ${esc(st.second)}` : "…"}</b>?<input class="input" name="answer" inputmode="numeric" maxlength="3" ${ready ? "" : "disabled"} placeholder="${ready ? "Answer" : "Loading the portal…"}"></label>`}
+        ${portal.error ? `<div class="alert red">${icon("alert")}<div><b>${esc(portal.error)}</b></div></div>` : ""}
+        <button class="btn primary lg block" ${ready ? "" : "disabled"}>${icon("sync")} Sign in &amp; sync</button>
+        ${!st && portal.error ? `<button type="button" class="btn ghost block" id="ps-retry">${icon("reset")} Try again</button>` : ""}</form>`}
+      <div class="privacy">${icon("shield")}<div><b>Your password stays between you and EWU</b><p>It's typed into EWU's own sign-in form on this phone. EWUdiots never stores it or sends it anywhere. We read only academic details (never your NID, phone, address or date of birth) and sign you out of the portal when we're done.</p></div></div>
+      <button class="btn ghost block mt" id="sy-back">Back</button></div>`;
+  }
+  function mountPortal(el) {
+    const P = ctx.native.PortalSync;
+    $("#sy-back", el)?.addEventListener("click", () => { stage = "pick"; Object.assign(portal, { st: null, steps: {}, error: "" }); if (ctx.native.canPortalSync()) P.close().catch(() => {}); ctx.rerender(); });
+    $("#ps-ext", el)?.addEventListener("click", () => { stage = "ext"; ctx.rerender(); });
+    $("#ps-retry", el)?.addEventListener("click", () => { portal.error = ""; ctx.rerender(); });
+    $$("[data-eye]", el).forEach((b) => b.addEventListener("click", () => { const i = b.previousElementSibling; i.type = i.type === "password" ? "text" : "password"; }));
+    if (!ctx.native.canPortalSync()) return;
+    if (!portal.st && !portal.opening && !portal.error) {
+      portal.opening = true;
+      portalStart(P).then((st) => { portal.st = st; }).catch((e) => { portal.error = e.message || "Couldn't reach the EWU portal."; })
+        .finally(() => { portal.opening = false; if (ctx.route() === "sync" && stage === "portal") ctx.rerender(); });
+    }
+    $("#ps-form", el)?.addEventListener("submit", async (e) => {
+      e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), b = e.target.querySelector("button.primary");
+      portal.id = String(f.id || "").trim(); busy(b, true, "Signing in…");
+      try {
+        if (portal.st.login !== false) await portalSignIn(P, { id: portal.id, password: f.password, answer: f.answer });
+        portal.error = ""; PORTAL_PAGES.forEach((pg) => { portal.steps[pg.label] = "waiting"; }); ctx.rerender();
+        const pages = await portalRead(P, (label, v) => { portal.steps[label] = v; if (ctx.route() === "sync") ctx.rerender(); });
+        await P.close().catch(() => {});
+        Object.assign(portal, { st: null, steps: {} });
+        const r = pages.length ? finishParse(pages.map((pg) => ctx.parsePortalText(pg.text)), `EWU portal (${pages.map((pg) => pg.page).join(", ")})`) : null;
+        if (r) toast("Read from the EWU portal", "success", "Check everything and press Save.");
+        else { portal.error = "Signed in, but no academic pages could be read. Try again, or use a screenshot."; ctx.rerender(); }
+      } catch (x) {
+        busy(b, false);
+        portal.error = x.message || "Sign-in failed."; portal.st = x.status?.first ? x.status : portal.st; portal.steps = {};
+        if (!x.field && !x.status) { portal.st = null; P.close().catch(() => {}); }
+        ctx.rerender();
+      }
+    });
+  }
+
   /* ───────── Extension bridge (extension/bridge.js) ───────── */
   window.addEventListener("message", (e) => {
     if (e.source !== window || !e.data || typeof e.data !== "object") return;
@@ -284,5 +331,5 @@ export function install(ctx) {
     } catch (e) { console.warn("Inbox check failed", e); return false; }
     finally { inboxBusy = false; }
   }
-  return { takeExtHandoff, checkInbox, openSync: (m) => { method = m; stage = m === "img" ? "pick" : m === "txt" ? "paste" : "ext"; ctx.go("#/sync"); } };
+  return { takeExtHandoff, checkInbox, openSync: (m) => { method = m; stage = m === "img" ? "pick" : m === "txt" ? "paste" : m === "portal" ? "portal" : "ext"; ctx.go("#/sync"); } };
 }

@@ -78,3 +78,8 @@ export async function downloadAndInstall(url, onProgress = () => {}) {
   try { await ApkUpdater.downloadAndInstall({ url }); } finally { h.remove(); }
 }
 export const onResume = (fn) => { if (isNative) App.addListener("resume", fn); };
+export const onPause = (fn) => { if (isNative) App.addListener("pause", fn); };
+
+/* EWU portal sign-in on the phone (android/…/PortalSyncPlugin.java). */
+export const PortalSync = registerPlugin("PortalSync");
+export const canPortalSync = () => isNative && platform === "android" && Capacitor.isPluginAvailable("PortalSync");

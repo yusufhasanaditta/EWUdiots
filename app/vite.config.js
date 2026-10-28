@@ -4,13 +4,17 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { fetchNotices, parseNotices, NOTICE_SOURCE } from "./src/notices.js";
 import { fetchNews, parseNews, NEWS_SOURCE } from "./src/news.js";
+import { fetchCalendar, parseCalendarPage, parseFinals, CAL_SOURCE } from "./src/acadcal.js";
 
 /* /api/notices and /api/news outside Vercel (vite dev + preview), same data as api/*.js.
    Tests set NOTICES_FIXTURE / NEWS_FIXTURE to saved pages so they don't depend on ewubd.edu. */
 const ewuApi = () => {
   const feeds = {
     "/api/notices": { key: "notices", source: NOTICE_SOURCE, fixture: "NOTICES_FIXTURE", parse: parseNotices, live: () => fetchNotices(2) },
-    "/api/news": { key: "news", source: NEWS_SOURCE, fixture: "NEWS_FIXTURE", parse: parseNews, live: () => fetchNews(2) }
+    "/api/news": { key: "news", source: NEWS_SOURCE, fixture: "NEWS_FIXTURE", parse: parseNews, live: () => fetchNews(2) },
+    // CALENDAR_FIXTURE: a folder with ewu-calendar-fall-2026.html + ewu-finals-fall-2026.html (tests).
+    "/api/calendar": { key: "semesters", source: CAL_SOURCE, fixture: "CALENDAR_FIXTURE", live: () => fetchCalendar(),
+      parse: (dir) => [{ sem: "Fall-2026", events: parseCalendarPage(readFileSync(dir + "/ewu-calendar-fall-2026.html", "utf8"), "Fall-2026"), finals: parseFinals(readFileSync(dir + "/ewu-finals-fall-2026.html", "utf8")) }] }
   };
   const cache = {};
   const handle = async (req, res, next) => {
@@ -20,7 +24,7 @@ const ewuApi = () => {
     try {
       if (!cache[path] || Date.now() - cache[path].at > 30 * 60e3) {
         const fx = process.env[f.fixture];
-        cache[path] = { at: Date.now(), items: fx ? f.parse(readFileSync(fx, "utf8")) : await f.live() };
+        cache[path] = { at: Date.now(), items: fx ? f.parse(path === "/api/calendar" ? fx : readFileSync(fx, "utf8")) : await f.live() };
       }
       res.end(JSON.stringify({ source: f.source, fetched: new Date(cache[path].at).toISOString(), [f.key]: cache[path].items }));
     } catch (e) { res.statusCode = 502; res.end(JSON.stringify({ error: String(e.message), [f.key]: [] })); }

@@ -4,7 +4,6 @@ import { CLUBS } from "./campus-data.js";
 export function install(ctx) {
   const { pages, icon, esc, $, $$, toast, openModal, closeModal, modalHead, confirmModal, busy } = ctx;
   const S = () => ctx.S;
-  const spark = `<svg class="spark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9 3 4M11 7l1-5M16 10l5-3" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>`;
 
   /* ═════════════ HOME ═════════════ */
   pages.home = () => {
@@ -62,7 +61,7 @@ export function install(ctx) {
           <div class="mascot-card green"><img src="/img/mascot-thumbs.webp" alt="" width="110"><span class="scribble">“Same campus.<br>Brighter you.”${ctx.swoosh}</span></div>
         </div>
       </div>
-      <div class="grid g2 mt">${deadlines}<div class="grid g2">${streakCard}${attCard}</div></div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}${eventsCard()}</div>`;
+      <div class="grid g2 mt">${deadlines}<div class="grid g2">${streakCard}${attCard}</div></div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}${ctx.acal?.homeCard() || ""}${eventsCard()}</div>`;
 
     const dueToday = St.tasks.filter((t) => !t.done && new Date(t.due).toDateString() === now.toDateString()).length;
     const todayStrip = todays.length ? `<div class="today-strip" role="list" aria-label="Today's classes">${todays.map((b) => { const live = b.s <= nowM && nowM < b.e, past = b.e <= nowM;
@@ -76,7 +75,7 @@ export function install(ctx) {
       <a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Remind me 30 min before”</span></span>${icon("arrow")}</a>
       ${ncCard}${todayStrip}${navStrip}
       <h2 class="mgroup-h">Quick access</h2><div class="qgrid">${TILES.map(([id, ic, tone, t]) => `<a class="qtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span>${t}</a>`).join("")}</div>
-      <div class="mt">${deadlines}</div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}${eventsCard()}
+      <div class="mt">${deadlines}</div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}${ctx.acal?.homeCard() || ""}${eventsCard()}
       <div class="g2m mt">${streakCard}${attCard}</div></div>`;
     const b = ctx.content.banner();
     const banner = b ? `<div class="alert ${b.tone || "purple"} admin-banner fx-rise"><span class="a-ic">${icon(b.tone === "red" ? "alert" : "megaphone")}</span><div class="grow"><b>${esc(b.title || "From the EWUdiots team")}</b><p>${esc(b.text)}</p></div>${b.link ? `<a class="btn sm" href="${esc(b.link)}" ${/^https:/.test(b.link) ? 'target="_blank" rel="noopener"' : ""}>${esc(b.cta || "Open")}</a>` : ""}</div>` : "";
@@ -129,10 +128,10 @@ export function install(ctx) {
     const GROUPS = [
       ["Teaching", [["teach", "briefcase", "purple", "Teaching hub", "Office hours, consultations", "f"]]], ["Alumni", [["alumhub", "cap", "green", "Alumni hub", "Mentoring and openings", "a"]]],
       ["Academics", [["office", "clock", "teal", "Office hours", "Book a consultation", "s"], ["alarms", "bell", "pink", "Class Alarms", "Warn me before class", "s"], ["courses", "book", "teal", "My Courses", "Course hubs and notes", "s"], ["planner", "calcheck", "green", "Advising Planner", "Plan your next semester", "s"], ["marks", "notes", "blue", "Marks Estimator", "Predict your grades", "s"],
-        ["degree", "cap", "yellow", "Degree Progress", "Credits by requirement", "s"], ["exams", "exam", "orange", "Exam Planner", "Revision plan for exams", "s"], ["fees", "receipt", "red", "Fees & Deadlines", "Track payments and tasks", "s"], ["sync", "sync", "teal", "Sync Portal", "Import from the EWU portal", "s"]]],
+        ["degree", "cap", "yellow", "Degree Progress", "Credits by requirement", "s"], ["insights", "chart", "purple", "Analytics", "CGPA trend and charts", "s"], ["scholarship", "trophy", "orange", "Scholarships", "What CGPA you need", "s"], ["exams", "exam", "orange", "Exam Planner", "Revision plan for exams", "s"], ["fees", "receipt", "red", "Fees & Deadlines", "Track payments and tasks", "s"], ["sync", "sync", "teal", "Sync Portal", "Import from the EWU portal", "s"], ["classroom", "school", "green", "Google Classroom", "Materials and assignments", "s"]]],
       ["Study", [["focus", "target", "pink", "Focus Timer", "Pomodoro and analytics", "sf"], ["cards", "cards", "pink", "Flashcards", "Spaced repetition decks", "sf"], ["vault", "vault", "blue", "Study Vault", "Notes, past papers, slides", "sfa"], ["me", "award", "purple", "Achievements", "View your badges and stats", "sf"]]],
       ["Campus", [["map", "map", "purple", "Campus Map", "Find rooms, walk in 3D", "sfa"], ["rooms", "building", "purple", "Free Rooms", "Find empty classrooms", "sfa"], ["idcard", "user", "teal", "My ID Card", "Your 3D student pass", "s"], ["faculty", "users", "purple", "Faculty & Reviews", "Contacts and ratings", "sfa"], ["cover", "file", "green", "Cover Page", "Assignment cover PDF", "sa"]]],
-      ["Community", [["notices", "megaphone", "orange", "Notice Board", "Official EWU notices", "sfa"], ["news", "globe", "blue", "Campus News", "Stories from EWU", "sfa"], ["events", "calendar", "pink", "Events", "Workshops, concerts, clubs", "sfa"], ["alumni", "community", "green", "Alumni", "Where graduates are now", "sfa"], ["blog", "notes", "purple", "Blog", "Tips and stories", "sfa"], ["jobs", "briefcase", "blue", "Jobs", "Jobs & internships", "sfa"], ["mentors", "heart", "pink", "Mentors", "Ask alumni for advice", "s"]]]
+      ["Community", [["notices", "megaphone", "orange", "Notice Board", "Official EWU notices", "sfa"], ["news", "globe", "blue", "Campus News", "Stories from EWU", "sfa"], ["events", "calendar", "pink", "Events", "Workshops, concerts, clubs", "sfa"], ["calendar", "calcheck", "red", "Academic calendar", "Holidays, payments, finals", "sfa"], ["alumni", "community", "green", "Alumni", "Where graduates are now", "sfa"], ["blog", "notes", "purple", "Blog", "Tips and stories", "sfa"], ["jobs", "briefcase", "blue", "Jobs", "Jobs & internships", "sfa"], ["mentors", "heart", "pink", "Mentors", "Ask alumni for advice", "s"]]]
     ].map(([g, list]) => [g, list.filter((t) => t[5].includes(rk) && (!ctx.PAGE_FEATURE[t[0]] || ctx.content.feature(ctx.PAGE_FEATURE[t[0]])))]).filter(([, list]) => list.length);
     return `<a class="me-card" href="#/profile">${ctx.myAvatar("lg")}<span class="grow min0"><b class="ellipsis">${esc(p.name || "Set up your profile")}</b><span class="ellipsis">${esc([p.id, p.program || p.department].filter(Boolean).join(" · ") || ctx.roleLabel())}</span>
         <span class="me-sync ${ctx.C.user ? "on" : ""}">${icon(ctx.C.user ? "cloud" : "database", "sm")} ${ctx.C.user ? "Synced on all your devices" : "Saved on this device"}</span></span>${icon("chevR")}</a>
@@ -145,8 +144,18 @@ export function install(ctx) {
           .map(([id, ic, tone, t, d]) => `<a class="lrow" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span><span class="body"><b>${t}</b><span>${d}</span></span>${icon("chevR", "chev")}</a>`).join("")}
         <button class="lrow" id="mo-share"><span class="itile purple">${icon("share")}</span><span class="body"><b>Share with Friends</b><span>Help your friends find it</span></span>${icon("chevR", "chev")}</button>
       </section>
-      <div class="card soft mt" style="text-align:center"><b>${icon("heart", "sm")} Built by students, for students.</b><p class="small muted">Unofficial · not affiliated with East West University</p></div>`;
+      ${devCard()}`;
   };
+  /* The maker of EWUdiots (More and About). */
+  const devCard = () => `<section class="dev-card mt" aria-label="Made by">
+    <div class="dev-glow" aria-hidden="true"></div>
+    <img class="dev-photo" src="/img/dev-yusuf.webp" alt="Yusuf Hasan Aditta" width="88" height="88" loading="lazy">
+    <div class="dev-body"><span class="dev-kicker">${icon("heart", "sm")} Built by a student, for students</span>
+      <b class="dev-name">Yusuf Hasan Aditta</b>
+      <span class="dev-role">CSE · East West University</span>
+      <div class="dev-links"><a class="btn sm dev-btn" href="https://github.com/yusufhasanaditta" target="_blank" rel="noopener">${icon("github", "sm")} GitHub</a><a class="btn sm dev-btn li" href="https://www.linkedin.com/in/yusuf-hasan-aditta" target="_blank" rel="noopener">${icon("linkedin", "sm")} LinkedIn</a></div>
+    </div></section>
+    <p class="xs mt-s" style="text-align:center">Unofficial · not affiliated with East West University</p>`;
   pages.more.mount = (el) => {
     $("#mo-install", el)?.addEventListener("click", async () => { const p = ctx.C.install; if (!p) return; p.prompt(); await p.userChoice.catch(() => {}); ctx.C.install = null; ctx.rerender(); });
     moShare(el);
@@ -348,9 +357,9 @@ export function install(ctx) {
     busy(b, false);
   });
   pages.about = () => `${ctx.subHead("About EWUdiots", "", "#/more")}<div style="max-width:760px;margin:0 auto">
-    <section class="card" style="text-align:center"><div class="ob-word" style="padding:8px 0"><span class="w" style="font-size:38px">EWU<i>diots</i>${spark}</span><p>Your Uni Life, In One App</p><span class="unoff">Unofficial · not affiliated with EWU</span></div>
+    <section class="card" style="text-align:center"><div class="ob-word" style="padding:8px 0"><span class="w" style="font-size:38px">EWU<i>diots</i></span><p>Your Uni Life, In One App</p><span class="unoff">Unofficial · not affiliated with EWU</span></div>
       <p class="small muted mt">Version ${ctx.APP_VERSION}. Made by EWU students, for EWU students. EWUdiots is not affiliated with, endorsed by or connected to East West University. Always confirm important information on the official portal.</p>
-      <div class="row center mt"><a class="btn sm" href="/privacy.html" target="_blank" rel="noopener">Privacy policy</a><a class="btn sm" href="/terms.html" target="_blank" rel="noopener">Terms</a></div></section></div>`;
+      <div class="row center mt"><a class="btn sm" href="/privacy.html" target="_blank" rel="noopener">Privacy policy</a><a class="btn sm" href="/terms.html" target="_blank" rel="noopener">Terms</a></div></section>${devCard()}</div>`;
 
   /* ═════════════ ONBOARDING + ACCOUNTS (full screen) ═════════════
      Split layout: a brand panel (logo, promise, live-looking cards drawn in CSS) and the form. No cropped pictures. */
@@ -406,7 +415,7 @@ export function install(ctx) {
       ? `<h2 class="mt" style="text-align:center">Sign in with a code</h2><p class="muted small" style="text-align:center">No password needed. We email a 6-digit code to your account's email.</p>
         <form id="au-cd1" class="stack mt" novalidate><label class="field">Student ID or email<span class="searchbar">${icon("user")}<input class="input" name="who" autocomplete="username" required value="${esc(auth.email)}" placeholder="2024-1-60-123 or you@gmail.com"></span></label><div id="au-err"></div>
         <button class="btn primary lg block">${icon("mail")} Email me a code</button><div class="row"><button type="button" class="btn ghost grow" id="au-scanin">${icon("scan")} Scan ID card</button><button type="button" class="btn ghost grow" data-am="signin">Back</button></div></form>`
-      : `<div class="verify-ill">${icon("mail")}</div><h2 style="text-align:center">Check your email</h2><p class="muted small" style="text-align:center">We sent a sign-in code to <b>${esc(auth.email)}</b>.${/@std\.ewubd\.edu$/.test(auth.email) ? " Open your EWU student mail" : " Open your inbox"} (check spam too).</p>
+      : `<div class="verify-ill">${icon("mail")}</div><h2 style="text-align:center">Check your email</h2><p class="muted small" style="text-align:center">We sent a sign-in code to <b>${esc(auth.email)}</b>.${/@std\.ewubd\.edu$/.test(auth.email) ? " Open your EWU student mail" : " Open your inbox"}.</p><p class="xs mail-hint">It comes from <b>EWUdiots &lt;ewudiots@gmail.com&gt;</b> within a minute. Not there? Look in <b>Spam</b> or <b>Promotions</b>, or search your mail for “EWUdiots”. Still nothing after 2 minutes? Tap “Send a new code”.</p>
         <form id="au-cd2" class="stack mt" novalidate><label class="field">Code<input class="input otp" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label><div id="au-err"></div>
         <button class="btn primary lg block">${icon("check")} Sign in</button><div class="row"><button type="button" class="btn ghost grow" id="au-cdre">${icon("reset")} Send a new code</button><button type="button" class="btn ghost grow" id="au-cdback">Back</button></div></form>`;
     else if (auth.mode === "signup") {
@@ -424,7 +433,7 @@ export function install(ctx) {
         ${pwField("password", "Create a password", "new-password")}${pwField("password2", "Confirm password", "new-password")}
         <p class="xs">At least 8 characters, with letters and numbers.</p>
         <div id="au-err"></div><button class="btn primary lg block" ${auth.role === "student" && viaCard && !auth.card ? "disabled" : ""}>${icon("mail")} Create account &amp; send code</button></form>`;
-    } else if (auth.mode === "verify") body = `<div class="verify-ill">${icon("mail")}</div><h2 style="text-align:center">Check your email</h2><p class="muted small" style="text-align:center">We sent a 6-digit code to <b>${esc(auth.email)}</b>.${/@std\.ewubd\.edu$/.test(auth.email) ? " Open your EWU student mail" : " Open your inbox"} (check spam too).</p>
+    } else if (auth.mode === "verify") body = `<div class="verify-ill">${icon("mail")}</div><h2 style="text-align:center">Check your email</h2><p class="muted small" style="text-align:center">We sent a 6-digit code to <b>${esc(auth.email)}</b>.${/@std\.ewubd\.edu$/.test(auth.email) ? " Open your EWU student mail" : " Open your inbox"}.</p><p class="xs mail-hint">It comes from <b>EWUdiots &lt;ewudiots@gmail.com&gt;</b> within a minute. Not there? Look in <b>Spam</b> or <b>Promotions</b>, or search your mail for “EWUdiots”. Still nothing after 2 minutes? Tap “Send a new code”.</p>
         <form id="au-code" class="stack mt" novalidate><label class="field">Code<input class="input otp" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label><div id="au-err"></div>
         <button class="btn primary lg block">${icon("check")} Verify &amp; continue</button><div class="row"><button type="button" class="btn ghost grow" id="au-resend">${icon("reset")} Send a new code</button><button type="button" class="btn ghost grow" data-am="signin">Back</button></div></form>`;
     else if (auth.mode === "forgot") body = `<h2 class="mt" style="text-align:center">Forgot your password?</h2><p class="muted small" style="text-align:center">Enter your student ID or email. We'll email you a 6-digit code to set a new password.</p>
@@ -457,7 +466,10 @@ export function install(ctx) {
       if (auth.card?.back && ctx.C.user?.email?.startsWith(auth.card.id + "@")) await ctx.idcard.verifyWithCard(auth.card);
       if (!S().profile && auth.name) S().profile = { name: auth.name, creditsTotal: 140, semester: ctx.currentSemester() };
       ctx.save(); Object.assign(auth, { mode: "signin", card: null, pendingRole: "" });
-      toast(msg, "success"); next();
+      toast(msg, "success");
+      // Android students with nothing synced yet go straight to "Sign in to the EWU portal".
+      if (ctx.native.canPortalSync() && S().role === "student" && !S().routine.length) { ctx.sync.openSync("portal"); return; }
+      next();
     };
     on("#au-card", "click", async () => {
       const card = await ctx.idcard.scan({ title: "Your EWU ID card", cta: "Use this card" });

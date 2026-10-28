@@ -535,13 +535,14 @@ export function install(ctx) {
         <a class="btn outline block mt" href="#/marks?c=${encodeURIComponent(code)}&from=course">${icon("calc")} Attendance Estimator</a>`; }
     else if (chTab === "notes") body = `<section class="card stack"><div class="card-h" style="margin:0"><h2>${icon("edit")} Notes</h2><span class="xs" id="ch-saved">Saved on this device</span></div>
       <textarea class="input" id="ch-notes" rows="14" placeholder="Class notes, formulas, what the faculty said will be on the exam…" aria-label="Notes for ${esc(code)}">${esc(st().notes[code] || "")}</textarea></section>`;
-    else body = `<section class="card stack"><h2>Course Materials</h2>
+    else body = `${ctx.materials.panel(code, { faculty: c.faculty, sec: c.sec, sem: S0.routineSem })}
+      <h3 class="mat-h">Your own links</h3><section class="card stack">
       ${links.map((l, i) => `<div class="lrow"><span class="itile sm green">${icon("link")}</span><a class="body" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener noreferrer"><b>${esc(l.title)}</b><span>${esc(l.url)}</span></a><button class="btn sm icon-only ghost" data-ldel="${i}" aria-label="Remove link">${icon("trash")}</button></div>`).join("") || '<p class="small muted">Add Google Classroom, a Drive folder, the course outline, a YouTube playlist…</p>'}
       <form id="ch-link" class="grid g2"><input class="input" name="title" placeholder="Title" required maxlength="60" aria-label="Link title"><input class="input" name="url" type="url" placeholder="https://" required aria-label="Link URL"><button class="btn full-row">${icon("plus")} Add link</button></form>
       <a class="btn outline" href="#/vault?q=${encodeURIComponent(code)}">${icon("vault")} Find ${esc(code)} notes in the Study Vault</a></section>`;
     return `${ctx.subHead(esc(code), esc(c.title || ""), "#/courses", f?.email ? `<a class="icon-btn" href="mailto:${esc(f.email)}?subject=${encodeURIComponent(code + " Section " + (c.sec || ""))}" aria-label="Email faculty">${icon("mail")}</a>` : "")}
       <div style="max-width:900px;margin:0 auto"><section class="course-hero"><h1>${esc(code)}</h1><p>${esc(c.title || "")}</p><div class="row">${c.sec ? `<span>${icon("users", "sm")} Section ${esc(c.sec)}</span>` : ""}<span>${icon("calendar", "sm")} ${esc(S0.routineSem || "")}</span>${f ? `<a href="#/prof?i=${encodeURIComponent(f.init)}" style="color:#fff">${icon("user", "sm")} ${esc(f.name || f.init)}</a>` : ""}</div></section>
-      <div class="mt">${ctx.seg([["overview", "Overview"], ["marks", "Marks"], ["attendance", "Attendance"], ["notes", "Notes"], ["materials", "Materials"]], chTab, "data-cht")}</div><div class="mt">${body}</div></div>`;
+      <div class="mt">${ctx.seg([["overview", "Overview"], ["materials", "Materials"], ["marks", "Marks"], ["attendance", "Attendance"], ["notes", "Notes"]], chTab, "data-cht")}</div><div class="mt">${body}</div></div>`;
   };
   pages.course.mount = (el) => {
     const code = (ctx.qparam("c") || "").toUpperCase();
@@ -552,6 +553,7 @@ export function install(ctx) {
     on("#ch-link", "submit", (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); if (!safeUrl(f.url)) return toast("Use a full link starting with https://", "error"); (st().links[code] = st().links[code] || []).push({ title: f.title.slice(0, 60), url: f.url }); ctx.save(); ctx.rerender(); });
     $$("[data-ldel]", el).forEach((b) => b.addEventListener("click", () => { st().links[code].splice(Number(b.dataset.ldel), 1); ctx.save(); ctx.rerender(); }));
     $$("[data-att]", el).forEach((b) => b.addEventListener("click", () => ctx.markAttendance(code, b.dataset.att)));
+    if (chTab === "materials") { const c = myCourses().find((x) => x.code === code); if (c) ctx.materials.mountPanel(el, code, { faculty: c.faculty, sec: c.sec, sem: S().routineSem }); }
   };
 
   /* ───────── Achievements + semester card ───────── */
