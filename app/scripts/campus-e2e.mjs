@@ -28,7 +28,7 @@ process.env.NOTICES_FIXTURE = resolve("tests/fixtures/ewu-notice-board.html"); /
 const server = await preview({ root: resolve("."), logLevel: "silent", preview: { port: PORT, strictPort: true } });
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--no-sandbox", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 const p = await browser.newPage();
-p.on("pageerror", (e) => errors.push(e.message));
+p.on("pageerror", (e) => errors.push(e.stack || e.message));
 p.on("console", (m) => { if (m.type() === "error" && !/fonts\.g|favicon|Failed to load resource|overrides\.json/.test(m.text())) errors.push(m.text()); });
 // Screen changes animate (View Transitions), so wait until the new screen is painted before reading it.
 const painted = (h) => p.waitForFunction((x) => { const id = x.replace(/^#\/?/, "").split("?")[0] || "home"; const pg = document.querySelector("[data-page]")?.dataset.page; return pg === id || ["off", "welcome", "notfound", "profile"].includes(pg); }, { timeout: 4000 }, h).catch(() => {});

@@ -10,6 +10,12 @@
   const COURSE_ROW = /^(\d{1,3}\t)?[A-Z]{3,4}\d{3,4}[A-Z]?\b/;
   const TIME = /\d{1,2}[:.]\d{2}\s*(AM|PM)?\s*-/i;
   const DEGREE_ROW = /\(\s*Out of\s*[\d.]+\s*\)/i;
+  // Fee rows: an Accounts Ledger line (a semester and a money amount) or an installment with its date and amount,
+  // and the header rows that name their columns.
+  const MONEY = /\d[\d,]*\.\d{2}\b/;
+  const LEDGER_ROW = (l) => /\b(Spring|Summer|Fall)[- ]?\d{4}\b/i.test(l) && MONEY.test(l) && l.includes("\t");
+  const INSTALL_ROW = (l) => /instal?l?ment/i.test(l) && MONEY.test(l) && /\d{1,2}[/ -]([A-Za-z]{3}|\d{1,2})[/ -]\d{2,4}/.test(l);
+  const FEE_HEAD = /Voucher\s*Type|\bDebit\b.*\bCredit\b|Instal?l?ment.*(Amount|Date)|(Amount|Date).*Instal?l?ment/i;
   // Lines (or table cells) that may leave the page. Anything not matching is discarded.
   const ALLOW = [
     COURSE_ROW, TIME, DEGREE_ROW,
@@ -30,14 +36,14 @@
   const allowed = (s) => ALLOW.some((re) => re.test(s));
   // Course rows hold no personal details, so a title like "Mobile Application
   // Development" is not mistaken for a phone field.
-  const wholeRow = (l) => COURSE_ROW.test(l) || TIME.test(l) || DEGREE_ROW.test(l);
+  const wholeRow = (l) => COURSE_ROW.test(l) || TIME.test(l) || DEGREE_ROW.test(l) || LEDGER_ROW(l) || INSTALL_ROW(l) || (FEE_HEAD.test(l) && !/\d{4}-\d-\d{2}-\d{3}/.test(l));
   const blocked = (l) => DENY.test(l) && !wholeRow(l);
 
   // Other table rows are filtered cell by cell: the Grade Report prints the guardian's
   // name and home address in the same rows as "Grade Report:" and "EWU ID:".
   function keep(line) {
     if (!line || blocked(line)) return "";
-    if (!line.includes("\t")) return allowed(line) ? line : "";
+    if (!line.includes("\t")) return allowed(line) || INSTALL_ROW(line) ? line : "";
     if (wholeRow(line)) return line;
     const cells = line.split("\t"), out = [];
     for (let i = 0; i < cells.length; i++) {
@@ -54,6 +60,9 @@
 
   // Which portal page this is. Checked against the whole page (not stored).
   const KINDS = [
+    ["ledger", "Accounts Ledger", (p, t) => /Ledger/i.test(p) || /Voucher\s*Type/i.test(t)],
+    ["installment", "Installments", (p, t) => /Instal?l?ment/i.test(p)],
+    ["curriculum", "Curriculum", (p, t) => /Curricul/i.test(p)],
     ["slip", "Advising Slip", (p, t) => /AdvisingSlip/i.test(p) || /Deposit\s*Slip/i.test(t)],
     ["grades", "Grade Report", (p, t) => /GradeSheet/i.test(p) || /Term\s*GPA/i.test(t)],
     ["degree", "Degree Review", (p, t) => /DegreeReview/i.test(p) || /Out\s*of\s*\d/i.test(t)],

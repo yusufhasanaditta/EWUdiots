@@ -4,6 +4,8 @@ import "./styles.css";
 import "./campus.css";
 import "./fx.css";
 import "./mobile.css";
+import "./v212.css";
+import { start as startDropdowns } from "./dropdown.js";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";
 import * as cloud from "./cloud.js";
@@ -28,6 +30,7 @@ import { install as installScholar } from "./ui-scholar.js";
 import { install as installMaterials } from "./ui-materials.js";
 import { install as installClassroom } from "./ui-classroom.js";
 import { install as installInsights } from "./ui-insights.js";
+import { install as installAttendance } from "./ui-attendance.js";
 import { createContent, FEATURES } from "./content.js";
 import { applyBrand } from "./theme.js";
 import { snapshot, stamp, merge } from "./syncmerge.js";
@@ -80,7 +83,7 @@ const loadDirectory = () => (dirP = dirP || fetch("/data/faculty.json").then((r)
 // A faculty photo that fails to load falls back to the initials underneath it.
 addEventListener("error", (e) => { const t = e.target; if (t.tagName === "IMG" && t.closest(".face")) t.remove(); }, true);
 let study = null; // study-mode API, installed at boot (src/study.js)
-let campus = null, idcard = null, notices = null, community = null, people = null, events = null, acal = null, materials = null;
+let charts = null, attendanceUi = null, campus = null, idcard = null, notices = null, community = null, people = null, events = null, acal = null, materials = null;
 const content = createContent(cloud); // admin-managed posts, settings, overrides // campus map + ID card APIs (src/ui-map.js, src/ui-idcard.js)
 async function pushNow() {
   if (!C.user) return false;
@@ -433,8 +436,9 @@ function nextClass() {
   const now = new Date(), nd = now.getDay(), nm = now.getHours() * 60 + now.getMinutes();
   for (let k = 0; k < 15; k++) {
     const d = (nd + k) % 7, date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + k);
-    if (acal?.isOff(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`)) continue; // university holiday
-    for (const b of blocks.filter((x) => x.day === d).sort((a, c) => a.s - c.s)) {
+    // Holidays, make-up days ("Regular Tuesday Classes") and the semester's first/last day come from the EWU calendar.
+    const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    for (const b of acal ? acal.classesOn(day) : blocks.filter((x) => x.day === d).sort((a, c) => a.s - c.s)) {
       if (k === 0 && b.e <= nm) continue;
       const live = k === 0 && b.s <= nm;
       return { ...b, live, mins: live ? b.e - nm : k * 1440 + b.s - nm };
@@ -484,6 +488,7 @@ function freeRoomsAt(day, s, e) {
   return rooms.filter((r) => !busyR.has(r));
 }
 function markAttendance(code, kind) {
+  if (kind !== "undo" && attendanceUi?.quick(code, kind)) return; // class-by-class when the semester's classes are known
   const a = S.attendance[code] = S.attendance[code] || { held: 0, missed: 0 }; a.log = a.log || [];
   if (kind === "undo") { const l = a.log.pop(); if (!l) return; a.held = Math.max(0, a.held - 1); if (l === "absent") a.missed = Math.max(0, a.missed - 1); }
   else { a.held++; if (kind === "absent") a.missed++; a.log.push(kind); study.award(3, "", true); }
@@ -516,17 +521,20 @@ function scheduleReminders() {
     if (acal) items.push(...acal.reminderItems().filter((x) => x.at > Date.now()));
     const t = S.study?.timer;
     if (t?.endAt) items.push({ key: "focus" + t.endAt, title: t.kind === "focus" ? "Focus session done" : "Break's over", body: t.kind === "focus" ? "Nice work. Take a short break." : "Start your next focus session.", at: new Date(t.endAt) });
-    await native.scheduleAll({ classes: expand(S.routine).map((c) => ({ ...c, offsets: alarmsFor(c.code) })).filter((c) => c.offsets.length), items }).catch(() => {});
+    // With the EWU calendar known, class alarms are dated (no alarm on Durga Puja or after the last class); else weekly.
+    const dated = acal?.ready() ? upcomingAlarms(400, 21) : null;
+    await native.scheduleAll({ classes: dated ? [] : expand(S.routine).map((c) => ({ ...c, offsets: alarmsFor(c.code) })).filter((c) => c.offsets.length), classAt: dated || [], items }).catch(() => {});
   }, 800);
 }
 const fmtBefore = (m) => (m >= 60 && m % 60 === 0 ? `${m / 60} hour${m === 60 ? "" : "s"}` : m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`);
 function alarmsFor(code) { const a = S.settings.alarms; if (!a.on) return []; return [...new Set(a.perCourse[code] || a.offsets)].sort((x, y) => y - x); }
 /* The next alarm times for the coming week: [{ at: Date, off, code, title, room, s, day }] */
-function upcomingAlarms(limit = 8) {
+function upcomingAlarms(limit = 8, days = 8) {
   const out = [], now = new Date();
-  for (let k = 0; k < 8; k++) {
+  for (let k = 0; k < days; k++) {
     const d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + k);
-    for (const b of expand(S.routine).filter((x) => x.day === d.getDay())) for (const off of alarmsFor(b.code)) {
+    const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    for (const b of acal ? acal.classesOn(day) : expand(S.routine).filter((x) => x.day === d.getDay())) for (const off of alarmsFor(b.code)) {
       const at = new Date(d.getTime() + (b.s - off) * 6e4);
       if (at > now) out.push({ at, off, ...b });
     }
@@ -622,6 +630,12 @@ function loadDemo() {
 /* ───────────── Cloud sign-in ───────────── */
 // Resolves once the first sign-in's cloud restore/backup has finished (the ID-card login waits for it).
 let signInDone = Promise.resolve();
+/* Same account, newer details (e.g. just verified with the ID card): swap them in and redraw if a badge changed. */
+function refreshUser(u) {
+  const before = JSON.stringify(C.user?.app_metadata || {});
+  C.user = u;
+  if (JSON.stringify(u.app_metadata || {}) !== before) rerender();
+}
 function onSignedIn(user) {
   const first = !C.user;
   C.user = user; C.faculty = null; C.sections = null; C.vault = null;
@@ -650,7 +664,7 @@ async function restoreOrBackup(user) {
 /* ───────────── Boot ───────────── */
 const ctx = {
   get S() { return S; }, resetState, pages, save, rerender, route: () => currentRoute, go, qparam, toast, openModal, closeModal, modalHead, confirmModal, modalOpen, busy,
-  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, get events() { return events; }, get acal() { return acal; }, get materials() { return materials; }, get sync() { return sync; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
+  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, get events() { return events; }, get acal() { return acal; }, get attendance() { return attendanceUi; }, get charts() { return charts; }, get materials() { return materials; }, get sync() { return sync; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
   afterSignIn: () => signInDone, LETTER, toMin, fmt12, fmtShort, dayIdx, expand, overlaps, toneFor, colorFor, HEX, TONES, gradePoint, cgpaOf, fmtMoney, fmtCountdown, daysUntil, fmtDate, firstName, initials, myAvatar, greeting,
   nextClass, nextPayment, markAttendance, facultyIndex, facBy, facName, offered, sectionBlocks, roomData, freeRoomsAt, baseRoom, enableNotifications, taskLine, duePill, TASK_IC, inbox, loadDemo, onSignedIn,
   isDark, applyTheme, palette, roleLabel, navFor, nextSemesterGuess, DAY_NAMES, WEEK, SLOTS, GRADES, NON_GPA, DEMO, parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey
@@ -670,9 +684,11 @@ installAsk(ctx);
 people = installPeople(ctx);
 events = installEvents(ctx);
 acal = installCalendar(ctx);
+startDropdowns();
+attendanceUi = installAttendance(ctx);
 installScholar(ctx);
 installClassroom(ctx);
-installInsights(ctx);
+charts = installInsights(ctx);
 content.onChange(() => { facCache = null; applyTheme(); rerender(); });
 content.refresh();
 setInterval(() => { if (document.visibilityState === "visible") { content.refresh(); loadMessages(); } }, 10 * 60e3);
@@ -780,7 +796,12 @@ sync.takeExtHandoff();
 scheduleReminders();
 if (cloud.enabled) {
   cloud.currentUser().then((u) => u && onSignedIn(u));
-  cloud.onAuth((u) => { if (u && !C.user) onSignedIn(u); else if (!u && C.user) { C.user = null; C.faculty = C.sections = C.vault = null; rerender(); } });
+  cloud.onAuth((u) => { if (u && !C.user) onSignedIn(u); else if (!u && C.user) { C.user = null; C.faculty = C.sections = C.vault = null; rerender(); } else if (u && C.user?.id === u.id) refreshUser(u); });
+  // The account's badges (verified student, role) change on the server: re-read them when the app comes back.
+  let userAt = Date.now();
+  const recheckUser = () => { if (C.user && Date.now() - userAt > 5 * 60e3) { userAt = Date.now(); cloud.currentUser().then((u) => u && C.user?.id === u.id && refreshUser(u)).catch(() => {}); } };
+  native.onResume(recheckUser);
+  document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && recheckUser());
 }
 setInterval(() => { if (currentRoute === "home" && !modalOpen() && document.visibilityState === "visible") rerender(); }, 60000);
 // Pick up pages the extension sends while the app is open (every 2 min, and whenever the app comes back to the front).

@@ -4,6 +4,8 @@
 import "../styles.css";
 import "../fx.css";
 import "../mobile.css";
+import "../v212.css";
+import { start as startDropdowns } from "../dropdown.js";
 import "./admin.css";
 import * as cloud from "../cloud.js";
 import { icon } from "../icons.js";
@@ -304,12 +306,13 @@ const VIEWS = {
     el.innerHTML = items.length ? `<div class="adm-cards">${items.map((it) => `<article class="card fx-rise"><div class="row"><span class="pill red">${it.rs.length} report${it.rs.length > 1 ? "s" : ""}</span><span class="pill">${esc(it.type)}</span>${it.t?.status === "hidden" ? '<span class="pill amber">Hidden</span>' : ""}<span class="grow"></span><span class="xs">${ago(it.rs[0].created_at)}</span></div>
         ${it.t ? it.type === "review" ? `<p class="mt-s"><b>${"★".repeat(it.t.stars)}</b> · ${esc(it.t.faculty_init)} ${it.t.course ? `· ${esc(it.t.course)}` : ""}</p><p class="small mt-s">${esc(it.t.body || "(no text)")}</p>` : `<p class="mt-s"><b>${esc(it.t.course)} - ${esc(it.t.title)}</b></p><p class="xs">${esc(it.t.type)}</p>` : `<p class="small muted mt-s">The item was already deleted.</p>`}
         ${it.rs.some((r) => r.reason) ? `<p class="xs mt-s">Reasons: ${it.rs.filter((r) => r.reason).map((r) => esc(r.reason)).join(" · ")}</p>` : ""}
-        <div class="row mt">${it.t && it.t.status !== "hidden" ? `<button class="btn sm danger" data-hide="${it.type}:${it.id}">${icon("eye", "sm")} Hide</button>` : ""}${it.t?.status === "hidden" ? `<button class="btn sm" data-show="${it.type}:${it.id}">Restore</button>` : ""}<button class="btn sm ghost" data-dismiss="${it.type}:${it.id}">Dismiss reports</button></div></article>`).join("")}</div>`
+        <div class="row mt">${it.t && it.t.status !== "hidden" ? `<button class="btn sm danger" data-hide="${it.type}:${it.id}">${icon("eye", "sm")} Hide</button>` : ""}${it.t?.status === "hidden" ? `<button class="btn sm" data-show="${it.type}:${it.id}">Restore</button>` : ""}${it.type === "resource" && it.t ? `<button class="btn sm danger" data-purge="${it.type}:${it.id}">${icon("trash", "sm")} Remove for good</button>` : ""}<button class="btn sm ghost" data-dismiss="${it.type}:${it.id}">Dismiss reports</button></div></article>`).join("")}</div>`
       : `<div class="card"><p class="small muted">No open reports. Students can report reviews and vault files; three reports hide an item automatically.</p></div>`;
     const tbl = (t) => (t === "review" ? "reviews" : "resources");
     const run = (attr, fn) => $$(`[data-${attr}]`, el).forEach((b) => b.addEventListener("click", async () => { const [t, id] = b.dataset[attr].split(":"); try { await fn(t, id); VIEWS.reports(el); refreshBadges(); } catch (e) { toast(e.message, "error"); } }));
     run("hide", (t, id) => act(`Hid ${t}`, id, () => api.update(tbl(t), { id }, { status: "hidden" })).then(() => toast("Hidden", "info")));
     run("show", (t, id) => act(`Restored ${t}`, id, () => api.update(tbl(t), { id }, { status: "published" })).then(() => toast("Restored")));
+    run("purge", async (t, id) => { if (!confirm("Remove this material for good? It is deleted for everyone and can't be restored.")) return; await act("Removed reported material", id, () => api.purgeResource(id)); await api.remove("reports", { target_type: t, target_id: id }).catch(() => {}); toast("Removed", "success"); });
     run("dismiss", (t, id) => act(`Dismissed reports on ${t}`, id, () => api.remove("reports", { target_type: t, target_id: id })).then(() => toast("Reports dismissed", "info")));
   },
 
@@ -543,6 +546,7 @@ async function exportAll() {
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: "application/json" })); a.download = `ewudiots-admin-${new Date().toISOString().slice(0, 10)}.json`; a.click(); toast("Export downloaded");
 }
 
+startDropdowns();
 /* ── boot ── */
 (async () => {
   // Demo sandbox for the end-to-end tests only (vite --mode test); production builds drop it.

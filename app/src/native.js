@@ -41,7 +41,7 @@ const hashId = (s) => { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt
  */
 const before = (m) => (m >= 60 && m % 60 === 0 ? `${m / 60} hour${m === 60 ? "" : "s"}` : m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`);
 let channel = false;
-export async function scheduleAll({ classes = [], minutesBefore = 10, items = [] }) {
+export async function scheduleAll({ classes = [], classAt = [], minutesBefore = 10, items = [] }) {
   if (!isNative) return false;
   if (!(await notificationsAllowed())) return false;
   if (!channel && platform === "android") { await LocalNotifications.createChannel({ id: "class-alarms", name: "Class alarms", description: "Warns you before each class, as early as you choose", importance: 5, visibility: 1, vibration: true, lights: true, lightColor: "#7C3AED" }).catch(() => {}); channel = true; }
@@ -54,9 +54,12 @@ export async function scheduleAll({ classes = [], minutesBefore = 10, items = []
     list.push({ id: hashId(`c|${c.code}|${c.day}|${c.s}|${off}`), title: `⏰ ${c.code} starts in ${before(off)}`, body: [c.title, c.room && `Room ${c.room}`].filter(Boolean).join(" · "),
       smallIcon: "ic_stat_notify", channelId: "class-alarms", schedule: { on: { weekday: day + 1, hour: Math.floor(m / 60), minute: m % 60 }, allowWhileIdle: true } });
   }
+  // Dated class alarms (holidays already left out by the caller).
+  for (const c of classAt) list.push({ id: hashId(`ca|${c.code}|${c.at.getTime()}|${c.off}`), title: `⏰ ${c.code} starts in ${before(c.off)}`, body: [c.title, c.room && `Room ${c.room}`].filter(Boolean).join(" · "),
+    smallIcon: "ic_stat_notify", channelId: "class-alarms", schedule: { at: c.at, allowWhileIdle: true } });
   const now = Date.now();
   for (const it of items) if (it.at.getTime() > now) list.push({ id: hashId(`i|${it.key}`), title: it.title, body: it.body, smallIcon: "ic_stat_notify", schedule: { at: it.at, allowWhileIdle: true } });
-  if (list.length) await LocalNotifications.schedule({ notifications: list.slice(0, 60) }); // iOS caps pending notifications at 64
+  if (list.length) await LocalNotifications.schedule({ notifications: list.slice(0, platform === "ios" ? 60 : 400) }); // iOS caps pending notifications at 64
   return true;
 }
 

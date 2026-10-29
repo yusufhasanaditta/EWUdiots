@@ -1,7 +1,8 @@
 /* Portal sync: choose a method → scanning progress → review & confirm ("Data Sync Flow" board).
    Also the Chrome-extension bridge and the #ext= hand-off from the extension popup. */
 import { readText, isImageFile } from "./ocr.js";
-import { start as portalStart, signIn as portalSignIn, readAll as portalRead, PORTAL_PAGES } from "./portalsync.js";
+import { start as portalStart, signIn as portalSignIn, readAll as portalRead, STEPS as PORTAL_STEPS } from "./portalsync.js";
+import { apiToParsed } from "./parser.js";
 
 export function install(ctx) {
   const { pages, icon, esc, uid, $, $$, toast, openModal, closeModal, modalHead, busy } = ctx;
@@ -118,13 +119,13 @@ export function install(ctx) {
     return (times >= 3 && (r.routine.length + r.offered.length) * 2 < times - 1) || (codes >= 3 && rowsOf(r) < codes * 0.6);
   };
   const summary = (r) => [r.routine.length && `${new Set(r.routine.map((x) => x.code)).size} courses`, r.grades.length && `${r.grades.length} grades`, r.payments.schedule.length && `${r.payments.schedule.length} fee deadline${r.payments.schedule.length > 1 ? "s" : ""}`,
-    r.offered.length && `${r.offered.length} offered sections`, r.degree.length && "degree progress", Object.keys(r.profile).length && "your profile"].filter(Boolean).join(", ").replace(/, ([^,]*)$/, " and $1");
+    r.offered.length && `${r.offered.length} offered sections`, r.history && Object.keys(r.history).length > 1 && `${Object.keys(r.history).length} semesters of classes`, r.ledger && "your fee ledger", r.curriculum?.length && `${r.curriculum.length} curriculum courses`, r.degree.length && "degree progress", Object.keys(r.profile).length && "your profile"].filter(Boolean).join(", ").replace(/, ([^,]*)$/, " and $1");
   function mergeResults(list) {
     const out = ctx.mergeParsed(list);
     out.routine = out.routine.map((r) => ({ ...r, id: uid(), keep: true }));
     return out;
   }
-  const isEmptyResult = (r) => !r.routine.length && !r.offered.length && !r.grades.length && !r.degree.length && !r.payments.schedule.length && !Object.keys(r.profile).length && !Object.keys(r.rules).length && !r.recommended.length;
+  const isEmptyResult = (r) => !r.routine.length && !r.offered.length && !r.grades.length && !r.degree.length && !r.payments.schedule.length && !Object.keys(r.profile).length && !Object.keys(r.rules).length && !r.recommended.length && !r.ledger && !r.curriculum?.length;
   function finishParse(list, source, raw = "", merged = null) {
     const r = merged || mergeResults(list);
     r.source = source; r.raw = raw;
@@ -138,8 +139,8 @@ export function install(ctx) {
   /* ───────── Review ───────── */
   function reviewView() {
     const p = pending, sem = p.sem || S().routineSem || ctx.currentSemester();
-    const other = p.offered.length + p.degree.length + Object.keys(p.rules).length + p.recommended.length;
-    const tabs = [["courses", `Courses (${new Set(p.routine.map((r) => r.code)).size})`], ["grades", `Grades (${p.grades.length})`], ["fees", `Fees (${p.payments.schedule.length ? 1 : 0})`], ["personal", "Personal (1)"]].concat(other ? [["other", `Other (${(p.offered.length ? 1 : 0) + (p.degree.length ? 1 : 0) + (Object.keys(p.rules).length ? 1 : 0) + (p.recommended.length ? 1 : 0)})`]] : []);
+    const nHist = Object.keys(p.history || {}).length, other = p.offered.length + p.degree.length + Object.keys(p.rules).length + p.recommended.length + (nHist > 1 ? 1 : 0) + (p.curriculum?.length ? 1 : 0);
+    const tabs = [["courses", `Courses (${new Set(p.routine.map((r) => r.code)).size})`], ["grades", `Grades (${p.grades.length})`], ["fees", `Fees (${p.payments.schedule.length + (p.ledger ? 1 : 0)})`], ["personal", "Personal (1)"]].concat(other ? [["other", `Other (${(p.offered.length ? 1 : 0) + (p.degree.length ? 1 : 0) + (Object.keys(p.rules).length ? 1 : 0) + (p.recommended.length ? 1 : 0) + (nHist > 1 ? 1 : 0) + (p.curriculum?.length ? 1 : 0)})`]] : []);
     const fields = [["name", "Full name"], ["id", "Student ID"], ["program", "Program"], ["department", "Department"], ["advisor", "Advisor"], ["cgpa", "CGPA (portal)"], ["creditsDone", "Credits earned"], ["creditsTotal", "Credits required"]];
     let body = "";
     if (rvTab === "courses") body = p.routine.length ? `<div class="card-h"><h2><span class="itile sm purple">${icon("school")}</span> Your Courses</h2><span class="xs">${p.routine.length} items</span></div>
@@ -149,11 +150,13 @@ export function install(ctx) {
       <p class="xs mt-s">Days: S Sun · M Mon · T Tue · W Wed · R Thu · F Fri · A Sat. This replaces your current routine.</p>`
       : ctx.empty("icon:calendar", "No classes in this sync", "Sync your Class Schedule or Advising Slip to get your routine.");
     else if (rvTab === "grades") body = p.grades.length ? `<div class="table-wrap"><table class="rv-table"><thead><tr><th>Semester</th><th>Course</th><th>Title</th><th>Cr</th><th>Grade</th></tr></thead><tbody>${p.grades.map((g) => `<tr><td class="small">${esc(g.sem || "—")}</td><td><b>${esc(g.code)}</b></td><td class="small">${esc(g.title)}</td><td class="num">${esc(g.cr)}</td><td><span class="pill purple">${esc(g.g)}</span></td></tr>`).join("")}</tbody></table></div>` : ctx.empty("icon:bars", "No grades in this sync", "Sync your Grade Report to see your CGPA.");
-    else if (rvTab === "fees") body = p.payments.schedule.length ? p.payments.schedule.map((x) => `<div class="lrow"><span class="itile ${x.late ? "orange" : "green"}">${icon("wallet")}</span><div class="body"><b>${x.late ? "With late fee" : "Regular deadline"}</b><span>${ctx.fmtDate(x.due)}</span></div><b class="num">${ctx.fmtMoney(x.amount)}</b></div>`).join("") : ctx.empty("icon:wallet", "No fees in this sync", "Sync your Advising / Deposit Slip to track payments.");
+    else if (rvTab === "fees") body = p.payments.schedule.length || p.ledger ? (p.ledger ? `<div class="lrow"><span class="itile blue">${icon("receipt")}</span><div class="body"><b>Accounts ledger</b><span>${p.ledger.semesters.length} semesters · paid ${ctx.fmtMoney(p.ledger.paid)}</span></div><b class="num">${p.ledger.due ? `${ctx.fmtMoney(p.ledger.due)} due` : "Nothing due"}</b></div>` : "") + p.payments.schedule.map((x) => `<div class="lrow"><span class="itile ${x.late ? "orange" : "green"}">${icon("wallet")}</span><div class="body"><b>${esc(x.label || (x.late ? "With late fee" : "Regular deadline"))}${x.paid ? " · paid" : ""}</b><span>${ctx.fmtDate(x.due)}</span></div><b class="num">${ctx.fmtMoney(x.amount)}</b></div>`).join("") : ctx.empty("icon:wallet", "No fees in this sync", "Sync your Advising / Deposit Slip to track payments.");
     else if (rvTab === "personal") body = `<div class="grid g2">${fields.map(([k, l]) => `<label class="field">${l}<input class="input" data-pf="${k}" value="${esc(p.profile[k] ?? S().profile?.[k] ?? "")}"></label>`).join("")}</div>`;
     else body = `<div class="stack">${p.offered.length ? `<div class="lrow"><span class="itile blue">${icon("calcheck")}</span><div class="body"><b>${p.offered.length} offered sections</b><span>${new Set(p.offered.map((o) => o.code)).size} courses for the advising planner${p.offeredSem ? ` · ${esc(p.offeredSem)}` : ""}</span></div></div>` : ""}
       ${p.degree.length ? `<div class="lrow"><span class="itile green">${icon("cap")}</span><div class="body"><b>Degree progress</b><span>${p.degree.length} requirement categories</span></div></div>` : ""}
       ${Object.keys(p.rules).length ? `<div class="lrow"><span class="itile purple">${icon("list")}</span><div class="body"><b>Advising rules</b><span>${Object.entries(p.rules).map(([k, v]) => `${esc(k)} ${esc(v)}`).join(" · ")}</span></div></div>` : ""}
+      ${nHist > 1 ? `<div class="lrow"><span class="itile teal">${icon("calendar")}</span><div class="body"><b>${nHist} semesters of classes</b><span>${Object.keys(p.history).map(esc).join(", ")}</span></div></div>` : ""}
+      ${p.curriculum?.length ? `<div class="lrow"><span class="itile blue">${icon("books")}</span><div class="body"><b>Curriculum</b><span>${p.curriculum.length} courses in your degree</span></div></div>` : ""}
       ${p.recommended.length ? `<div class="lrow"><span class="itile orange">${icon("star")}</span><div class="body"><b>Recommended courses</b><span>${p.recommended.map((r) => esc(r.code)).join(", ")}</span></div></div>` : ""}</div>`;
     return `<div class="sub-head"><button class="icon-btn" id="rv-x" aria-label="Discard">${icon("chevL")}</button><div style="text-align:center"><span class="logo" style="padding:0;align-items:center"><span class="word" style="font-size:24px">EWU<i>diots</i></span></span></div><div></div></div>
       <div style="max-width:980px;margin:0 auto">
@@ -203,6 +206,11 @@ export function install(ctx) {
     ["cgpa", "creditsDone", "creditsTotal"].forEach((k) => { if (pf[k] !== undefined) pf[k] = Number(pf[k]) || undefined; });
     St.profile = Object.assign({ name: "Student", id: "", creditsTotal: 140, semester: ctx.currentSemester() }, St.profile || {}, pf, { source: p.source });
     if (p.routine.length) { St.routine = p.routine; St.routineSem = p.sem || ctx.currentSemester(); }
+    // Every semester's classes (course history, faculty per course) and the portal's semester dates (attendance).
+    if (p.history && Object.keys(p.history).length) St.history = { ...(St.history || {}), ...Object.fromEntries(Object.entries(p.history).map(([sem, rows]) => [sem, rows.map(({ id, keep, ...r }) => r)])) };
+    if (p.semDates && Object.keys(p.semDates).length) St.semDates = { ...(St.semDates || {}), ...p.semDates };
+    if (p.ledger) St.ledger = { ...p.ledger, at: new Date().toISOString() };
+    if (p.curriculum?.length) St.curriculum = p.curriculum;
     if (p.grades.length) {
       const key = (g) => g.code + "|" + (g.sem || "");
       const have = new Map(St.grades.map((g) => [key(g), g]));
@@ -233,24 +241,29 @@ export function install(ctx) {
   }
 
   /* ───────── EWU portal sign-in (Android app, src/portalsync.js) ─────────
-     The password is typed into EWU's own login form inside the phone and goes only to EWU; it is never stored or
-     sent to EWUdiots. The student answers EWU's small sum; the app then reads the pages and shows them for review. */
-  const portal = { st: null, steps: {}, error: "", opening: false, id: "" };
+     The password is typed into EWU's own login form inside the phone and goes only to EWU, never to EWUdiots. If the
+     student ticks "Remember on this phone", the plugin keeps it encrypted with a key in Android's keystore, and later
+     sign-ins fill it in natively (this code never reads it back). The student always answers EWU's small sum. */
+  const portal = { st: null, steps: {}, error: "", opening: false, id: "", saved: null };
   function portalView() {
-    const id = portal.id || S().profile?.id || (ctx.C.user?.email || "").split("@")[0].replace(/[^\d-]/g, "");
+    const id = portal.id || portal.saved?.id || S().profile?.id || (ctx.C.user?.email || "").split("@")[0].replace(/[^\d-]/g, "");
     if (!ctx.native.canPortalSync()) return `${brandHead("#/sync")}<div style="max-width:560px;margin:0 auto"><div class="card">${ctx.empty("icon:lock", "Portal sign-in works in the Android app", "Browsers don't let one website sign in to another for you. On a computer, the Chrome extension does the same in one click.", `<a class="btn primary" href="${ctx.native.isNative ? ctx.SITE : ""}/#download">${icon("download")} Get the Android app</a><button class="btn" id="ps-ext">${icon("chrome")} Use the extension</button>`)}</div><button class="btn ghost block mt" id="sy-back">Back</button></div>`;
     const st = portal.st, steps = Object.entries(portal.steps), ready = Boolean(st && (st.first || st.login === false));
+    const remembered = Boolean(portal.saved?.saved && portal.saved.id === id);
     return `${brandHead("#/sync")}<div style="max-width:560px;margin:0 auto">
-      <div class="ps-hero"><span class="ps-lock">${icon("lock")}</span><div><h1>Sign in to the <span class="hl">EWU portal</span></h1><p class="muted">Your routine, grades, CGPA, advisor and fees, read straight from portal.ewubd.edu.</p></div></div>
+      <div class="ps-hero"><span class="ps-lock">${icon("lock")}</span><div><h1>Sign in to the <span class="hl">EWU portal</span></h1><p class="muted">Every semester's class schedule, grades, CGPA, offered courses, advisor and fees, read straight from portal.ewubd.edu.</p></div></div>
       ${steps.length ? `<section class="card mt ps-steps">${steps.map(([l, v]) => `<div class="ps-step ${v}"><span class="ps-dot">${v === "done" ? icon("check", "sm") : v === "skipped" ? icon("minus", "sm") : '<i class="spin"></i>'}</span><b>${esc(l)}</b><span class="xs">${v === "done" ? "Read" : v === "skipped" ? "Not available" : v === "reading" ? "Reading…" : "Waiting"}</span></div>`).join("")}</section>`
       : `<form id="ps-form" class="card mt stack" novalidate autocomplete="off">
         <label class="field">Student ID<input class="input" name="id" inputmode="numeric" value="${esc(id)}" placeholder="2024-1-60-123" required></label>
-        ${st && st.login === false ? `<div class="alert green">${icon("checkc")}<div><b>Already signed in to the portal on this phone</b></div></div>` : `<label class="field">Portal password<span class="pw-wrap"><input class="input" name="password" type="password" autocomplete="off" required><button type="button" class="pw-eye" data-eye aria-label="Show password">${icon("eye", "sm")}</button></span></label>
+        ${st && st.login === false ? `<div class="alert green">${icon("checkc")}<div><b>Already signed in to the portal on this phone</b></div></div>`
+          : `${remembered ? `<div class="ps-saved"><span class="itile sm green">${icon("lock")}</span><div class="grow min0"><b>Password remembered on this phone</b><span class="xs">Encrypted by Android. Only the sum below is needed.</span></div><button type="button" class="btn ghost sm" id="ps-forget">Forget</button></div>`
+            : `<label class="field">Portal password<span class="pw-wrap"><input class="input" name="password" type="password" autocomplete="off" required><button type="button" class="pw-eye" data-eye aria-label="Show password">${icon("eye", "sm")}</button></span></label>
+          <label class="check-row"><input type="checkbox" class="check" name="remember"> <span><b>Remember on this phone</b><span class="xs">Kept encrypted in Android's keystore, never sent anywhere. Next time you only answer the sum.</span></span></label>`}
         <label class="field">EWU's check: what is <b>${st && st.first ? `${esc(st.first)} + ${esc(st.second)}` : "…"}</b>?<input class="input" name="answer" inputmode="numeric" maxlength="3" ${ready ? "" : "disabled"} placeholder="${ready ? "Answer" : "Loading the portal…"}"></label>`}
         ${portal.error ? `<div class="alert red">${icon("alert")}<div><b>${esc(portal.error)}</b></div></div>` : ""}
         <button class="btn primary lg block" ${ready ? "" : "disabled"}>${icon("sync")} Sign in &amp; sync</button>
         ${!st && portal.error ? `<button type="button" class="btn ghost block" id="ps-retry">${icon("reset")} Try again</button>` : ""}</form>`}
-      <div class="privacy">${icon("shield")}<div><b>Your password stays between you and EWU</b><p>It's typed into EWU's own sign-in form on this phone. EWUdiots never stores it or sends it anywhere. We read only academic details (never your NID, phone, address or date of birth) and sign you out of the portal when we're done.</p></div></div>
+      <div class="privacy">${icon("shield")}<div><b>Your password stays between you and EWU</b><p>It's typed into EWU's own sign-in form on this phone and never sent to EWUdiots. We read only academic details (never your NID, phone, address or date of birth) and sign you out of the portal when we're done.</p></div></div>
       <button class="btn ghost block mt" id="sy-back">Back</button></div>`;
   }
   function mountPortal(el) {
@@ -260,6 +273,8 @@ export function install(ctx) {
     $("#ps-retry", el)?.addEventListener("click", () => { portal.error = ""; ctx.rerender(); });
     $$("[data-eye]", el).forEach((b) => b.addEventListener("click", () => { const i = b.previousElementSibling; i.type = i.type === "password" ? "text" : "password"; }));
     if (!ctx.native.canPortalSync()) return;
+    if (portal.saved === null) { portal.saved = {}; P.savedLogin().then((r) => { portal.saved = r || {}; if (r?.saved && stage === "portal") ctx.rerender(); }).catch(() => {}); }
+    $("#ps-forget", el)?.addEventListener("click", async () => { await P.forgetLogin().catch(() => {}); portal.saved = {}; toast("Password forgotten on this phone", "success"); ctx.rerender(); });
     if (!portal.st && !portal.opening && !portal.error) {
       portal.opening = true;
       portalStart(P).then((st) => { portal.st = st; }).catch((e) => { portal.error = e.message || "Couldn't reach the EWU portal."; })
@@ -268,13 +283,17 @@ export function install(ctx) {
     $("#ps-form", el)?.addEventListener("submit", async (e) => {
       e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), b = e.target.querySelector("button.primary");
       portal.id = String(f.id || "").trim(); busy(b, true, "Signing in…");
+      const useSaved = Boolean(portal.saved?.saved && portal.saved.id === portal.id && !f.password);
       try {
-        if (portal.st.login !== false) await portalSignIn(P, { id: portal.id, password: f.password, answer: f.answer });
-        portal.error = ""; PORTAL_PAGES.forEach((pg) => { portal.steps[pg.label] = "waiting"; }); ctx.rerender();
-        const pages = await portalRead(P, (label, v) => { portal.steps[label] = v; if (ctx.route() === "sync") ctx.rerender(); });
+        if (portal.st.login !== false) await portalSignIn(P, { id: portal.id, password: f.password, answer: f.answer, useSaved });
+        if (f.remember && f.password) P.rememberLogin({ username: portal.id, password: f.password }).then(() => { portal.saved = { id: portal.id, saved: true }; }).catch(() => {});
+        portal.error = ""; PORTAL_STEPS.forEach((l) => { portal.steps[l] = "waiting"; }); ctx.rerender();
+        const got = await portalRead(P, (label, v) => { portal.steps[label] = v; if (ctx.route() === "sync") ctx.rerender(); });
         await P.close().catch(() => {});
         Object.assign(portal, { st: null, steps: {} });
-        const r = pages.length ? finishParse(pages.map((pg) => ctx.parsePortalText(pg.text)), `EWU portal (${pages.map((pg) => pg.page).join(", ")})`) : null;
+        const list = [...apiToParsed(got.api), ...got.pages.map((pg) => ctx.parsePortalText(pg.text, pg.kind))];
+        const names = [got.api?.semesters?.length && `class schedule (${got.api.semesters.length} semesters)`, got.api?.offered?.length && "offered courses", ...got.pages.map((pg) => pg.page)].filter(Boolean);
+        const r = list.length ? finishParse(list, `EWU portal (${names.join(", ")})`) : null;
         if (r) toast("Read from the EWU portal", "success", "Check everything and press Save.");
         else { portal.error = "Signed in, but no academic pages could be read. Try again, or use a screenshot."; ctx.rerender(); }
       } catch (x) {

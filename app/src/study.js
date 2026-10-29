@@ -2,6 +2,7 @@
    my courses + course hub, XP / levels / badges and the shareable semester card.
    Everything is local-first and lives in S.study. */
 import { confetti, chime, ambient, ambientOn } from "./art.js";
+import { degreeStatus, roadmap, nextSem, latestGrades } from "./degreeplan.js";
 
 export const studyDefaults = () => ({
   sessions: [], days: {}, goal: 120, xp: 0, ev: {}, cards: [], prep: {}, notes: {}, links: {},
@@ -476,31 +477,76 @@ export function install(ctx) {
 
   /* ───────── My courses + course hub ───────── */
   const attOf = (code) => { const a = S().attendance[code]; return a && a.held ? Math.round((100 * (a.held - a.missed)) / a.held) : null; };
-  let coTab = "all";
+  let coTab = "ongoing";
+  /* A course from an earlier semester: its latest grade and the section/faculty it ran with (portal history). */
+  function pastCourse(code) {
+    const g = latestGrades(S().grades)[code];
+    const hist = Object.entries(S().history || {}).sort((a, b) => ctx.semesterKey(b[0]) - ctx.semesterKey(a[0])).find(([sem, rows]) => rows.some((r) => r.code === code) && (!g || !g.sem || sem === g.sem))
+      || Object.entries(S().history || {}).find(([, rows]) => rows.some((r) => r.code === code));
+    const row = hist?.[1].find((r) => r.code === code && !r.lab) || hist?.[1].find((r) => r.code === code);
+    if (!g && !row) return null;
+    const cur = (S().curriculum || []).find((c) => c.code === code);
+    return { code, title: g?.title || row?.title || cur?.title || "", sec: row?.sec || "", faculty: row?.faculty || "", room: row?.room || "", sem: g?.sem || hist?.[0] || "", g: g?.g || "", cr: g?.cr ?? cur?.cr ?? "", past: true };
+  }
   pages.courses = () => {
-    const St = S(), cur = myCourses().filter((c) => St.routine.some((r) => r.code === c.code));
-    const latest = {}; St.grades.slice().sort((a, b) => ctx.semesterKey(a.sem) - ctx.semesterKey(b.sem)).forEach((g) => { latest[g.code] = g; });
-    const done = Object.values(latest).filter((g) => !cur.some((c) => c.code === g.code));
-    const next = (St.planner.courses || []).filter((c) => !cur.some((x) => x.code === c));
+    const St = S(), cur = myCourses().filter((c) => St.routine.some((r) => r.code === c.code)), curCodes = cur.map((c) => c.code);
+    const ds = degreeStatus(St.curriculum || [], St.grades, curCodes), g = ctx.cgpaOf(St.grades), total = Number(St.profile?.creditsTotal) || 140;
+    const earned = Math.max(g.earned || 0, Number(St.profile?.creditsDone) || 0), pct = Math.min(100, Math.round((100 * earned) / total));
+    const perSem = Number(St.settings.perSem) || 15;
+    const plan = St.curriculum?.length ? roadmap(St.curriculum, St.grades, curCodes, nextSem(St.routineSem || ctx.currentSemester()), { perSem, planned: St.planner.courses || [] }) : [];
+    const leftCr = St.curriculum?.length ? ds.credits.left : Math.max(0, total - earned - ds.credits.current);
+    const gradSem = plan.length ? plan[plan.length - 1].sem : leftCr > 0 ? (() => { let s = St.routineSem || ctx.currentSemester(); for (let i = 0; i < Math.ceil(leftCr / perSem); i++) s = nextSem(s); return s; })() : St.routineSem;
     const card = (c) => { const att = attOf(c.code), ms = ctx.marksSummary ? ctx.marksSummary(c.code) : null;
       return `<a class="ccard" href="#/course?c=${encodeURIComponent(c.code)}" style="--cc:${ctx.colorFor(c.code)}"><span class="chev-abs">${icon("chevR")}</span><h3>${esc(c.code)}</h3><div class="t">${esc(c.title || "")}</div>
         <div class="meta"><span>${icon("room")} ${esc(c.room || "TBA")}</span>${c.faculty ? `<span>${icon("user")} ${esc(ctx.facName(c.faculty))}</span>` : ""}</div>
         <div class="bars"><div><span class="xs">Attendance</span><div class="row nowrap">${ctx.bar(att ?? 0, att !== null && att < 70 ? "red" : "green")}<b class="small num">${att !== null ? att + "%" : "—"}</b></div></div>
           <div><span class="xs">Current Marks</span><div class="row nowrap">${ctx.bar(ms && ms.of ? (100 * ms.got) / ms.of : 0)}<b class="small num">${ms && ms.of ? `${ms.got}/${ms.of}` : "—"}</b></div></div></div></a>`; };
-    const doneCard = (g) => `<div class="ccard" style="--cc:${ctx.colorFor(g.code)}"><div class="row between"><h3>${esc(g.code)}</h3><span class="pill purple">${esc(g.g)}</span></div><div class="t">${esc(g.title || "")}</div><p class="xs mt-s">${esc(g.sem || "")} · ${g.cr} credits</p></div>`;
-    const nextCard = (c) => `<a class="ccard" href="#/plan" style="--cc:${ctx.colorFor(c)}"><h3>${esc(c)}</h3><div class="t">${esc(ctx.offered()[c]?.title || "")}</div><p class="xs mt-s">Planned for ${esc(St.planner.offeredSem || "next semester")}</p></a>`;
-    const sets = { all: cur.map(card).concat(next.map(nextCard)).concat(done.map(doneCard)), ongoing: cur.map(card), upcoming: next.map(nextCard), completed: done.map(doneCard) };
-    return `${ctx.demoBanner()}${ctx.head("My Courses", "", `<span class="pill" style="padding:8px 12px">${esc(St.routineSem || ctx.currentSemester())}</span>`)}
-      ${ctx.seg([["all", "All"], ["ongoing", "Ongoing"], ["upcoming", "Upcoming"], ["completed", "Completed"]], coTab, "data-co")}
-      ${sets[coTab].length ? `<div class="grid g2 mt">${sets[coTab].join("")}</div>` : `<div class="card mt">${ctx.empty("icon:book", "No courses here", coTab === "upcoming" ? "Add courses in the advising planner to see them here." : "Sync your Class Schedule and Grade Report to see your courses.", `<a class="btn primary" href="#/${coTab === "upcoming" ? "planner" : "sync"}">${coTab === "upcoming" ? "Open Planner" : "Sync Portal"}</a>`)}</div>`}
-      <div class="row mt"><a class="btn outline" href="#/marks">${icon("percent")} Marks &amp; Attendance Estimator</a></div>`;
+    const doneCard = (r) => { const p = pastCourse(r.code); return `<a class="ccard done" href="#/course?c=${encodeURIComponent(r.code)}" style="--cc:${ctx.colorFor(r.code)}"><div class="row between nowrap"><h3>${esc(r.code)}</h3><span class="grade-chip g-${esc(r.g.replace("+", "p").replace("-", "m"))}">${esc(r.g)}</span></div><div class="t">${esc(r.title || p?.title || "")}</div><p class="xs mt-s">${r.cr} credits${p?.faculty ? ` · ${esc(ctx.facName(p.faculty))}` : ""}${p?.sec ? ` · Sec ${esc(p.sec)}` : ""}</p></a>`; };
+    const leftCard = (c, needs) => `<div class="ccard left" style="--cc:${ctx.colorFor(c.code)}"><div class="row between nowrap"><h3>${esc(c.code)}</h3><span class="pill">${c.cr} cr</span></div><div class="t">${esc(c.title || "")}</div>${needs?.length ? `<p class="xs mt-s">${icon("lock", "sm")} Needs ${needs.map(esc).join(", ")}</p>` : `<p class="xs mt-s" style="color:var(--success-t)">${icon("checkc", "sm")} You can take it next</p>`}</div>`;
+    let body = "";
+    if (coTab === "ongoing") body = cur.length ? `<div class="grid g2 mt">${cur.map(card).join("")}</div>` : `<div class="card mt">${ctx.empty("icon:book", "No courses this semester", "Sync your class schedule to see your courses.", `<a class="btn primary" href="#/sync">Sync portal</a>`)}</div>`;
+    else if (coTab === "completed") {
+      const bySem = {}; ds.done.concat(Object.values(latestGrades(St.grades)).filter((x) => !ds.done.includes(x))).forEach((r) => (bySem[r.sem || "Earlier"] = bySem[r.sem || "Earlier"] || []).push(r));
+      const sems = Object.keys(bySem).sort((a, b) => ctx.semesterKey(b) - ctx.semesterKey(a));
+      body = sems.length ? sems.map((s) => { const t = ctx.cgpaOf(bySem[s]); return `<div class="sem-h mt"><h3>${esc(s)}</h3><span class="xs">${t.credits ? `Term GPA ${t.cgpa.toFixed(2)} · ` : ""}${bySem[s].reduce((a, r) => a + (Number(r.cr) || 0), 0)} credits</span></div><div class="grid g3 mt-s">${bySem[s].map(doneCard).join("")}</div>`; }).join("")
+        : `<div class="card mt">${ctx.empty("icon:cap", "No completed courses yet", "Sync your grade report to see every course you've done.", `<a class="btn primary" href="#/sync">Sync portal</a>`)}</div>`;
+    } else if (coTab === "left") {
+      body = St.curriculum?.length ? `${ds.ready.length ? `<h3 class="mt">Ready to take <span class="xs">· ${ds.ready.length}</span></h3><div class="grid g3 mt-s">${ds.ready.map((c) => leftCard(c)).join("")}</div>` : ""}
+        ${ds.locked.length ? `<h3 class="mt-l">After their prerequisites <span class="xs">· ${ds.locked.length}</span></h3><div class="grid g3 mt-s">${ds.locked.map((c) => leftCard(c, c.needs)).join("")}</div>` : ""}
+        ${!ds.left.length ? `<div class="card mt">${ctx.empty("icon:trophy", "Every course done or in progress", "Only this semester stands between you and graduation.")}</div>` : ""}`
+        : `${St.degree?.length ? `<section class="card mt"><div class="card-h"><h2>Credits still needed by area</h2></div>${St.degree.map((d) => `<div class="deg-row"><div class="row between"><b class="small">${esc(d.category)}</b><span class="xs num">${d.done} / ${d.total}</span></div>${ctx.bar(d.total ? (100 * d.done) / d.total : 100, d.done >= d.total ? "green" : "")}</div>`).join("")}</section>` : ""}
+          <div class="alert purple mt">${icon("info")}<div><b>Sync your curriculum to list every course left</b><p>Sign in to the portal from the Sync page (Android app) and we read your program's curriculum and prerequisites.</p></div></div>`;
+    } else {
+      body = plan.length ? `<div class="row between mt wrap" style="gap:8px"><p class="small muted" style="margin:0">Every remaining course placed after its prerequisites. Your advising planner's picks come first.</p>
+          <label class="row nowrap small" style="gap:6px">Credits a semester<select class="select sm" id="co-per">${[9, 12, 15, 18].map((v) => `<option ${v === perSem ? "selected" : ""}>${v}</option>`).join("")}</select></label></div>
+        <ol class="road mt">${plan.map((p, i) => `<li class="road-step"><span class="road-dot">${i + 1}</span><div class="grow min0"><div class="row between nowrap"><b>${esc(p.sem)}</b><span class="xs num">${p.credits} credits</span></div><div class="road-courses">${p.courses.map((c) => `<span class="road-c" style="--cc:${ctx.colorFor(c.code)}" title="${esc(c.title)}"><b>${esc(c.code)}</b> ${esc(c.title)}</span>`).join("")}</div></div></li>`).join("")}
+          <li class="road-step end"><span class="road-dot">${icon("cap", "sm")}</span><div><b>Graduation</b><p class="small muted">Around the end of ${esc(gradSem)} if you keep ${perSem} credits a semester and pass everything.</p></div></li></ol>`
+        : `<div class="card mt">${ctx.empty("icon:map", "Your road map needs the curriculum", leftCr > 0 ? `About ${leftCr} credits left: at ${perSem} a semester you'd finish around ${gradSem}. Sync your curriculum for a course-by-course plan.` : "Sync your curriculum from the portal to plan every semester.", `<a class="btn primary" href="#/sync">Sync portal</a>`)}</div>`;
+    }
+    return `${ctx.demoBanner()}${ctx.head("My Courses", "Everything you've done, what's on now, and what's left until graduation.", `<span class="pill" style="padding:8px 12px">${esc(St.routineSem || ctx.currentSemester())}</span>`)}
+      <section class="deg-hero fx-rise"><i class="sheen" aria-hidden="true"></i><div class="ring lg" style="--p:${pct}"><div><b>${pct}%</b><span>of degree</span></div></div>
+        <div class="deg-stats">${[["Credits earned", `${earned} / ${total}`], ["Courses done", ds.done.length], ["This semester", cur.length], [St.curriculum?.length ? "Courses left" : "Credits left", St.curriculum?.length ? ds.left.length : leftCr], ["Graduation", gradSem || "—"]].map(([l, v]) => `<div><span>${l}</span><b class="num">${esc(String(v))}</b></div>`).join("")}</div></section>
+      <div class="mt">${ctx.seg([["ongoing", "This semester"], ["completed", "Completed"], ["left", "Still to take"], ["roadmap", "Road map"]], coTab, "data-co")}</div>
+      ${body}
+      <div class="row mt"><a class="btn outline" href="#/marks">${icon("percent")} Marks &amp; Attendance Estimator</a><a class="btn outline" href="#/planner">${icon("calcheck")} Advising planner</a></div>`;
   };
-  pages.courses.mount = (el) => $$("[data-co]", el).forEach((b) => b.addEventListener("click", () => { coTab = b.dataset.co; ctx.rerender(); }));
+  pages.courses.mount = (el) => {
+    $$("[data-co]", el).forEach((b) => b.addEventListener("click", () => { coTab = b.dataset.co; ctx.rerender(); }));
+    $("#co-per", el)?.addEventListener("change", (e) => { S().settings.perSem = Number(e.target.value); ctx.save(); ctx.rerender(); });
+  };
   const safeUrl = (u) => (/^https?:\/\/[^\s"'<>]+$/i.test(u) ? u : "");
   let chTab = "overview";
+  /* Overview of a course from an earlier semester: grade, credits, faculty and section, and that semester's attendance. */
+  function pastOverview(c) {
+    const f = ctx.facBy(c.faculty), gp = ctx.gradePoint ? ctx.gradePoint(c.g) : null, st = ctx.attendance.stats(c.code, c.sem), marked = st.present + st.absent > 0;
+    return `<section class="card past-grade"><span class="grade-bubble">${esc(c.g || "—")}</span><div class="grow min0"><b>${c.g ? "Final grade" : "Taken"} · ${esc(c.sem || "")}</b><p class="small muted">${c.cr !== "" ? `${c.cr} credits` : ""}${gp != null && c.g ? ` · ${Number(gp).toFixed(2)} grade points` : ""}${["F", "W", "I"].includes(c.g) ? " · not passed: plan a retake" : ""}</p></div></section>
+      <section class="card mt info-strip">${[["user", ctx.facName(c.faculty) || "—", "Faculty"], ["users", c.sec ? `Section ${c.sec}` : "—", "Section"], ["pin", c.room || "—", "Room"]].map(([ic, v, l]) => `<div><span class="itile sm purple">${icon(ic)}</span><div class="min0"><b class="ellipsis" style="display:block">${esc(v)}</b><span class="xs">${esc(l)}</span></div></div>`).join("")}</section>
+      ${f ? `<a class="card mt row nowrap" href="#/prof?i=${encodeURIComponent(f.init)}"><span class="itile blue">${icon("user")}</span><div class="grow"><b>${esc(f.name || f.init)}</b><p class="xs">See their profile, reviews and shared materials</p></div>${icon("chevR")}</a>` : ""}
+      ${marked ? `<a class="card mt row nowrap" href="#/course?c=${encodeURIComponent(c.code)}&tab=attendance"><div class="ring sm ${st.pct < 70 ? "red" : "green"}" style="--p:${st.pct ?? 0}"><div><b>${st.pct ?? "—"}%</b></div></div><div><b>Attendance that semester</b><p class="xs">${st.present} present · ${st.absent} absent</p></div></a>` : ""}`;
+  }
   pages.course = () => {
     const code = (ctx.qparam("c") || "").toUpperCase();
-    const S0 = S(), c = myCourses().find((x) => x.code === code);
+    const S0 = S(), c = myCourses().find((x) => x.code === code) || pastCourse(code);
     if (!code || !c) return `${ctx.subHead("Course", "", "#/courses")}<div class="card">${ctx.empty("mascot-confused", "Course not found", "That course isn't in your routine.", `<a class="btn primary" href="#/courses">All Courses</a>`)}</div>`;
     const qt = ctx.qparam("tab"); if (qt) { chTab = qt; history.replaceState(null, "", `#/course?c=${encodeURIComponent(code)}`); }
     const blocks = ctx.expand(S0.routine.filter((r) => r.code === code)).sort((a, b) => ((a.day + 6) % 7) - ((b.day + 6) % 7) || a.s - b.s);
@@ -513,8 +559,11 @@ export function install(ctx) {
     let nxt = null; for (let k = 0; k < 8 && !nxt; k++) { const d = (nowD.getDay() + k) % 7; const b = blocks.filter((x) => x.day === d && !(k === 0 && x.e <= nm)).sort((x, y) => x.s - y.s)[0]; if (b) nxt = { ...b, k, mins: k * 1440 + b.s - nm }; }
     const days = [...new Set(blocks.filter((b) => !b.lab).map((b) => ctx.DAY_NAMES[b.day]))].join(", ");
     const est = ms && ms.of ? (100 * ms.got) / ms.of : null, estG = est !== null ? (ctx.GRADES.find((g) => est >= g.min) || { g: "F" }).g : null;
+    if (c.past && !["overview", "attendance", "materials", "notes"].includes(chTab)) chTab = "overview";
+    const sem = c.past ? c.sem : S0.routineSem;
     let body;
-    if (chTab === "overview") body = `<section class="card info-strip">${[["user", ctx.facName(c.faculty) || "—", "Faculty"], ["pin", theory?.room || "TBA", "Room"], ["calendar", days || "—", theory ? `${ctx.fmt12(theory.s)} – ${ctx.fmt12(theory.e)}` : ""]].map(([ic, v, l]) => `<div><span class="itile sm purple">${icon(ic)}</span><div class="min0"><b class="ellipsis" style="display:block">${esc(v)}</b><span class="xs">${esc(l)}</span></div></div>`).join("")}</section>
+    if (c.past && chTab === "overview") body = pastOverview(c);
+    else if (chTab === "overview") body = `<section class="card info-strip">${[["user", ctx.facName(c.faculty) || "—", "Faculty"], ["pin", theory?.room || "TBA", "Room"], ["calendar", days || "—", theory ? `${ctx.fmt12(theory.s)} – ${ctx.fmt12(theory.e)}` : ""]].map(([ic, v, l]) => `<div><span class="itile sm purple">${icon(ic)}</span><div class="min0"><b class="ellipsis" style="display:block">${esc(v)}</b><span class="xs">${esc(l)}</span></div></div>`).join("")}</section>
       <div class="g2m mt"><a class="card row nowrap" href="#/course?c=${encodeURIComponent(code)}&tab=attendance" style="gap:14px"><div class="ring sm ${att !== null && att < 70 ? "red" : "green"}" style="--p:${att ?? 0}"><div><b>${att ?? "—"}${att !== null ? "%" : ""}</b></div></div><div><b>Attendance</b><p class="xs">${a.held ? `${a.held - a.missed} / ${a.held} classes` : "Tap to start tracking"}</p></div></a>
         <a class="card row nowrap" href="#/marks?c=${encodeURIComponent(code)}&from=course" style="gap:14px"><div class="ring sm" style="--p:${est ?? 0}"><div><b style="font-size:13px">${ms && ms.of ? `${ms.got}/${ms.of}` : "—"}</b></div></div><div><b>Current Marks</b><p class="xs">${ms && ms.of ? `${Math.round(est)}% of assessments` : "Add your marks"}</p></div></a></div>
       ${att !== null && att < 70 ? `<a class="alert red mt" href="#/course?c=${encodeURIComponent(code)}&tab=attendance"><span class="a-ic">${icon("alertc")}</span><div class="grow"><b>Your attendance is below 70%</b><p>You may not be eligible to sit for the final exam. Check your course outline.</p></div>${icon("chevR")}</a>` : ""}
@@ -527,22 +576,17 @@ export function install(ctx) {
       ${m ? `<section class="card tight">${m.parts.map((p) => { const has = p.got !== "" && p.got != null, pc = has ? (100 * Number(p.got)) / p.w : 0; return `<div class="lrow"><span class="itile sm purple">${icon("notes")}</span><div class="body"><b>${esc(p.n)}</b><span>${p.w} marks</span></div><div style="width:34%">${ctx.bar(pc, pc >= 70 ? "green" : pc >= 50 ? "" : "orange")}</div><span class="pill ${!has ? "" : pc >= 70 ? "green" : pc >= 50 ? "purple" : "red"}" style="min-width:58px;justify-content:center">${has ? `${p.got} / ${p.w}` : "–"}</span></div>`; }).join("")}</section>
         ${estG ? `<div class="card tint-green mt row nowrap"><span class="grade-bubble">${estG}</span><div class="grow"><b>Estimated Final Grade</b><p class="small muted">Based on current marks (${Math.round(est)}% of what's been assessed)</p></div></div>` : ""}` : `<div class="card">${ctx.empty("icon:percent", "No marks yet", "Enter your quiz, assignment and exam marks to estimate your grade.")}</div>`}
       <a class="btn primary block mt" href="#/marks?c=${encodeURIComponent(code)}&from=course">${icon("calc")} Open Marks Estimator</a>`;
-    else if (chTab === "attendance") { const log = a.log || [];
-      body = `<section class="card row nowrap" style="gap:18px"><div class="ring lg ${att !== null && att < 70 ? "red" : "green"}" style="--p:${att ?? 0}"><div><b>${att ?? "—"}${att !== null ? "%" : ""}</b><span>Attendance</span></div></div>
-        <div class="grow stats-strip" style="grid-template-columns:repeat(3,1fr)">${[["Total Classes", a.held, ""], ["Present", a.held - a.missed, "var(--success)"], ["Absent", a.missed, "var(--error)"]].map(([l, v, c2]) => `<div style="flex-direction:column;align-items:flex-start;gap:0"><b class="num" style="${c2 ? `color:${c2}` : ""}">${v}</b><span>${l}</span></div>`).join("")}</div></section>
-        <div class="row mt"><button class="btn primary grow" data-att="present">${icon("check")} Present</button><button class="btn danger-soft grow" data-att="absent">${icon("x")} Absent</button><button class="btn neutral" data-att="undo" aria-label="Undo last">${icon("reset")}</button></div>
-        ${log.length ? `<section class="card mt"><h3>Class by class</h3><div class="vbars">${log.slice(-16).map((l, i) => `<div class="vb"><i class="${l === "absent" ? "off" : ""}" style="height:${l === "absent" ? 20 : 100}%"></i><span>${log.length - Math.min(16, log.length) + i + 1}</span></div>`).join("")}</div></section>` : ""}
-        <a class="btn outline block mt" href="#/marks?c=${encodeURIComponent(code)}&from=course">${icon("calc")} Attendance Estimator</a>`; }
+    else if (chTab === "attendance") body = ctx.attendance.panel(code, c.past ? c.sem : undefined);
     else if (chTab === "notes") body = `<section class="card stack"><div class="card-h" style="margin:0"><h2>${icon("edit")} Notes</h2><span class="xs" id="ch-saved">Saved on this device</span></div>
       <textarea class="input" id="ch-notes" rows="14" placeholder="Class notes, formulas, what the faculty said will be on the exam…" aria-label="Notes for ${esc(code)}">${esc(st().notes[code] || "")}</textarea></section>`;
-    else body = `${ctx.materials.panel(code, { faculty: c.faculty, sec: c.sec, sem: S0.routineSem })}
+    else body = `${ctx.materials.panel(code, { faculty: c.faculty, sec: c.sec, sem })}
       <h3 class="mat-h">Your own links</h3><section class="card stack">
       ${links.map((l, i) => `<div class="lrow"><span class="itile sm green">${icon("link")}</span><a class="body" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener noreferrer"><b>${esc(l.title)}</b><span>${esc(l.url)}</span></a><button class="btn sm icon-only ghost" data-ldel="${i}" aria-label="Remove link">${icon("trash")}</button></div>`).join("") || '<p class="small muted">Add Google Classroom, a Drive folder, the course outline, a YouTube playlist…</p>'}
       <form id="ch-link" class="grid g2"><input class="input" name="title" placeholder="Title" required maxlength="60" aria-label="Link title"><input class="input" name="url" type="url" placeholder="https://" required aria-label="Link URL"><button class="btn full-row">${icon("plus")} Add link</button></form>
       <a class="btn outline" href="#/vault?q=${encodeURIComponent(code)}">${icon("vault")} Find ${esc(code)} notes in the Study Vault</a></section>`;
     return `${ctx.subHead(esc(code), esc(c.title || ""), "#/courses", f?.email ? `<a class="icon-btn" href="mailto:${esc(f.email)}?subject=${encodeURIComponent(code + " Section " + (c.sec || ""))}" aria-label="Email faculty">${icon("mail")}</a>` : "")}
-      <div style="max-width:900px;margin:0 auto"><section class="course-hero"><h1>${esc(code)}</h1><p>${esc(c.title || "")}</p><div class="row">${c.sec ? `<span>${icon("users", "sm")} Section ${esc(c.sec)}</span>` : ""}<span>${icon("calendar", "sm")} ${esc(S0.routineSem || "")}</span>${f ? `<a href="#/prof?i=${encodeURIComponent(f.init)}" style="color:#fff">${icon("user", "sm")} ${esc(f.name || f.init)}</a>` : ""}</div></section>
-      <div class="mt">${ctx.seg([["overview", "Overview"], ["materials", "Materials"], ["marks", "Marks"], ["attendance", "Attendance"], ["notes", "Notes"]], chTab, "data-cht")}</div><div class="mt">${body}</div></div>`;
+      <div style="max-width:900px;margin:0 auto"><section class="course-hero"><h1>${esc(code)}</h1><p>${esc(c.title || "")}</p><div class="row">${c.sec ? `<span>${icon("users", "sm")} Section ${esc(c.sec)}</span>` : ""}<span>${icon("calendar", "sm")} ${esc(sem || "")}</span>${f ? `<a href="#/prof?i=${encodeURIComponent(f.init)}" style="color:#fff">${icon("user", "sm")} ${esc(f.name || f.init)}</a>` : ""}</div></section>
+      <div class="mt">${ctx.seg([["overview", "Overview"], ["materials", "Materials"], ...(c.past ? [] : [["marks", "Marks"]]), ["attendance", "Attendance"], ["notes", "Notes"]], chTab, "data-cht")}</div><div class="mt">${body}</div></div>`;
   };
   pages.course.mount = (el) => {
     const code = (ctx.qparam("c") || "").toUpperCase();
@@ -552,8 +596,8 @@ export function install(ctx) {
     let t; on("#ch-notes", "input", (e) => { clearTimeout(t); $("#ch-saved", el).textContent = "Saving…"; t = setTimeout(() => { st().notes[code] = e.target.value.slice(0, 20000); ctx.save(); checkBadges(); $("#ch-saved", el).textContent = "Saved on this device"; }, 600); });
     on("#ch-link", "submit", (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); if (!safeUrl(f.url)) return toast("Use a full link starting with https://", "error"); (st().links[code] = st().links[code] || []).push({ title: f.title.slice(0, 60), url: f.url }); ctx.save(); ctx.rerender(); });
     $$("[data-ldel]", el).forEach((b) => b.addEventListener("click", () => { st().links[code].splice(Number(b.dataset.ldel), 1); ctx.save(); ctx.rerender(); }));
-    $$("[data-att]", el).forEach((b) => b.addEventListener("click", () => ctx.markAttendance(code, b.dataset.att)));
-    if (chTab === "materials") { const c = myCourses().find((x) => x.code === code); if (c) ctx.materials.mountPanel(el, code, { faculty: c.faculty, sec: c.sec, sem: S().routineSem }); }
+    if (chTab === "attendance") ctx.attendance.mount(el, code);
+    if (chTab === "materials") { const c = myCourses().find((x) => x.code === code) || pastCourse(code); if (c) ctx.materials.mountPanel(el, code, { faculty: c.faculty, sec: c.sec, sem: c.past ? c.sem : S().routineSem }); }
   };
 
   /* ───────── Achievements + semester card ───────── */

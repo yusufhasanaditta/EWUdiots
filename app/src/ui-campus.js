@@ -43,28 +43,11 @@ export function install(ctx) {
     const on = (s, fn) => $$(s, el).forEach((b) => b.addEventListener("click", fn));
     on("#v-mine", () => { vMine = !vMine; ctx.rerender(); toast(vMine ? "Showing your courses only" : "Showing all courses", "info"); });
     on("#v-clear", () => { vQ = ""; vTab = "All"; vMine = false; ctx.rerender(); });
-    on("#v-up, #v-up2", uploadModal);
+    on("#v-up, #v-up2", () => ctx.materials.share("", {}));
     if (live() && !C.vault) loadVault();
-    if (ctx.qparam("up") && live()) { history.replaceState(null, "", "#/vault"); setTimeout(uploadModal); }
+    if (ctx.qparam("up") && live()) { history.replaceState(null, "", "#/vault"); setTimeout(() => ctx.materials.share("", {})); }
   };
   const loadVault = () => Promise.all([ctx.cloud.listResources(), ctx.cloud.myVotes(C.user.id)]).then(([l, v]) => { C.vault = l; C.votes = v; if (["vault", "file"].includes(ctx.route())) ctx.rerender(); }).catch((e) => toast("Failed to load data", "error", e.message));
-  function uploadModal() {
-    openModal(modalHead("Share study material") + `<form id="v-form" class="grid g2">
-      <label class="field">Course code<input class="input" name="course" required list="vc" pattern="[A-Za-z]{2,4}\\s?\\d{3,4}[A-Za-z]?" placeholder="CSE211"><datalist id="vc">${[...new Set(S().routine.map((r) => r.code))].map((c) => `<option value="${esc(c)}">`).join("")}</datalist></label>
-      <label class="field">Type<select class="select" name="type">${["Notes", "Slides", "Past paper", "Solutions", "Lab", "Cheat sheet", "Template"].map((x) => `<option>${x}</option>`).join("")}</select></label>
-      <label class="field full-row">Title<input class="input" name="title" required minlength="3" maxlength="120" placeholder="e.g. Mid Term Notes"></label>
-      <label class="field full-row">File (PDF, image, PPT, DOC · max 25 MB)<input class="input" type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.ppt,.pptx,.doc,.docx" required></label>
-      <p class="xs full-row">Only share material you're allowed to share. No full textbooks or copyrighted books.</p>
-      <div class="row full-row"><button type="button" class="btn neutral grow" data-close>Cancel</button><button class="btn primary grow">${icon("upload")} Upload</button></div></form>`, (m) => {
-      $("#v-form", m).addEventListener("submit", async (e) => {
-        e.preventDefault(); const fd = new FormData(e.target), file = fd.get("file"), btn = e.target.querySelector("button.primary");
-        if (file.size > 25 * 1048576) return toast("File is larger than 25 MB", "error");
-        busy(btn, true, "Uploading…");
-        try { await ctx.cloud.uploadResource(C.user.id, file, { course: String(fd.get("course")).toUpperCase().replace(/\s/g, ""), type: fd.get("type"), title: String(fd.get("title")).trim() }); C.vault = null; closeModal(); toast("Notes uploaded successfully!", "success", "Thank you for sharing."); ctx.rerender(); }
-        catch (err) { busy(btn, false); toast("Upload failed", "error", err.message); }
-      });
-    });
-  }
   pages.file = () => {
     const id = ctx.qparam("id"), v = vaultItems().find((x) => String(x.id) === id);
     if (live() && !C.vault) { loadVault(); return `${ctx.subHead("Loading…", "", "#/vault")}<div class="skel" style="height:260px"></div>`; }
@@ -236,29 +219,64 @@ export function install(ctx) {
     });
   };
 
-  /* ═════════════ COVER PAGE ═════════════ */
+  /* ═════════════ COVER PAGE ═════════════
+     Five designs (classic, modern, minimal, lab report, group project) with an accent colour; fill once, the details are
+     remembered (not the date). Picking a course fills its title, section and teacher from the routine or past classes. */
+  const COVER_KINDS = ["Assignment", "Lab Report", "Project Report", "Case Study", "Term Paper", "Presentation", "Thesis Proposal"];
+  const COVER_STYLES = [["classic", "Classic"], ["modern", "Modern"], ["minimal", "Minimal"], ["lab", "Lab report"], ["group", "Group project"]];
+  const ACCENTS = [["#1e3a8a", "Navy"], ["#7f1d1d", "Maroon"], ["#0f766e", "Teal"], ["#5b21b6", "Purple"], ["#111827", "Black"]];
+  let coverStyle = "";
   pages.cover = () => {
     const p = S().profile || {}, r0 = S().routine.find((r) => !r.lab) || {}, f0 = ctx.facBy(r0.faculty);
-    const c = Object.assign({ kind: "Assignment", no: "1", course: r0.code || "", ctitle: r0.title || "", topic: "", sec: r0.sec || "", faculty: f0?.name || "", ftitle: "", fdept: "Department of " + (p.department || "CSE"), name: p.name || "", id: p.id || "" }, S().cover, { date: localToday() });
-    const F = [["kind", "Document type", "select:Assignment,Lab Report,Project Report,Case Study,Term Paper,Presentation"], ["no", "Number"], ["course", "Course code"], ["ctitle", "Course title"], ["sec", "Section"], ["topic", "Topic / title"], ["faculty", "Submitted to"], ["ftitle", "Designation (e.g. Lecturer)"], ["fdept", "Faculty department"], ["name", "Your name"], ["id", "Student ID"], ["date", "Submission date", "date"]];
-    return `${ctx.head("Cover Page", "Fill once — we remember your details. Save as PDF or print.", `<button class="btn primary" id="cv-print">${icon("download")} Save as PDF</button>`)}
-      <div class="grid g2"><form class="card grid g2" id="cv-form">${F.map(([k, l, t]) => t && t.startsWith("select:") ? `<label class="field">${l}<select class="select" name="${k}">${t.slice(7).split(",").map((o) => `<option ${o === c[k] ? "selected" : ""}>${o}</option>`).join("")}</select></label>` : `<label class="field">${l}<input class="input" name="${k}" type="${t || "text"}" value="${esc(c[k])}" ${k === "faculty" ? 'list="fac-list"' : ""}></label>`).join("")}
-        <datalist id="fac-list">${[...ctx.facultyIndex().values()].filter((f) => f.name).map((f) => `<option value="${esc(f.name)}">`).join("")}</datalist></form>
-      <div id="print-area" class="cover-preview" aria-label="Cover page preview">${coverHTML(c)}</div></div>`;
+    const c = Object.assign({ kind: "Assignment", no: "1", course: r0.code || "", ctitle: r0.title || "", topic: "", sec: r0.sec || "", faculty: f0?.name || "", ftitle: "", fdept: "Department of " + (p.department || "CSE"), name: p.name || "", id: p.id || "", program: p.program || "", semester: S().routineSem || "", performed: "", members: "", accent: ACCENTS[0][0] }, S().cover, { date: localToday() });
+    coverStyle = coverStyle || S().cover?.style || "classic";
+    const lab = coverStyle === "lab", group = coverStyle === "group";
+    const F = [["kind", "Document type", `select:${COVER_KINDS.join(",")}`], ["no", lab ? "Experiment no." : "Number"], ["course", "Course code"], ["ctitle", "Course title"], ["sec", "Section"], ["semester", "Semester"],
+      ["topic", lab ? "Experiment name" : "Topic / title", "", "full"], ["faculty", "Submitted to"], ["ftitle", "Designation (e.g. Lecturer)"], ["fdept", "Faculty department", "", "full"],
+      ...(group ? [["members", "Group members (one per line: Name, ID)", "area", "full"]] : [["name", "Your name"], ["id", "Student ID"]]),
+      ...(lab ? [["performed", "Date of performance", "date"]] : []), ["date", "Submission date", "date"]];
+    const field = ([k, l, t, w]) => t && t.startsWith("select:") ? `<label class="field">${l}<select class="select" name="${k}">${t.slice(7).split(",").map((o) => `<option ${o === c[k] ? "selected" : ""}>${o}</option>`).join("")}</select></label>`
+      : t === "area" ? `<label class="field full-row">${l}<textarea class="input" name="${k}" rows="4" placeholder="${esc(p.name || "Your name")}, ${esc(p.id || "2024-1-60-000")}">${esc(c[k] || (p.name ? `${p.name}, ${p.id || ""}` : ""))}</textarea></label>`
+      : `<label class="field${w ? " full-row" : ""}">${l}<input class="input" name="${k}" type="${t || "text"}" value="${esc(c[k])}" ${k === "faculty" ? 'list="fac-list"' : k === "course" ? 'list="cv-courses"' : ""}></label>`;
+    const courses = [...new Set([...S().routine.map((r) => r.code), ...Object.values(S().history || {}).flat().map((r) => r.code)])];
+    return `${ctx.head("Cover Page", "Pick a design, fill once (we remember your details), then save as PDF or print.", `<button class="btn primary" id="cv-print">${icon("download")} Save as PDF</button>`)}
+      <div class="cv-styles" role="radiogroup" aria-label="Design">${COVER_STYLES.map(([v, l]) => `<button class="cv-style${v === coverStyle ? " on" : ""}" data-cvs="${v}" role="radio" aria-checked="${v === coverStyle}"><span class="cv-thumb ${v}" style="--acc:${c.accent}"><i></i><i></i><i></i></span><b>${l}</b></button>`).join("")}</div>
+      <div class="grid g2 mt"><form class="card grid g2" id="cv-form">
+        <div class="field full-row"><span>Accent colour</span><div class="cv-accents">${ACCENTS.map(([hex, n]) => `<label class="cv-acc" title="${n}"><input type="radio" name="accent" value="${hex}" ${hex === c.accent ? "checked" : ""}><i style="--acc:${hex}"></i><span class="sr-only">${n}</span></label>`).join("")}</div></div>
+        ${F.map(field).join("")}
+        <datalist id="fac-list">${[...ctx.facultyIndex().values()].filter((f) => f.name).map((f) => `<option value="${esc(f.name)}">`).join("")}</datalist><datalist id="cv-courses">${courses.map((x) => `<option value="${esc(x)}">`).join("")}</datalist></form>
+      <div><div id="print-area" class="cover-preview cv-${coverStyle}" style="--acc:${c.accent}" aria-label="Cover page preview">${coverHTML(c)}</div><p class="xs mt-s" style="text-align:center">A4 · prints without the app around it. In the print dialog choose "Save as PDF".</p></div></div>`;
   };
   const localToday = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
   function coverHTML(c) {
-    const d = c.date ? new Date(c.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "";
-    return `<div class="uni">EAST WEST UNIVERSITY</div><div class="rule"></div><div class="title">${esc(c.kind)}${c.no ? " No. " + esc(c.no) : ""}</div>
-      <div><b>Course:</b> ${esc(c.course)}${c.ctitle ? " — " + esc(c.ctitle) : ""}<br><b>Section:</b> ${esc(c.sec)}</div>${c.topic ? `<div style="margin-top:14px"><b>Topic:</b> ${esc(c.topic)}</div>` : ""}
-      <table><tr><td class="block-h">Submitted to</td><td class="block-h">Submitted by</td></tr><tr><td>${esc(c.faculty)}${c.ftitle ? "<br>" + esc(c.ftitle) : ""}<br>${esc(c.fdept)}<br>East West University</td><td>${esc(c.name)}<br>ID: ${esc(c.id)}<br>Section: ${esc(c.sec)}</td></tr><tr><td colspan="2"><b>Date of submission:</b> ${esc(d)}</td></tr></table>`;
+    const day = (v) => (v ? new Date(v + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "");
+    const title = `${esc(c.kind)}${c.no ? ` ${coverStyle === "lab" ? "· Experiment" : "No."} ${esc(c.no)}` : ""}`;
+    const course = `${esc(c.course)}${c.ctitle ? ` · ${esc(c.ctitle)}` : ""}`;
+    const members = String(c.members || "").split("\n").map((l) => l.trim()).filter(Boolean).map((l) => { const [n, ...rest] = l.split(","); return [n.trim(), rest.join(",").trim()]; });
+    const to = `<b>${esc(c.faculty || "—")}</b>${c.ftitle ? `<span>${esc(c.ftitle)}</span>` : ""}<span>${esc(c.fdept)}</span><span>East West University</span>`;
+    const by = coverStyle === "group" ? `<span>${members.length} member${members.length === 1 ? "" : "s"} (below)</span><span>Section ${esc(c.sec)}</span>` : `<b>${esc(c.name || "—")}</b><span>ID: ${esc(c.id)}</span><span>Section ${esc(c.sec)}</span>${c.program ? `<span>${esc(c.program)}</span>` : ""}`;
+    const meta = [c.semester && ["Semester", esc(c.semester)], coverStyle === "lab" && c.performed && ["Performed on", day(c.performed)], ["Submitted on", day(c.date)]].filter(Boolean);
+    const membersTable = coverStyle === "group" && members.length ? `<table class="cv-members"><thead><tr><th>#</th><th>Name</th><th>Student ID</th></tr></thead><tbody>${members.map(([n, id], i) => `<tr><td>${i + 1}</td><td>${esc(n)}</td><td>${esc(id)}</td></tr>`).join("")}</tbody></table>` : "";
+    const marks = coverStyle === "lab" ? `<div class="cv-marks"><div><span>Marks</span><b></b></div><div><span>Teacher's signature</span><b></b></div><div><span>Remarks</span><b></b></div></div>` : "";
+    return `<div class="cv-top"><div class="cv-uni">East West University</div><div class="cv-dept">${esc(c.fdept)}</div></div>
+      <div class="cv-mid"><div class="cv-kind">${title}</div>${c.topic ? `<div class="cv-topic">${esc(c.topic)}</div>` : ""}<div class="cv-course">${course}</div></div>
+      ${membersTable}
+      <div class="cv-bottom"><div class="cv-blocks"><div class="cv-block"><span class="cv-h">Submitted to</span>${to}</div><div class="cv-block"><span class="cv-h">Submitted by</span>${by}</div></div>
+        <div class="cv-meta">${meta.map(([k, v]) => `<span><b>${k}:</b> ${v}</span>`).join("")}</div>${marks}</div>`;
   }
   pages.cover.mount = (el) => {
     const form = $("#cv-form", el);
     // The date isn't remembered: a new cover defaults to today.
-    const upd = () => { const v = Object.fromEntries(new FormData(form)); S().cover = Object.fromEntries(Object.entries(v).filter(([k]) => k !== "date")); ctx.save({ silent: true }); $("#print-area", el).innerHTML = coverHTML(v); };
+    const upd = () => { const v = Object.fromEntries(new FormData(form)); S().cover = { ...S().cover, ...Object.fromEntries(Object.entries(v).filter(([k]) => k !== "date")), style: coverStyle }; ctx.save({ silent: true }); const a = $("#print-area", el); a.style.setProperty("--acc", v.accent); a.innerHTML = coverHTML({ ...S().cover, ...v }); };
     form.addEventListener("input", upd);
-    form.elements.course.addEventListener("change", () => { const r = S().routine.find((x) => x.code === form.elements.course.value.toUpperCase()); if (r) { form.elements.ctitle.value = r.title || ""; form.elements.sec.value = r.sec; const f = ctx.facBy(r.faculty); if (f?.name) form.elements.faculty.value = f.name; upd(); } });
+    form.elements.course.addEventListener("change", () => {
+      const code = form.elements.course.value.toUpperCase().replace(/\s/g, ""), now = S().routine.find((x) => x.code === code && !x.lab) || S().routine.find((x) => x.code === code);
+      const r = now || Object.values(S().history || {}).flat().find((x) => x.code === code), t = (S().grades.find((g) => g.code === code) || {}).title;
+      form.elements.course.value = code;
+      if (r || t) { form.elements.ctitle.value = r?.title || t || form.elements.ctitle.value; if (r) { form.elements.sec.value = r.sec || ""; const f = ctx.facBy(r.faculty); if (f?.name) form.elements.faculty.value = f.name; } }
+      upd();
+    });
+    $$("[data-cvs]", el).forEach((b) => b.addEventListener("click", () => { coverStyle = b.dataset.cvs; S().cover = { ...S().cover, style: coverStyle }; ctx.save({ silent: true }); ctx.rerender(); }));
     $("#cv-print", el).addEventListener("click", () => window.print());
   };
 }

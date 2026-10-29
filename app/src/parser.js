@@ -143,11 +143,115 @@ function grabDegree(T) {
   return out;
 }
 
-export function parsePortalText(input) {
+const MONTH_IX = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+const money = (s) => Number(String(s || "").replace(/[^\d.-]/g, "")) || 0;
+/* "24/09/2026", "24-Sep-2026", "24 Sep 26" → "2026-09-24" */
+function isoDate(s) {
+  const m = String(s).match(/\b(\d{1,2})[/ -]([A-Za-z]{3,9}|\d{1,2})[/ -](\d{2,4})\b/);
+  if (!m) return "";
+  const mo = /\d/.test(m[2]) ? Number(m[2]) : MONTH_IX[m[2].slice(0, 3).toLowerCase()], y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+  return mo >= 1 && mo <= 12 ? `${y}-${String(mo).padStart(2, "0")}-${m[1].padStart(2, "0")}` : "";
+}
+
+/* My Accounts Ledger: one row per voucher (semester, voucher type, debit, credit) → billed, paid and waived per semester. */
+function grabLedger(T) {
+  const lines = T.split("\n"), hi = lines.findIndex((l) => /Voucher\s*Type/i.test(l) && /Debit/i.test(l));
+  if (hi < 0) return null;
+  const head = lines[hi].split("\t").map((c) => c.trim().toLowerCase()), col = (re) => head.findIndex((h) => re.test(h));
+  const ci = { sem: col(/semester/), type: col(/voucher\s*type/), debit: col(/^debit/), credit: col(/^credit/) };
+  if (ci.debit < 0 || ci.credit < 0) return null;
+  const by = new Map();
+  for (const l of lines.slice(hi + 1)) {
+    const c = l.split("\t");
+    if (c.length <= Math.max(ci.debit, ci.credit)) continue;
+    const sem = normSemester(ci.sem >= 0 ? c[ci.sem] : l);
+    if (!sem) continue;
+    const type = (ci.type >= 0 ? c[ci.type] : l).toLowerCase(), s = by.get(sem) || { sem, billed: 0, paid: 0, waiver: 0 };
+    by.set(sem, s);
+    s.billed += money(c[ci.debit]);
+    if (/receipt|payment|collect|paid|bkash|nagad|bank|cash/.test(type)) s.paid += money(c[ci.credit]); else s.waiver += money(c[ci.credit]);
+  }
+  if (!by.size) return null;
+  const semesters = [...by.values()].sort((a, b) => semesterKey(a.sem) - semesterKey(b.sem)), sum = (k) => semesters.reduce((a, s) => a + s[k], 0);
+  return { semesters, billed: sum("billed"), paid: sum("paid"), waiver: sum("waiver"), due: Math.max(0, sum("billed") - sum("paid") - sum("waiver")) };
+}
+
+/* Installment Payment: "1st Installment  24/09/2026  25,000.00  Paid" → due dates for the Fees page. */
+function grabInstallments(T) {
+  const out = [];
+  for (const l of T.split("\n")) {
+    if (!/instal?l?ment/i.test(l)) continue;
+    const due = isoDate(l), amounts = [...l.matchAll(/\d[\d,]*\.\d{2}\b/g)].map((m) => money(m[0]));
+    if (!due || !amounts.length) continue;
+    const label = (l.match(/\d+(?:st|nd|rd|th)?\s*instal?l?ment|instal?l?ment\s*[-#]?\s*\d+/i) || ["Installment"])[0].replace(/\s+/g, " ");
+    out.push({ due, amount: Math.max(...amounts), label: label[0].toUpperCase() + label.slice(1), paid: /\bpaid\b/i.test(l) && !/\bunpaid\b/i.test(l), late: false });
+  }
+  return out;
+}
+
+/* Curriculum: "CSE110  Object Oriented Programming  3  CSE103" → every course of the degree with credits and prerequisites. */
+function grabCurriculum(T) {
+  const out = [];
+  for (const l of T.split("\n")) {
+    const m = l.replace(/\t/g, "  ").match(/^\s*(?:\d{1,3}\s+)?([A-Z]{2,4})\s?(\d{3,4}[A-Z]?)\b\s+(.*)$/);
+    if (!m || TIME_RE.test(l)) continue;
+    const rest = m[3], cr = rest.match(/(?:^|\s)(\d(?:\.\d)?)(?=\s|$)/);
+    if (!cr) continue;
+    const code = m[1] + m[2], title = rest.slice(0, cr.index).replace(/\s+/g, " ").trim();
+    if (out.some((c) => c.code === code)) continue;
+    out.push({ code, title, cr: Number(cr[1]), prereq: [...rest.slice(cr.index + cr[0].length).matchAll(/\b([A-Z]{2,4})\s?(\d{3,4})\b/g)].map((x) => x[1] + x[2]).filter((c) => c !== code) });
+  }
+  return out;
+}
+
+/* Portal JSON time slot "MW 08:30AM-10:00AM" / "TR 1:30 PM - 3:00 PM" → { days, start, end } */
+export function parseSlot(slot) {
+  const s = String(slot || "").replace(/–|—/g, "-"), tm = s.match(TIME_RE), d = s.match(/^\s*([SMTWRFA]{1,4})\b/);
+  if (!tm || !d) return null;
+  let start = to24(tm[1], tm[2], tm[3] || tm[6]), end = to24(tm[4], tm[5], tm[6] || tm[3]);
+  if (Boolean(tm[3]) !== Boolean(tm[6]) && start >= end) { if (tm[6]) start = to24(tm[1], tm[2], "AM"); else end = to24(tm[4], tm[5], "PM"); }
+  return { days: d[1], start, end };
+}
+
+const empty = (x = {}) => ({ sem: "", profile: {}, rules: {}, payments: { schedule: [], fees: {} }, degree: [], routine: [], offered: [], grades: [], recommended: [], faculty: [], ...x });
+const GRADE_ONLY = /^(A\+|A-|B\+|B-|C\+|C-|D\+|A|B|C|D|F|P|S|U|R|I|W)$/;
+
+/* The portal's own JSON (read on the phone by src/portalsync.js), already cut down to academic fields:
+   { semesters: [{ name, start, end, rows: [{ code, name, sec, slot, room, ini, fac, cr, grade }] }], offered: [same + taken, cap], offeredSem }
+   → one parsed result per semester (like parsePortalText), so every semester's schedule is kept. */
+export function apiToParsed(api) {
+  const row = (c) => {
+    const cm = String(c.code || "").toUpperCase().match(CODE_RE), t = parseSlot(c.slot);
+    if (!cm || !t) return null;
+    return { code: cm[1] + cm[2], title: String(c.name || "").trim(), sec: String(c.sec ?? "").trim(), ...t, room: String(c.room || "").trim(),
+      faculty: String(c.ini || "").trim().toUpperCase(), lab: /\blab\b|\dL$/i.test(String(c.code || "")) || /\blab\b/i.test(String(c.room || "")), ...(Number(c.cr) ? { cr: Number(c.cr) } : {}) };
+  };
+  const fac = (rows) => rows.filter((c) => c.ini && c.fac).map((c) => ({ init: String(c.ini).trim().toUpperCase(), name: titleCase(String(c.fac)), email: "" }));
+  const out = [];
+  for (const s of api?.semesters || []) {
+    const sem = normSemester(s.name);
+    if (!sem || !s.rows?.length) continue;
+    const grades = s.rows.filter((c) => GRADE_ONLY.test(String(c.grade || "").trim().toUpperCase()) && CODE_RE.test(String(c.code || "").toUpperCase()) && !/lab/i.test(c.code))
+      .map((c) => { const cm = String(c.code).toUpperCase().match(CODE_RE); return { code: cm[1] + cm[2], title: String(c.name || "").trim(), cr: Number(c.cr) || 3, g: String(c.grade).trim().toUpperCase(), sem }; });
+    out.push(empty({ sem, routine: s.rows.map(row).filter(Boolean), grades, faculty: fac(s.rows), semDates: s.start ? { [sem]: { start: String(s.start).slice(0, 10), end: String(s.end || "").slice(0, 10) } } : {} }));
+  }
+  if (api?.offered?.length) {
+    const offered = api.offered.map((c) => { const r = row(c); return r && { ...r, ...(c.cap ? { capacity: Number(c.cap), enrolled: Number(c.taken) || 0 } : {}) }; }).filter(Boolean);
+    out.push(empty({ sem: normSemester(api.offeredSem || ""), offered, faculty: fac(api.offered) }));
+  }
+  return out;
+}
+
+export function parsePortalText(input, kind = "") {
   const T = joinBrokenLines(String(input || "").replace(/–|—/g, "-").replace(/\r/g, "").replace(/ /g, " "));
   const profile = grabProfile(T);
   const rules = grabRules(T);
   const payments = grabPayments(T);
+  const installments = grabInstallments(T);
+  if (installments.length && !payments.schedule.length) payments.schedule = installments;
+  const ledger = grabLedger(T);
+  const curriculum = kind === "curriculum" ? grabCurriculum(T) : [];
+  if (curriculum.length) return empty({ profile, curriculum });
   const degree = grabDegree(T);
   // Not "Offered Courses": that phrase is in the portal's sidebar menu on every page.
   const offeredMode = /\bCapacity\b|Dedicated\s*department/i.test(T);
@@ -232,7 +336,7 @@ export function parsePortalText(input) {
   // The page's semester: the heading above its class rows (Class Schedule's selected
   // semester), else the first one mentioned (Advising Slip: "ID# … Fall-2026").
   const pageSem = rowSem || (routine.length || offered.length || payments.schedule.length ? normSemester(T) : "");
-  return { sem: pageSem, profile, rules, payments, degree, routine, offered, grades, recommended, faculty: [...faculty.values()] };
+  return { sem: pageSem, profile, rules, payments, degree, routine, offered, grades, recommended, faculty: [...faculty.values()], ...(ledger ? { ledger } : {}) };
 }
 
 /* Combines the results of several pages (e.g. everything the extension captured).
@@ -251,8 +355,17 @@ export function mergeParsed(list, today = new Date()) {
 
   const withRoutine = list.filter((r) => r.routine?.length);
   const sems = withRoutine.map((r) => r.sem);
-  out.sem = sems.includes(currentSemester(today)) ? currentSemester(today) : newest(sems);
+  out.semDates = Object.assign({}, ...list.map((r) => r.semDates || {}));
+  // The running semester: the one whose dates cover today (portal JSON), else by month, else the newest.
+  const day = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const running = sems.find((s) => out.semDates[s] && out.semDates[s].start <= day && (!out.semDates[s].end || day <= out.semDates[s].end));
+  out.sem = running || (sems.includes(currentSemester(today)) ? currentSemester(today) : newest(sems));
   out.routine = dedupe(fromSem(withRoutine, out.sem).flatMap((r) => r.routine), slot);
+  // Every semester's classes, for course history (faculty, section) and the class-by-class attendance.
+  out.history = {};
+  for (const s of new Set(sems.filter(Boolean))) out.history[s] = dedupe(withRoutine.filter((r) => r.sem === s).flatMap((r) => r.routine), slot);
+  out.ledger = list.map((r) => r.ledger).filter(Boolean).pop() || null;
+  out.curriculum = dedupe(list.flatMap((r) => r.curriculum || []), (c) => c.code);
   const withOffered = list.filter((r) => r.offered?.length);
   out.offeredSem = newest(withOffered.map((r) => r.sem));
   out.offered = dedupe(fromSem(withOffered, out.offeredSem).flatMap((r) => r.offered), slot);
@@ -280,7 +393,7 @@ function titleCase(s) {
 export function offeredToPlanner(rows, existing = {}) {
   const O = {};
   for (const r of rows) {
-    const c = O[r.code] = O[r.code] || { title: existing[r.code]?.title || r.title || r.code, cr: existing[r.code]?.cr || 3, sections: [] };
+    const c = O[r.code] = O[r.code] || { title: existing[r.code]?.title || r.title || r.code, cr: existing[r.code]?.cr || r.cr || 3, sections: [] };
     const sec = r.sec || String(c.sections.length + 1);
     const ex = c.sections.find((s) => s.sec === sec);
     if (ex) { if (!ex.lab && (r.lab || ex.days !== r.days)) ex.lab = { days: r.days, start: r.start, end: r.end, room: r.room }; continue; }

@@ -9,7 +9,7 @@ const server = await createServer({ root: resolve("."), logLevel: "silent", serv
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--no-sandbox"] });
 const shots = {};
 const sp = await browser.newPage();
-for (const [path, w, scale] of [["/Home/Profile", 412, 2.625], ["/Home/StudentClassSchedule", 412, 2.625], ["/ReportForms/rptGradeSheetStudent.aspx", 412, 2.625], ["/Home/StudentClassSchedule", 980, 1.1]]) {
+for (const [path, w, scale] of [["/Home/Profile", 412, 2.625], ["/Home/ClassSchedule", 412, 2.625], ["/ReportForms/rptGradeSheetStudent.aspx", 412, 2.625], ["/Home/ClassSchedule", 980, 1.1]]) {
   await sp.setViewport({ width: w, height: 900, deviceScaleFactor: scale, isMobile: w < 500 });
   await sp.setContent(PAGES[path], { waitUntil: "load" });
   if (await sp.$("#show")) { await sp.click("#show"); await new Promise((r) => setTimeout(r, 600)); }

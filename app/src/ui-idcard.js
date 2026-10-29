@@ -278,7 +278,8 @@ export function install(ctx) {
     try {
       await commit(card, { verified: true, email: user.email });
       await backupImgs(["scan", "back"]);
-      await ctx.cloud.verifyMyCard(card.id);
+      const fresh = await ctx.cloud.verifyMyCard(card.id);
+      if (fresh) ctx.C.user = fresh; // the verified badge shows at once; no stale "Verify your account" card
       toast("Your student account is verified", "success", "Thanks! You have the verified badge now.");
       ctx.rerender(); return true;
     } catch (e) { toast("Couldn't verify yet", "error", e.message); return false; }

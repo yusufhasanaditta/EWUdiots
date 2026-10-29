@@ -1,13 +1,13 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Cleaner sign-in page and launch polish",
-    "Fixed: changes made on one device no longer get undone by another",
-    "Sign in to the EWU portal from the app and sync everything at once (Android)",
-    "Academic calendar: holidays, payment deadlines and your final exam dates",
-    "Scholarship planner, CGPA analytics charts, and course materials for every section",
-    "Screenshots and ID cards read reliably on phones"
+    "Portal sign-in fixed: every semester's class schedule, offered courses, fees and curriculum",
+    "Attendance by date or class number: Present, Absent or Cancelled",
+    "Calendar with holiday names, a year view and long breaks with the attendance cost",
+    "My Courses: done, still to take and a road map to graduation",
+    "Scholarship road map with your own target, plus new charts",
+    "Share files or links privately or with everyone, and report fake material"
   ],
-  "minVersion": "2.11.0",
-  "extension": "1.7.0"
+  "minVersion": "2.12.0",
+  "extension": "1.8.0"
 }

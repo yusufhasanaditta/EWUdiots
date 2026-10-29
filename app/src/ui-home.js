@@ -11,7 +11,10 @@ export function install(ctx) {
     const St = S(), p = St.profile || { name: "" };
     const nc = ctx.nextClass();
     const now = new Date(), today = now.getDay(), nowM = now.getHours() * 60 + now.getMinutes();
-    const todays = ctx.expand(St.routine).filter((b) => b.day === today).sort((a, b) => a.s - b.s);
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    // Holidays, make-up days and the semester's dates from the EWU calendar.
+    const todays = ctx.acal ? ctx.acal.classesOn(todayIso) : ctx.expand(St.routine).filter((b) => b.day === today).sort((a, b) => a.s - b.s);
+    const holidayToday = ctx.acal?.offReason(todayIso) || "";
     const { cgpa } = ctx.cgpaOf(St.grades);
     const shown = cgpa || p.cgpa || 0;
     const upcoming = St.tasks.filter((t) => !t.done && new Date(t.due) > now - 864e5).sort((a, b) => new Date(a.due) - new Date(b.due)).slice(0, 3);
@@ -53,6 +56,7 @@ export function install(ctx) {
       <div class="split mt">
         <section class="card"><div class="card-h"><h2>Today's Schedule</h2><a class="see" href="#/routine">View All</a></div>${navStrip ? `<div style="margin:-4px 0 12px">${navStrip}</div>` : ""}
           ${todays.length ? `<div class="sched">${todays.map((b) => { const live = b.s <= nowM && nowM < b.e; return `<a class="sitem ${b.e <= nowM ? "past" : ""}" href="#/course?c=${encodeURIComponent(b.code)}" style="--cc:${ctx.colorFor(b.code)}"><span class="itile sm ${ctx.toneFor(b.code)}">${icon("calendar")}</span><div class="grow min0"><span class="when">${ctx.fmt12(b.s)} – ${ctx.fmt12(b.e)}</span><b>${esc(b.code)}${b.title ? " - " + esc(b.title) : ""}${b.lab ? " (Lab)" : ""}</b><span class="xs">${esc(b.room || "TBA")}</span></div>${live ? '<span class="pill purple">Now</span>' : ""}</a>`; }).join("")}</div>`
+            : holidayToday ? `<div class="cg-off-banner"><span class="itile red">${icon("sun")}</span><div><b>${esc(ctx.acal.short(holidayToday))}</b><p class="small">University holiday: no classes today. Enjoy it!</p></div></div>`
             : ctx.empty("mascot-reading", "No Classes Today", "Take a break or get ahead! You're all caught up.", `<a class="btn sm" href="#/focus">${icon("target")} Start a focus session</a>`)}</section>
         <div class="stack" style="gap:16px">
           <section class="card"><div class="card-h"><h2>Quick Stats</h2><span class="pill">${esc(St.routineSem || "This Semester")}</span></div>
@@ -64,6 +68,7 @@ export function install(ctx) {
       <div class="grid g2 mt">${deadlines}<div class="grid g2">${streakCard}${attCard}</div></div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}${ctx.acal?.homeCard() || ""}${eventsCard()}</div>`;
 
     const dueToday = St.tasks.filter((t) => !t.done && new Date(t.due).toDateString() === now.toDateString()).length;
+    const holidayStrip = holidayToday && !todays.length ? `<a class="cg-off-banner mt" href="#/calendar"><span class="itile red">${icon("sun")}</span><div><b>Today: ${esc(ctx.acal.short(holidayToday))}</b><p class="small">University holiday, no classes.</p></div></a>` : "";
     const todayStrip = todays.length ? `<div class="today-strip" role="list" aria-label="Today's classes">${todays.map((b) => { const live = b.s <= nowM && nowM < b.e, past = b.e <= nowM;
       return `<a role="listitem" class="tchip${live ? " live" : ""}${past ? " past" : ""}" href="#/course?c=${encodeURIComponent(b.code)}" style="--cc:${ctx.colorFor(b.code)}"><span class="tt">${ctx.fmtShort(b.s)}</span><b>${esc(b.code)}${b.lab ? " Lab" : ""}</b><span class="tr">${live ? "Now" : esc(ctx.baseRoom(b.room) || "TBA")}</span></a>`; }).join("")}</div>` : "";
     const mobile = `<div class="m-only">
@@ -73,7 +78,7 @@ export function install(ctx) {
       <div class="m-summary">${[[todays.length ? `${todays.filter((b) => b.e > nowM).length}` : "0", todays.length === 1 ? "class today" : "classes today", "#/routine"], [dueToday, "due today", "#/tasks"], [shown ? shown.toFixed(2) : "—", "CGPA", "#/grades"]]
         .map(([v, l, h]) => `<a href="${h}"><b class="num">${v}</b><span>${l}</span></a>`).join("")}</div>
       <a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Remind me 30 min before”</span></span>${icon("arrow")}</a>
-      ${ncCard}${todayStrip}${navStrip}
+      ${ncCard}${holidayStrip}${todayStrip}${navStrip}
       <h2 class="mgroup-h">Quick access</h2><div class="qgrid">${TILES.map(([id, ic, tone, t]) => `<a class="qtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span>${t}</a>`).join("")}</div>
       <div class="mt">${deadlines}</div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}${ctx.acal?.homeCard() || ""}${eventsCard()}
       <div class="g2m mt">${streakCard}${attCard}</div></div>`;

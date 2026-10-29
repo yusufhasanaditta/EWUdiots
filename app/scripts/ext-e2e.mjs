@@ -49,8 +49,8 @@ await portal.goto("https://portal.ewubd.edu/");
 await portal.type("#username", STUDENT.id); await portal.type("#pass", "Secret#123");
 await wait(1500);
 const visits = [
-  ["/Home/Profile"], ["/Home/StudentClassSchedule", "#show"], ["/Home/AdvisingRules"], ["/ReportForms/rptGradeSheetStudent.aspx"],
-  ["/Home/StudentDegreeReview"], ["/ReportForms/AdvisingSlip.aspx?token=abc123"], ["/Home/OfferedCoursesStudent", "#show"], ["/Home/PreCourseRegistration"]
+  ["/Home/Profile"], ["/Home/ClassSchedule", "#show"], ["/Home/AdvisingRules"], ["/ReportForms/rptGradeSheetStudent.aspx"],
+  ["/Home/DegreeReview"], ["/ReportForms/AdvisingSlip.aspx?token=abc123"], ["/Home/OfferedCoursesStudent", "#show"], ["/Home/PreCourseRegistration"]
 ];
 for (const [path, show] of visits) {
   await portal.goto("https://portal.ewubd.edu" + path);

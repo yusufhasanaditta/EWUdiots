@@ -8,16 +8,19 @@ export const SENSITIVE = [
   "1234567890", "00926205101999", "Abdul Karim", "Secret#123", "Single"
 ];
 
-const MENU = ["PRE-ADVISING", "ADVISING", "MY CLASS SCHEDULE", "ADVISING RULES", "GRADE REPORT", "SEMESTER DROP", "CURRICULUMN",
-  "INSTALLMENT PAYMENT", "MY ACCOUNTS LEDGER", "OFFERED COURSES", "DEGREE REVIEW", "FACULTY EVALUATION", "CONVOCATION APPLICATION", "UPLOAD DOCUMENT"];
+// Menu links. Some addresses differ from the app's fallbacks on purpose, so the tests prove pages are found through the menu.
+const MENU = [["PRE-ADVISING", "/Home/PreCourseRegistration"], ["ADVISING", "#"], ["MY CLASS SCHEDULE", "/Home/ClassSchedule"], ["ADVISING RULES", "/Home/AdvisingRules"],
+  ["GRADE REPORT", "/ReportForms/rptGradeSheetStudent.aspx"], ["SEMESTER DROP", "#"], ["CURRICULUMN", "/Home/StudentCurriculum"], ["INSTALLMENT PAYMENT", "/Home/Installment"],
+  ["MY ACCOUNTS LEDGER", "/Home/StudentLedger"], ["OFFERED COURSES", "/Home/OfferedCoursesStudent"], ["DEGREE REVIEW", "/Home/DegreeReview"], ["FACULTY EVALUATION", "#"],
+  ["CONVOCATION APPLICATION", "#"], ["UPLOAD DOCUMENT", "#"]];
 
 // Portal shell: sidebar menu, header with "Hi, <name>", breadcrumb.
 const shell = (title, crumb, body, script = "") => `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${title}</title>
 <style>body{font-family:sans-serif;margin:0;display:flex}.side{width:260px;background:#1e3a68}.side a{display:block;color:#fff;padding:10px}
 main{flex:1}header{background:#1e3a68;color:#fff;padding:16px;display:flex;justify-content:space-between}td,th{padding:6px 10px;border:1px solid #ddd}
 .tab-pane{display:none}.tab-pane.active{display:block}.modal{display:none}</style></head><body>
-<nav class="side"><ul class="list-unstyled">${MENU.map((m) => `<li><a href="#">${m}</a></li>`).join("")}</ul></nav>
-<main><header><span>EAST WEST UNIVERSITY</span><span><i class="fa fa-bell"></i> 0 <span class="user">Hi, ${STUDENT.name}</span></span></header>
+<nav class="side"><ul class="list-unstyled">${MENU.map(([m, h]) => `<li><a href="${h}">${m}</a></li>`).join("")}</ul></nav>
+<main><header><span>EAST WEST UNIVERSITY</span><span><i class="fa fa-bell"></i> 0 <span class="user">Hi, ${STUDENT.name}</span> <a class="dropdown-item" href="/Home/Profile">Profile</a> <a href="/Account/Logout">Logout</a></span></header>
 <div class="breadcrumb"><a href="/Home/Index">Home</a> / ${crumb}</div>${body}</main>${script ? `<script>${script}</script>` : ""}</body></html>`;
 
 const table = (head, rows) => `<table class="table"><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
@@ -47,7 +50,7 @@ export const PAGES = {
 <tr><th>National ID:</th><td>1234567890</td></tr><tr><th>Advisor:</th><td>Dr. Nasima Akter Hossain(NAH)<br><a href="mailto:nasima.h@ewubd.edu">nasima.h@ewubd.edu</a></td></tr>
 <tr><th>Pending Documents:</th><td></td></tr></table></div></div>`),
 
-  "/Home/StudentClassSchedule": shell("EWU Student Portal", "Class Schedule", `
+  "/Home/ClassSchedule": shell("EWU Student Portal", "Class Schedule", `
 <div class="row">${semSelect("sem", ["Spring-2027", "Fall-2026", "Summer-2026"], "Fall-2026")}
 <button id="show" class="btn">SHOW COURSES</button> <button class="btn"><i class="fa fa-print"></i> PRINT SLIP</button></div><div id="result"></div>`,
   later("show", "result", table(["Serial", "Course", "Section", "Credits", "Timing", "Room No.", "WithDraw Status", "Drop Status", "Faculty Initial", "Faculty Name", "Faculty Email"], SCHEDULE_ROWS))),
@@ -74,7 +77,7 @@ ${[["Program Type", "Undergraduate"], ["Department", "Department of CSE"], ["Com
 <table><tr><td>Summary:</td><td>CGPA: 3.15 (out of 4.00)</td><td>gpacr: 7.50</td><td>Credit Earned: 7.50</td><td>Minimum Credits Required: 140.00</td></tr></table>
 <table><tr><td>A+ =4.0</td><td>B- =2.75</td><td>S = Satisfactory=0</td></tr><tr><td>A =3.75</td><td>C+ =2.50</td><td>P= Pass=0</td></tr></table></div></body></html>`,
 
-  "/Home/StudentDegreeReview": shell("EWU Student Portal", "Degree Review", `<fieldset><legend>Degree Analysis</legend><h3>B.Sc. in Computer Science and Engineering</h3>
+  "/Home/DegreeReview": shell("EWU Student Portal", "Degree Review", `<fieldset><legend>Degree Analysis</legend><h3>B.Sc. in Computer Science and Engineering</h3>
 <div class="row"><div class="col-md-6"><fieldset><legend>Student Information</legend>
 <div class="form-group"><label class="col-md-4">Student Id</label><input class="form-control" readonly value="${STUDENT.id}"></div>
 <div class="form-group"><label class="col-md-4">Student Name</label><input class="form-control" readonly value="${STUDENT.name}"></div>
@@ -116,7 +119,58 @@ ${table(["Course(s)", "Sec", "Cr", "Tuition", "Time-WeekDay", "Room", "Remarks"]
 <div class="selected"><h4>SELECTED COURSES</h4>${table(["Course", "Credits", "Action"], [["CSE110", "4.5", ""], ["MAT104", "3", ""]])}<p>Credits taken 7.5</p></div>
 <div class="modal"><p>6. Student cannot take more than 2 classes in same day.</p></div>`),
 
+  "/Home/StudentLedger": shell("EWU Student Portal", "My Accounts Ledger", table(["SL", "Semester", "Date", "Voucher No", "Voucher Type", "Particulars", "Debit", "Credit", "Balance"], [
+    ["1", "Summer-2026", "20/05/2026", "INV-10021", "Invoice", "Tuition and fees", "61,200.00", "0.00", "61,200.00"],
+    ["2", "Summer-2026", "22/05/2026", "RCV-55102", "Receipt", "Bank deposit", "0.00", "61,200.00", "0.00"],
+    ["3", "Fall-2026", "15/09/2026", "INV-10877", "Invoice", "Tuition and fees", "87,700.00", "0.00", "87,700.00"],
+    ["4", "Fall-2026", "16/09/2026", "CRN-2201", "Credit Note", "Merit scholarship 25%", "0.00", "20,375.00", "67,325.00"],
+    ["5", "Fall-2026", "20/09/2026", "RCV-58800", "Receipt", "Bank deposit", "0.00", "40,000.00", "27,325.00"]])),
+
+  "/Home/Installment": shell("EWU Student Portal", "Installment Payment", `<h4>Fall-2026</h4>${table(["Installment", "Last Date", "Amount", "Status"], [
+    ["1st Installment", "24/09/2026", "40,000.00", "Paid"], ["2nd Installment", "29/10/2026", "27,325.00", "Unpaid"]])}`),
+
+  "/Home/StudentCurriculum": shell("EWU Student Portal", "Curriculum", `<h4>B.Sc. in Computer Science and Engineering</h4>${table(["SL", "Course", "Title", "Credit", "Prerequisite"], [
+    ["1", "CSE103", "Structured Programming", "4.5", ""], ["2", "CSE106", "Discrete Mathematics", "3", ""], ["3", "CSE110", "Object Oriented Programming", "4.5", "CSE103"],
+    ["4", "MAT101", "Differential and Integral Calculus", "3", ""], ["5", "MAT102", "Differential Equations and Coordinate Geometry", "3", "MAT101"],
+    ["6", "CSE207", "Data Structures", "4", "CSE110, CSE106"], ["7", "CSE209", "Electrical Circuits", "4", "PHY109"], ["8", "PHY109", "Engineering Physics I", "4", ""]])}`),
+
   "/": `<!DOCTYPE html><html><head><title>EWU Student Panel: Login</title></head><body><form id="loginform">
 <input type="text" placeholder="Student ID" id="username" name="Username"><input type="password" placeholder="Password" id="pass" name="Password">
 <button type="button">Sign in</button></form></body></html>`
+};
+
+/* The portal's JSON (what its Angular pages load), FAKE data. Extra private-looking fields (mobile, NID) must never
+   leave the page: the app's script keeps only academic fields. */
+const apiRow = (code, name, sec, slot, room, ini, fac, cr, extra = {}) => ({ CourseCode: code, CourseName: name, SectionName: sec, TimeSlotName: slot, RoomName: room, ShortName: ini,
+  FacultyName: fac, CreditHour: cr, DropStatus: "No", WithDrawStatus: "No", StudentName: STUDENT.name, MobileNo: "1711000999", NationalId: "1234567890", ...extra });
+export const API = {
+  "/api/utility/GetSemesterForDropDown": [
+    { SemesterId: 51, SemesterName: "Spring 2027", StartingDate: "2027-01-10T00:00:00", EndingDate: "2027-05-05T00:00:00" },
+    { SemesterId: 50, SemesterName: "Fall 2026", StartingDate: "2026-09-08T00:00:00", EndingDate: "2026-12-24T00:00:00" },
+    { SemesterId: 49, SemesterName: "Summer 2026", StartingDate: "2026-05-17T00:00:00", EndingDate: "2026-09-02T00:00:00" },
+    { SemesterId: 48, SemesterName: "Spring 2026", StartingDate: "2026-01-11T00:00:00", EndingDate: "2026-05-06T00:00:00" },
+    { SemesterId: 47, SemesterName: "Fall 2025", StartingDate: "2025-09-07T00:00:00", EndingDate: "2025-12-24T00:00:00" },
+    { SemesterId: 46, SemesterName: "Summer 2025", StartingDate: "2025-05-18T00:00:00", EndingDate: "2025-09-10T00:00:00" },
+    { SemesterId: 45, SemesterName: "Spring 2025", StartingDate: "2025-01-12T00:00:00", EndingDate: "2025-05-07T00:00:00" }],
+  "/api/Advising/GetSemesterStudentWiseAdvisingCourseListStudent/51": [],
+  "/api/Advising/GetSemesterStudentWiseAdvisingCourseListStudent/50": [
+    apiRow("CHE109", "Engineering Chemistry I", 6, "MW 01:30PM-03:00PM", "FUB-903", "KTRA", "DR. KARIM T. RAHMAN", 4),
+    apiRow("CHE109 Lab", "Engineering Chemistry I Lab", 6, "S 01:30PM-03:30PM", "FUB-804 (Chemistry Lab)", "KTRA", "DR. KARIM T. RAHMAN", 0),
+    apiRow("CSE106", "Discrete Mathematics", 14, "MW 08:30AM-10:00AM", "AB2-702", "SNR", "Ms. Sadia Nur Rahman", 3),
+    apiRow("MAT102", "Differential Equations", 7, "MW 04:50PM-06:20PM", "FUB-203", "AMS", "Mr. Arif M. Sarker", 3),
+    apiRow("ENG7101", "Academic Writing", 23, "TR 10:10AM-11:40AM", "AB1-201", "MSZ", "Ms. Zara Sultana", 3),
+    apiRow("BUS101", "Introduction to Business", 2, "TR 01:30PM-03:00PM", "AB1-301", "RKH", "Mr. Rafiq K. Hasan", 3, { DropStatus: "Yes" })],
+  "/api/Advising/GetSemesterStudentWiseAdvisingCourseListStudent/49": [
+    apiRow("CSE103", "Structured Programming", 3, "ST 10:10AM-11:40AM", "AB3-401", "NHR", "Dr. Nadia H. Rahman", 4.5, { Grade: "B+" }),
+    apiRow("CSE103 Lab", "Structured Programming Lab", 3, "R 08:30AM-10:30AM", "AB3-502 (Lab)", "NHR", "Dr. Nadia H. Rahman", 0),
+    apiRow("MAT101", "Differential and Integral Calculus", 5, "MW 11:50AM-01:20PM", "FUB-201", "FRB", "Ms. Farhana R. Bushra", 3, { Grade: "B" })],
+  "/api/Advising/GetSemesterStudentWiseAdvisingCourseListStudent/48": [],
+  "/api/Advising/GetSemesterStudentWiseAdvisingCourseListStudent/47": [],
+  "/api/Advising/GetSemesterStudentWiseAdvisingCourseListStudent/46": [],
+  "/api/Advising/GetSemesterStudentWiseAdvisingCourseListStudent/45": [apiRow("XYZ999", "Must not be read", 1, "ST 08:30AM-10:00AM", "AB1-101", "ZZZ", "Not Read", 3)],
+  "/api/Advising/GetAllRoutine": [
+    { ...apiRow("CSE110", "Object Oriented Programming", 1, "ST 08:30AM-10:00AM", "AB2-702", "NHR", "Dr. Nadia H. Rahman", 4.5), SeatTaken: 38, SeatCapacity: 40, SemesterName: "Spring 2027" },
+    { ...apiRow("CSE110", "Object Oriented Programming", 2, "MW 10:10AM-11:40AM", "AB2-703", "NSA", "Dr. Nusrat S. Alam", 4.5), SeatTaken: 40, SeatCapacity: 40, SemesterName: "Spring 2027" },
+    { ...apiRow("MAT104", "Linear Algebra", 1, "MW 01:30PM-03:00PM", "FUB-203", "AMS", "Mr. Arif M. Sarker", 3), SeatTaken: 20, SeatCapacity: 45, SemesterName: "Spring 2027" },
+    { ...apiRow("PHY109", "Engineering Physics I", 1, "TR 11:50AM-01:20PM", "FUB-501", "MZH", "Dr. M. Zahid Hossain", 4), SeatTaken: 30, SeatCapacity: 40, SemesterName: "Spring 2027" }]
 };

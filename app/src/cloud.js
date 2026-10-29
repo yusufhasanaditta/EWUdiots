@@ -59,7 +59,7 @@ export async function changePassword(password) { need(); authOk(await sb.auth.up
 export const roleOf = (user) => user?.app_metadata?.role || "";
 // Set only by the server (public.verify_my_card / admins), so the phone can't claim it.
 export const cardVerified = (user) => user?.app_metadata?.card_verified === true;
-export async function verifyMyCard(cardId) { need(); ok(await sb.rpc("verify_my_card", { card_id: cardId })); await sb.auth.refreshSession(); }
+export async function verifyMyCard(cardId) { need(); ok(await sb.rpc("verify_my_card", { card_id: cardId })); await sb.auth.refreshSession(); return currentUser(); }
 /* Passwordless sign-in for existing accounts (e.g. after scanning the ID card): a 6-digit code to the account's email. */
 export async function sendLoginCode(idOrEmail) {
   need(); const email = emailFor(idOrEmail);

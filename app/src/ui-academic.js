@@ -19,7 +19,8 @@ export function install(ctx) {
     const nCourses = new Set(St.routine.map((r) => r.code)).size;
     const ws = weekStart(), we = new Date(ws); we.setDate(ws.getDate() + 6);
     const range = `${ws.getDate()}${ws.getMonth() !== we.getMonth() ? " " + ws.toLocaleDateString("en-GB", { month: "short" }) : ""} – ${we.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
-    const dayBlocks = blocks.filter((b) => b.day === rDay).sort((a, b) => a.s - b.s);
+    const rDate = new Date(ws); rDate.setDate(ws.getDate() + W7.indexOf(rDay));
+    const rOff = offOf(rDate), dayBlocks = rOff ? [] : blocks.filter((b) => b.day === rDay).sort((a, b) => a.s - b.s);
     return `${ctx.demoBanner()}<div class="d-only">${ctx.head("My Routine", `${esc(St.routineSem || "")} · ${nCourses} Courses`,
       `${ctx.seg([["grid", "Weekly View"], ["list", "List View"]], rView, "data-rv")}<button class="btn outline" id="ics-btn">${icon("plus")} Add to Google Calendar</button>`)}
       <div class="row between" style="margin-bottom:12px"><div class="row"><button class="btn sm icon-only neutral" id="wk-prev" aria-label="Previous week">${icon("chevL")}</button><button class="btn sm icon-only neutral" id="wk-next" aria-label="Next week">${icon("chevR")}</button><b>${range}</b></div>
@@ -35,6 +36,7 @@ export function install(ctx) {
         <div class="mt">${ctx.seg([["grid", `${icon("list")} List View`], ["cal", `${icon("calendar")} Calendar View`]], rView === "list" ? "grid" : rView === "grid" ? "grid" : "cal", "data-rvm", "fill")}</div>
         ${clashes.size ? `<div class="alert red mt"><span class="a-ic">${icon("alert")}</span><div><b>Time clash detected</b><p>Some classes overlap.</p></div></div>` : ""}
         ${rView === "cal" ? `<div class="mt">${weekGrid(blocks, clashes, ws)}</div>` : `<div class="mt">${dayBlocks.length ? dayBlocks.map((b) => `<a class="tblock" href="#/course?c=${encodeURIComponent(b.code)}" style="--cc:${ctx.colorFor(b.code)}"><span class="tt">${ctx.fmtShort(b.s)}<br>${ctx.fmtShort(b.e)}</span><div class="min0"><b>${esc(b.code)}${b.lab ? " Lab" : ""}</b><span>${esc(b.title || "")}</span><span class="xs" style="display:flex;gap:4px;align-items:center">${icon("room", "sm")} ${esc(b.room || "TBA")}</span></div>${icon("chevR")}</a>`).join("")
+          : rOff ? `<div class="cg-off-banner"><span class="itile red">${icon("sun")}</span><div><b>${esc(ctx.acal.short(rOff))}</b><p class="small">University holiday on ${rDate.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })}: no classes.</p></div></div>`
           : ctx.empty("mascot-reading", "No Classes Today", "Take a break or get ahead!", `<a class="btn sm" href="#/focus">${icon("target")} Explore Focus</a>`)}</div>
         ${dayBlocks.length ? `<h3 class="mt">${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][rDay]} · ${dayBlocks.length} Class${dayBlocks.length > 1 ? "es" : ""}</h3><section class="card tight mt-s">${dayBlocks.map((b) => `<div class="lrow"><span style="width:4px;height:36px;border-radius:3px;background:${ctx.colorFor(b.code)}"></span><b style="width:72px">${esc(b.code)}</b><div class="body"><b style="font-size:13.5px">${esc(b.title || (b.lab ? "Lab" : "Class"))}</b><span>${ctx.fmt12(b.s)} – ${ctx.fmt12(b.e)} | ${esc(b.room || "TBA")}</span></div><button class="btn sm icon-only ghost" data-edit="${b.id}" aria-label="Edit ${esc(b.code)}">${icon("more")}</button></div>`).join("")}</section>` : ""}`}
         <button class="btn primary block lg mt" id="ics-btn-m2">${icon("calendar")} Export to Google Calendar</button>
@@ -43,11 +45,14 @@ export function install(ctx) {
   function upcoming(blocks) {
     const now = new Date(), nd = now.getDay(), nm = now.getHours() * 60 + now.getMinutes(), out = [];
     for (let k = 0; k < 7 && out.length < 4; k++) {
-      const d = (nd + k) % 7;
+      const d = (nd + k) % 7, date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + k);
+      if (offOf(date)) continue;
       blocks.filter((b) => b.day === d && !(k === 0 && b.e <= nm)).sort((a, b) => a.s - b.s).forEach((b) => out.length < 4 && out.push({ ...b, when: `${k === 0 ? "Today" : k === 1 ? "Tomorrow" : DS[d]} · ${ctx.fmt12(b.s)}` }));
     }
     return out;
   }
+  // A university holiday on that date (name), from the EWU calendar.
+  const offOf = (date) => ctx.acal?.offReason(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`) || "";
   function weekGrid(blocks, clashes, ws) {
     const startH = Math.min(8, ...blocks.map((b) => Math.floor(b.s / 60))), endH = Math.max(18, ...blocks.map((b) => Math.ceil(b.e / 60)));
     const PX = 0.9, H = (endH - startH) * 60 * PX + 16, y = (m) => (m - startH * 60) * PX + 8;
@@ -59,7 +64,8 @@ export function install(ctx) {
       <div class="cal-hours" style="height:${H}px">${hrs.map((h) => `<span class="cal-hour" style="top:${y(h * 60)}px">${h % 12 || 12}:00 ${h >= 12 ? "PM" : "AM"}</span>`).join("")}</div>
       ${W7.map((d) => `<div class="cal-col" style="height:${H}px">${hrs.map((h) => `<div class="cal-line" style="top:${y(h * 60)}px"></div>`).join("")}
         ${isToday(d) && nm > startH * 60 && nm < endH * 60 ? `<div class="cal-now" style="top:${y(nm)}px"></div>` : ""}
-        ${blocks.filter((b) => b.day === d).map((b) => `<button class="cal-blk ${clashes.has(b.id + b.day) ? "clash" : ""}" data-edit="${b.id}" style="top:${y(b.s)}px;height:${Math.max(30, (b.e - b.s) * PX - 2)}px;--cc:${ctx.colorFor(b.code)}" aria-label="${esc(b.code)} ${DS[b.day]} ${ctx.fmt12(b.s)}"><span class="tm">${ctx.fmtShort(b.s)}–${ctx.fmtShort(b.e)}</span><b>${esc(b.code)}${b.lab ? " Lab" : ""}</b>${esc(b.room || "")}</button>`).join("")}</div>`).join("")}
+        ${offOf(dateOf(d)) ? `<div class="cal-off"><span>${icon("sun", "sm")} ${esc(ctx.acal.short(offOf(dateOf(d))))}</span></div>` : ""}
+        ${blocks.filter((b) => b.day === d && !offOf(dateOf(d))).map((b) => `<button class="cal-blk ${clashes.has(b.id + b.day) ? "clash" : ""}" data-edit="${b.id}" style="top:${y(b.s)}px;height:${Math.max(30, (b.e - b.s) * PX - 2)}px;--cc:${ctx.colorFor(b.code)}" aria-label="${esc(b.code)} ${DS[b.day]} ${ctx.fmt12(b.s)}"><span class="tm">${ctx.fmtShort(b.s)}–${ctx.fmtShort(b.e)}</span><b>${esc(b.code)}${b.lab ? " Lab" : ""}</b>${esc(b.room || "")}</button>`).join("")}</div>`).join("")}
     </div></div>`;
   }
   function listView(blocks) {
@@ -486,7 +492,7 @@ export function install(ctx) {
     if (!courses.includes(mCourse)) mCourse = courses[0];
     const picker = `<div style="display:flex;justify-content:center;margin-bottom:12px"><select class="select" id="m-course" style="width:auto;font-weight:600" aria-label="Course">${courses.map((c) => `<option value="${esc(c)}" ${c === mCourse ? "selected" : ""}>${esc(c)}${St.routine.find((r) => r.code === c)?.title ? " - " + esc(St.routine.find((r) => r.code === c).title) : ""}</option>`).join("")}</select></div>`;
     return `${ctx.subHead("Marks &amp; Attendance Estimator", "", ctx.qparam("from") === "course" ? `#/course?c=${encodeURIComponent(mCourse)}` : "#/courses")}<div style="max-width:760px;margin:0 auto">${picker}
-      ${ctx.seg([["marks", "Marks Estimator"], ["att", "Attendance Estimator"]], mTab, "data-mt", "fill")}<div class="mt" id="m-body">${mTab === "marks" ? marksBody(mCourse) : attBody(mCourse)}</div></div>`;
+      ${ctx.seg([["marks", "Marks Estimator"], ["att", "Attendance Estimator"]], mTab, "data-mt", "fill")}<div class="mt" id="m-body">${mTab === "marks" ? marksBody(mCourse) : ctx.attendance.panel(mCourse)}</div></div>`;
   };
   function marksBody(c) {
     const m = marksOf(c), total = m.parts.reduce((a, p) => a + Number(p.w), 0);
@@ -513,17 +519,6 @@ export function install(ctx) {
       <p class="xs mt-s">Cut-offs: ${ctx.GRADES.slice(0, -1).map((x) => `${x.g} ${x.min}`).join(" · ")}. They vary by course outline, so check yours.</p>
       <button class="btn primary lg block mt" id="m-save">${icon("bookmark")} Save This Plan</button>`;
   }
-  function attBody(c) {
-    const a = S().attendance[c] || { held: 0, missed: 0 }, planned = a.planned || 26;
-    const pct = a.held ? Math.round((100 * (a.held - a.missed)) / a.held) : 100;
-    const canMiss = Math.max(0, Math.floor(planned * 0.3) - a.missed);
-    return `<section class="card"><div class="row nowrap" style="gap:18px"><div class="ring lg ${pct < 70 ? "red" : "green"}" style="--p:${pct}"><div><b>${pct}%</b><span>Attendance</span></div></div>
-        <div class="grow"><div class="stats-strip" style="grid-template-columns:repeat(3,1fr)"><div style="flex-direction:column;align-items:flex-start;gap:0"><b class="num">${a.held}</b><span>Total</span></div><div style="flex-direction:column;align-items:flex-start;gap:0"><b class="num" style="color:var(--success)">${a.held - a.missed}</b><span>Present</span></div><div style="flex-direction:column;align-items:flex-start;gap:0"><b class="num" style="color:var(--error)">${a.missed}</b><span>Absent</span></div></div></div></div>
-      <div class="row mt"><button class="btn primary grow" data-att="present">${icon("check")} Present</button><button class="btn danger-soft grow" data-att="absent">${icon("x")} Absent</button><button class="btn neutral" data-att="undo" aria-label="Undo last">${icon("reset")}</button></div></section>
-      ${pct < 70 && a.held ? `<div class="alert red mt"><span class="a-ic">${icon("alertc")}</span><div><b>Your attendance is below 70%</b><p>Many courses require at least 70% to sit the final. Check your course outline.</p></div></div>` : ""}
-      <section class="card mt stack"><h3>Plan ahead</h3><label class="field">Classes planned this semester<input class="input" type="number" id="a-planned" min="1" max="60" value="${planned}"></label>
-        <div class="alert ${canMiss > 2 ? "green" : canMiss > 0 ? "amber" : "red"}"><span class="a-ic">${icon("calendar")}</span><div><b>You can miss ${canMiss} more class${canMiss === 1 ? "" : "es"}</b><p>…and still finish at 70%+ (${planned} classes in total).</p></div></div></section>`;
-  }
   pages.marks.mount = (el) => {
     $("#m-course", el).addEventListener("change", (e) => { mCourse = e.target.value; ctx.rerender(); });
     $$("[data-mt]", el).forEach((b) => b.addEventListener("click", () => { mTab = b.dataset.mt; ctx.rerender(); }));
@@ -542,8 +537,7 @@ export function install(ctx) {
       $("#mc-add", mm).addEventListener("click", () => rows.insertAdjacentHTML("beforeend", `<div class="row nowrap"><input class="input" name="n" placeholder="e.g. Lab" aria-label="Component name"><input class="input num" name="w" type="number" min="0" max="100" value="10" aria-label="Out of" style="width:90px"><button type="button" class="btn icon-only neutral" data-rmrow aria-label="Remove">${icon("x")}</button></div>`));
       $("#mc-form", mm).addEventListener("submit", (e) => { e.preventDefault(); const old = Object.fromEntries(m.parts.map((p) => [p.n, p.got])); m.parts = $$(".row", rows).map((r) => ({ n: r.querySelector('[name="n"]').value.trim() || "Component", w: Number(r.querySelector('[name="w"]').value) || 0, got: old[r.querySelector('[name="n"]').value.trim()] ?? "" })); ctx.save(); closeModal(); ctx.rerender(); });
     }));
-    $$("[data-att]", el).forEach((b) => b.addEventListener("click", () => ctx.markAttendance(c, b.dataset.att)));
-    const pl = $("#a-planned", el); pl && pl.addEventListener("change", () => { const a = S().attendance[c] = S().attendance[c] || { held: 0, missed: 0 }; a.planned = Number(pl.value) || 26; ctx.save(); ctx.rerender(); });
+    if (mTab === "att") ctx.attendance.mount(el, c);
   };
 
   /* ═════════════ DEADLINES ═════════════ */
@@ -608,27 +602,44 @@ export function install(ctx) {
 
   /* ═════════════ FEES ═════════════ */
   const feeRows = () => { const f = S().payments.fees || {}; return [["tuition", "Tuition Fee"], ["lab", "Laboratory Fee"], ["activity", "Student Activity Fee"], ["library", "Library Fee"]].filter(([k]) => f[k]).map(([k, l]) => [l, f[k]]); };
+  /* My Accounts Ledger (portal): billed, paid and waived per semester as paired bars, and what's still due. */
+  function ledgerCard() {
+    const L = S().ledger; if (!L?.semesters?.length) return "";
+    const items = L.semesters.slice(-6), w = innerWidth < 600 ? 380 : 640, H = 190, Lp = 8, R = 8, T = 16, B = 28, max = Math.max(1, ...items.flatMap((x) => [x.billed, x.paid + x.waiver]));
+    const gw = (w - Lp - R) / items.length, bw = Math.min(26, gw * 0.3), h = (v) => ((H - T - B) * v) / max, k = (v) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(Math.round(v)));
+    const bar = (cx, v, cls) => `<path class="bar ${cls}" d="M${cx - bw / 2},${H - B} v${-Math.max(0, h(v) - 3)} q0,-3 3,-3 h${bw - 6} q3,0 3,3 v${Math.max(0, h(v) - 3)} z"/>`;
+    return `<section class="card mt"><div class="card-h"><h2><span class="itile sm blue">${icon("receipt")}</span> Accounts ledger</h2><span class="xs">From the portal · ${ctx.fmtDate(L.at || new Date())}</span></div>
+      <div class="led-stats">${[["Billed", L.billed, ""], ["Paid", L.paid, "ok"], ["Waivers & scholarships", L.waiver, "mut"], ["Still due", L.due, L.due > 0 ? "bad" : "ok"]].map(([l, v, c]) => `<div class="${c}"><span>${l}</span><b class="num">${ctx.fmtMoney(v)}</b></div>`).join("")}</div>
+      <div class="viz mt" data-viz="bars"><svg viewBox="0 0 ${w} ${H}" role="img" aria-label="Billed and paid per semester"><line class="base" x1="${Lp}" x2="${w - R}" y1="${H - B}" y2="${H - B}"/>
+        ${items.map((x, i) => { const cx = Lp + gw * (i + 0.5); return `${bar(cx - bw / 2 - 1, x.billed, "")}${bar(cx + bw / 2 + 1, x.paid + x.waiver, "s2")}<text class="ax" x="${cx}" y="${H - 9}" text-anchor="middle">${esc(x.sem.replace(/^(\w{2})\w*-(\d{2})(\d{2})$/, "$1 $3"))}</text>
+          <rect class="hit" x="${cx - gw / 2}" y="0" width="${gw}" height="${H}" data-x="${cx}" data-tip="${esc(`${x.sem}: billed ${ctx.fmtMoney(x.billed)}, paid ${ctx.fmtMoney(x.paid)}${x.waiver ? `, waived ${ctx.fmtMoney(x.waiver)}` : ""}`)}"/><text class="dl" x="${cx - bw / 2 - 1}" y="${H - B - h(x.billed) - 5}" text-anchor="middle" style="font-size:11px">${k(x.billed)}</text>`; }).join("")}
+      </svg><div class="tip" hidden></div></div><div class="legend"><span><i class="sw s1"></i>Billed</span><span><i class="sw s2"></i>Paid + waivers</span></div></section>`;
+  }
   pages.fees = () => {
     const St = S(), P = St.payments || { schedule: [] }, sched = (P.schedule || []).slice().sort((a, b) => a.due.localeCompare(b.due));
+    if (!sched.length && St.ledger?.semesters?.length) return `${ctx.head("My Fees", "Your payments and dues, from the portal.")}${ledgerCard()}<p class="xs mt">No installment dates in this sync. Sign in to the portal from Sync to read Installment Payment.</p>`;
     if (!sched.length) return `${ctx.head("My Fees", "Track your installments, payments and important dates.")}<div class="card">${ctx.empty("icon:wallet", "No payment info yet", "Sync your <b>Advising / Deposit Slip</b> (My Class Schedule → Print Slip) to see your fees, deadlines and late-fee steps.", `<a class="btn primary" href="#/sync">${icon("sync")} Sync Advising Slip</a>`)}</div>`;
-    const regular = sched.find((p) => !p.late) || sched[0];
-    const paid = St.paid[regular.due] ? regular.amount : 0;
+    // Installments (portal) are several regular deadlines; an advising slip has one plus late-fee steps.
+    const insts = sched.filter((p) => !p.late), regular = insts.length > 1 ? { amount: insts.reduce((a, p) => a + p.amount, 0), due: insts[insts.length - 1].due } : insts[0] || sched[0];
+    const paid = insts.length > 1 ? insts.filter((p) => p.paid || St.paid[p.due]).reduce((a, p) => a + p.amount, 0) : St.paid[regular.due] || regular.paid ? regular.amount : 0;
     const next = ctx.nextPayment();
     return `${ctx.demoBanner()}${ctx.head("My Fees", "Track your installments, payments and important dates.", `<span class="pill" style="padding:8px 12px">${esc(P.semester || St.routineSem || "")}</span>`)}
       <div class="grid g2"><div class="fee-hero"><span class="small" style="opacity:.92">Total Payable This Semester</span><div class="amt num">${ctx.fmtMoney(regular.amount)}</div><a class="btn glass sm" href="#/fee">View Details ${icon("arrow")}</a></div>
         <div class="g3m">${[["receipt", "green", ctx.fmtMoney(paid), "Paid"], ["wallet", "purple", ctx.fmtMoney(regular.amount - paid), "Remaining"], ["calendar", "blue", sched.length, "Deadlines"]].map(([ic, tone, v, l]) => `<div class="card tight row nowrap" style="flex-direction:column;align-items:flex-start;gap:8px"><span class="itile sm ${tone}">${icon(ic)}</span><b class="num">${v}</b><span class="xs">${l}</span></div>`).join("")}</div></div>
       ${next && ctx.daysUntil(next.due) <= 7 ? `<a class="alert red mt" href="#/fee"><span class="a-ic">${icon("alertc")}</span><div class="grow"><b>Due in ${ctx.daysUntil(next.due)} day${ctx.daysUntil(next.due) === 1 ? "" : "s"}</b><p>Pay ${ctx.fmtMoney(next.amount)} before ${ctx.fmtDate(next.due)}${next.late ? "" : " to avoid late fees"}.</p></div>${icon("chevR")}</a>` : ""}
       <div class="section-h"><h2>Payment Deadlines</h2><button class="btn sm outline" id="f-hist">${icon("receipt")} Payment History</button></div>
-      ${sched.map((p, i) => { const d = ctx.daysUntil(p.due), isPaid = !!St.paid[p.due], cur = next && next.due === p.due; return `<div class="inst ${cur ? "due" : ""}"><span class="n ${isPaid ? "ok" : ""}">${isPaid ? icon("check", "sm") : i + 1}</span>
-        <div class="min0"><div class="row" style="gap:8px"><b>${p.late ? `With late fee ${i}` : "Regular deadline"}</b>${isPaid ? '<span class="pill green">Paid</span>' : d < 0 ? '<span class="pill">Passed</span>' : cur ? `<span class="pill red">Due in ${d} day${d === 1 ? "" : "s"}</span>` : ""}</div><span class="xs">Amount</span><div><b class="num">${ctx.fmtMoney(p.amount)}</b>${i ? ` <span class="xs">(+${ctx.fmtMoney(p.amount - sched[0].amount)} late fee)</span>` : ""}</div></div>
+      ${sched.map((p, i) => { const d = ctx.daysUntil(p.due), isPaid = !!St.paid[p.due] || !!p.paid, cur = next && next.due === p.due; return `<div class="inst ${cur ? "due" : ""}"><span class="n ${isPaid ? "ok" : ""}">${isPaid ? icon("check", "sm") : i + 1}</span>
+        <div class="min0"><div class="row" style="gap:8px"><b>${esc(p.label || (p.late ? `With late fee ${i}` : "Regular deadline"))}</b>${isPaid ? '<span class="pill green">Paid</span>' : d < 0 ? '<span class="pill">Passed</span>' : cur ? `<span class="pill red">Due in ${d} day${d === 1 ? "" : "s"}</span>` : ""}</div><span class="xs">Amount</span><div><b class="num">${ctx.fmtMoney(p.amount)}</b>${i ? ` <span class="xs">(+${ctx.fmtMoney(p.amount - sched[0].amount)} late fee)</span>` : ""}</div></div>
         <div style="text-align:right"><span class="xs">Due Date</span><div class="small"><b>${ctx.fmtDate(p.due)}</b></div>${!p.late ? `<button class="btn sm ${isPaid ? "neutral" : "primary"} mt-s" data-paid="${p.due}">${isPaid ? "Mark unpaid" : `${icon("check")} Mark as paid`}</button>` : ""}</div></div>`; }).join("")}
       ${feeRows().length ? `<section class="card mt"><h2 style="margin-bottom:6px">Fee Breakdown</h2>${feeRows().map(([l, v]) => `<div class="lrow" style="min-height:44px"><span class="itile sm purple">${icon("receipt")}</span><span class="body"><b style="font-weight:500">${l}</b></span><b class="num">${ctx.fmtMoney(v)}</b></div>`).join("")}</section>` : ""}
       ${!St.settings.notify ? `<div class="alert purple mt"><span class="a-ic">${icon("bell")}</span><div class="grow"><b>Get payment reminders</b><p>3 days and 1 day before the regular deadline.</p></div><button class="btn primary sm" id="fee-notif">Remind me</button></div>` : ""}
+      ${ledgerCard()}
       <p class="xs mt">Amounts come from your advising slip. Pay through the official channels printed on your slip (banks or mobile banking) and always confirm on the official portal.</p>`;
   };
   pages.fees.mount = (el) => {
     $$("[data-paid]", el).forEach((b) => b.addEventListener("click", () => { const k = b.dataset.paid; if (S().paid[k]) delete S().paid[k]; else { S().paid[k] = new Date().toISOString(); ctx.logEvent("System", "wallet", "green", "Payment marked as paid", `${ctx.fmtMoney((S().payments.schedule.find((p) => p.due === k) || {}).amount)} for ${S().payments.semester || ""}.`, "#/fees"); } ctx.save(); ctx.rerender(); }));
     const n = $("#fee-notif", el); n && n.addEventListener("click", async () => { await ctx.enableNotifications(); ctx.rerender(); });
+    ctx.charts?.bindTips(el);
     $("#f-hist", el)?.addEventListener("click", () => { const P = S().paid; const rows = (S().payments.schedule || []).filter((p) => P[p.due]);
       openModal(modalHead("Payment History") + (rows.length ? rows.map((p) => `<div class="lrow"><span class="itile green">${icon("check")}</span><div class="body"><b>${ctx.fmtMoney(p.amount)}</b><span>Marked paid ${ctx.fmtDate(P[p.due])}</span></div><span class="xs">Due ${ctx.fmtDate(p.due)}</span></div>`).join("") : ctx.empty("icon:receipt", "No payments marked yet", "After you pay, tap Mark as paid to stop the reminders."))); });
   };

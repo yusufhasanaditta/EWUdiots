@@ -29,6 +29,8 @@ export function supabaseBackend(user) {
     async upload(path, blob) { ok(await sb.storage.from("media").upload(path, blob, { contentType: blob.type, upsert: true })); return sb.storage.from("media").getPublicUrl(path).data.publicUrl; },
     async removeFile(path) { ok(await sb.storage.from("media").remove([path])); ok(await sb.from("media_items").delete().eq("path", path)); },
     // Student ID card photos (private bucket; admins with users.manage may read them for 10 minutes).
+    // A reported study file, removed for good: its row and the stored file (vault bucket).
+    async purgeResource(id) { const r = ok(await sb.from("resources").delete().eq("id", id).select("file_path")); const p = r?.[0]?.file_path; if (p) await sb.storage.from("vault").remove([p]).catch(() => {}); },
     async cardUrl(uid, side) { return ok(await sb.storage.from("idcards").createSignedUrl(`${uid}/${side}.jpg`, 600)).signedUrl; },
     // Scheduled jobs run on the server (api/cron.js), which checks the jobs.run permission with this session's token.
     async runJob(job) {
@@ -126,6 +128,7 @@ export function demoBackend() {
     async sendReset() {},
     async upload(path, blob) { return new Promise((res) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsDataURL(blob); }); },
     async removeFile(path) { db.media_items = db.media_items.filter((m) => m.path !== path); persist(); },
+    async purgeResource(id) { db.resources = (db.resources || []).filter((r) => r.id !== id); persist(); },
     async cardUrl() { return ""; },
     async runJob(job) { const detail = { news: "12 news items (demo)", notices: "20 notices (demo)", newsletters: "0 new issue(s)", events: "6 official events checked (demo)", cleanup: "old trash and logs removed" }[job] || "done";
       db.job_runs.unshift({ id: db._id++, job, ok: true, detail, ms: 640, trigger: "admin", started_at: now() }); persist(); return { job, ok: true, detail }; },

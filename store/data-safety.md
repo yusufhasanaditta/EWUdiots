@@ -19,7 +19,7 @@
 
 **Not collected:** location, contacts, phone number, financial account info, health, messages, calendar, web history, device or advertising IDs, crash or diagnostics (no SDKs).
 
-**On-device processing:** portal screenshots and ID card scans are read on the phone (no upload). Portal sign-in (Android) sends the student's password only to EWU's own portal inside the phone; EWUdiots never receives or stores it.
+**On-device processing:** portal screenshots and ID card scans are read on the phone (no upload). Portal sign-in (Android) sends the student's password only to EWU's own portal inside the phone; EWUdiots never receives it. If the student ticks "Remember on this phone", it is stored only on the device, encrypted with an Android keystore key (on-device storage is not "collection" under Play's definition).
 
 ### Apple App Store (later): App Privacy "nutrition label"
 - Data linked to you: Contact info (email), User content (reviews, files, photos), Other data (academic records). Purpose: App functionality.

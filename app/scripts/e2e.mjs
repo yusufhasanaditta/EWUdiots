@@ -103,8 +103,12 @@ try {
   for (const [i, v] of [[0, "9"], [1, "8"], [3, "25"]]) { await p.$eval(`[data-got="${i}"]`, (el, x) => { el.value = x; el.dispatchEvent(new Event("input")); }, v); await wait(120); }
   check("estimated grade shown", /Estimated Grade/.test(await text()));
   await click('[data-mt="att"]');
-  for (const a of ["present", "present", "absent"]) await click(`[data-att="${a}"]`);
-  S = await state(); check("attendance logged", S.attendance.CSE106?.held === 3 && S.attendance.CSE106?.missed === 1);
+  // Class by class: pick class 1, 2, 3 by number and mark Present, Present, Absent; the 4th is Cancelled (not counted).
+  await click('[data-amode="n"]');
+  for (const [n, v] of [["1", "p"], ["2", "p"], ["3", "a"], ["4", "c"]]) { await p.select("#att-n", n); await wait(250); await click(`[data-amark$="|${v}"]`); }
+  S = await state(); check("attendance logged class by class", S.attendance.CSE106?.held === 3 && S.attendance.CSE106?.missed === 1 && Object.keys(S.attendance.CSE106?.marks || {}).length === 4, JSON.stringify(S.attendance.CSE106));
+  check("what-if bars and the class grid", (await p.$$(".att-what .bar")).length >= 4 && (await p.$$(".att-chip")).length > 10);
+  await click('[data-amode="date"]'); check("mark by date", !!(await p.$("#att-date")));
 
   // 9. Planner with demo data → combinations → choose
   await go("#/sync"); await wait(200);
