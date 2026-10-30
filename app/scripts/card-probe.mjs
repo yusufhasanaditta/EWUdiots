@@ -26,7 +26,9 @@ const variants = {
 };
 const server = await createServer({ root: resolve("."), logLevel: "silent", server: { port: 5198, strictPort: true }, mode: "test" }); await server.listen();
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--no-sandbox"] });
-const p = await browser.newPage(); await p.goto("http://localhost:5198/privacy.html");
+// PROBE_UA=android runs it as an Android phone (smaller picture budget in src/ocr.js).
+const PHONE_UA = "Mozilla/5.0 (Linux; Android 13; SM-A135F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36";
+const p = await browser.newPage(); if (process.env.PROBE_UA === "android") await p.setUserAgent(PHONE_UA); await p.goto("http://localhost:5198/privacy.html");
 let ok = 0;
 for (const [name, buf] of Object.entries(variants)) {
   const t0 = Date.now();

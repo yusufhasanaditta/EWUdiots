@@ -389,6 +389,7 @@ export function install(ctx) {
         <button class="choice ghosty" id="ob-local"><span class="itile teal">${icon("database")}</span><span class="grow"><b>Try without an account</b><span>Everything stays on this device</span></span>${icon("chevR")}</button></div>
       <div class="trust mt">${[["shield", "Never asks for your portal password"], ["wifioff", "Works offline"], ["heart", "Free for every student"]].map(([ic, t]) => `<span>${icon(ic, "sm")} ${t}</span>`).join("")}</div>`);
   pages.welcome.mount = (el) => {
+    if (ctx.C.user && ctx.cloud.enabled) { setTimeout(() => ctx.go(S().onboarded ? "#/home" : "#/setup"), 0); return; } // already signed in
     $$("[data-go]", el).forEach((b) => b.addEventListener("click", () => ctx.go(ctx.cloud.enabled ? b.dataset.go : "#/role")));
     $("#ob-local", el)?.addEventListener("click", () => ctx.go("#/role"));
   };
@@ -453,20 +454,29 @@ export function install(ctx) {
   };
   pages.login.mount = (el) => {
     const from = ctx.qparam("from");
-    const next = () => ctx.go(from === "profile" ? "#/profile" : S().profile ? "#/home" : "#/setup");
+    // Only a finished profile skips Setup: the router sends anyone not onboarded back to Welcome (the old sign-up loop).
+    const next = () => ctx.go(from === "profile" ? "#/profile" : S().onboarded ? "#/home" : "#/setup");
     const on = (sel, ev, fn) => { const x = $(sel, el); x && x.addEventListener(ev, fn); };
     const fail = (msg) => { const e = $("#au-err", el); if (e) e.innerHTML = authErr(msg); else toast(msg, "error"); };
     const mode = (m) => { if (m === "code") auth.codeSent = false; auth.mode = m; ctx.rerender(); };
+    // Already signed in (e.g. came back here through Welcome): don't ask again, carry on to Setup or Home.
+    if (ctx.C.user && ctx.cloud.enabled && !auth.finishing) { setTimeout(next, 0); return; }
     on("#lg-skip", "click", () => ctx.go(from === "profile" ? "#/profile" : "#/role"));
     $$("[data-am]", el).forEach((b) => b.addEventListener("click", () => mode(b.dataset.am)));
     $$("[data-ar]", el).forEach((b) => b.addEventListener("click", () => { auth.role = b.dataset.ar; ctx.rerender(); }));
     $$("[data-eye]", el).forEach((b) => b.addEventListener("click", () => { const i = b.previousElementSibling; i.type = i.type === "password" ? "text" : "password"; b.setAttribute("aria-label", i.type === "password" ? "Show password" : "Hide password"); }));
     // After any successful sign-in: wait for the cloud restore, apply the role, keep a verified card.
     const done = async (msg) => {
+      auth.finishing = true; // the cloud restore redraws this page meanwhile; don't redirect from under us
+      try { await finish(msg); } finally { auth.finishing = false; }
+    };
+    const finish = async (msg) => {
       for (let i = 0; i < 30 && !ctx.C.user; i++) await new Promise((r) => setTimeout(r, 100));
       await ctx.afterSignIn();
       const role = ctx.cloud.roleOf(ctx.C.user) || auth.pendingRole;
       if (["student", "alumni", "faculty"].includes(role)) S().role = role;
+      // A profile restored from the account means this person finished setup on another device.
+      if (S().profile && !S().demo && ctx.C.user && !auth.pendingRole) S().onboarded = true;
       // Signed up by scanning both sides: the card is saved to the account and the server marks it verified.
       if (auth.card?.back && ctx.C.user?.email?.startsWith(auth.card.id + "@")) await ctx.idcard.verifyWithCard(auth.card);
       if (!S().profile && auth.name) S().profile = { name: auth.name, creditsTotal: 140, semester: ctx.currentSemester() };
@@ -583,28 +593,32 @@ export function install(ctx) {
 
   let roleSel = null;
   pages.role = () => {
-    roleSel = roleSel || S().role || "student";
+    // No account means no faculty mode: teachers prove it with their @ewubd.edu email.
+    roleSel = roleSel && roleSel !== "faculty" ? roleSel : S().role === "alumni" ? "alumni" : "student";
     return obShell(`<h1 style="font-size:28px">Set up your profile</h1><p class="muted mt-s">Choose your role to get a personalized experience.</p>
-      <div class="mt-l">${[["student", "user", "purple", "I'm a Student", "Routine, CGPA, advising, deadlines and study tools"], ["faculty", "briefcase", "blue", "I'm a Faculty Member", "Free rooms, study vault and the faculty directory"], ["alumni", "cap", "red", "I'm an Alumni", "Stay connected: vault, reviews and campus tools"]]
-        .map(([v, ic, tone, t, d]) => `<button class="role" data-role="${v}" aria-pressed="${roleSel === v}"><span class="itile ${tone}">${icon(ic)}</span><span class="grow"><b style="display:block">${t}</b><span class="xs">${d}</span></span><span class="ck">${roleSel === v ? icon("checkc") : ""}</span></button>`).join("")}</div>`,
+      <div class="mt-l">${[["student", "user", "purple", "I'm a Student", "Routine, CGPA, advising, deadlines and study tools"], ["alumni", "cap", "red", "I'm an Alumni", "Stay connected: vault, reviews and campus tools"]]
+        .map(([v, ic, tone, t, d]) => `<button class="role" data-role="${v}" aria-pressed="${roleSel === v}"><span class="itile ${tone}">${icon(ic)}</span><span class="grow"><b style="display:block">${t}</b><span class="xs">${d}</span></span><span class="ck">${roleSel === v ? icon("checkc") : ""}</span></button>`).join("")}
+        ${ctx.cloud.enabled ? `<button class="role" id="role-fac"><span class="itile blue">${icon("briefcase")}</span><span class="grow"><b style="display:block">I'm a Faculty Member</b><span class="xs">Create an account with your EWU university email (@ewubd.edu)</span></span>${icon("chevR")}</button>` : ""}</div>`,
       { back: ctx.cloud.enabled ? "#/login" : "#/welcome?s=2", foot: `<button class="btn primary lg block" id="role-go">Continue</button>` });
   };
   pages.role.mount = (el) => {
     $$("[data-role]", el).forEach((b) => b.addEventListener("click", () => { roleSel = b.dataset.role; ctx.rerender(); }));
+    $("#role-fac", el)?.addEventListener("click", () => { Object.assign(auth, { mode: "signup", role: "faculty" }); ctx.go("#/login?m=signup"); });
     $("#role-go", el).addEventListener("click", () => { S().role = roleSel; ctx.save({ silent: true }); ctx.go("#/setup"); });
   };
 
   pages.setup = () => {
-    const p = S().profile || {}, role = S().role, stu = role === "student";
+    const p = S().profile || {}, role = S().role, stu = role === "student", acct = ctx.C.user;
     return obShell(`<div style="text-align:center"><span class="avatar lg" style="margin:0 auto">${esc(ctx.initials(p.name || "?"))}</span><h1 style="font-size:26px;margin-top:12px">Complete Your Profile</h1><p class="muted small mt-s">This helps us personalize your experience.</p>${stu ? `<button type="button" class="btn outline sm mt" id="su-card">${icon("scan")} ${S().idcard ? "Rescan my ID card" : "Fill from my ID card"}</button>` : ""}</div>
       <form id="su-form" class="stack mt" novalidate>
         <label class="field">Full Name<input class="input" name="name" autocomplete="name" value="${esc(p.name || "")}" required placeholder="Your full name"><span class="err" data-err="name" hidden></span></label>
         ${stu ? `<label class="field">Student ID<input class="input" name="id" inputmode="numeric" value="${esc(p.id || "")}" placeholder="2024-1-60-123"><span class="hint">Optional. Found on your ID card and portal.</span><span class="err" data-err="id" hidden></span></label>` : ""}
+        ${role === "faculty" && acct ? `<label class="field">University email<input class="input" value="${esc(acct.email)}" readonly><span class="hint">Verified EWU faculty email</span></label>` : ""}
         ${role === "faculty" ? `<label class="field">Faculty Initials<input class="input" name="init" value="${esc(p.init || "")}" placeholder="e.g. ABC" maxlength="8"></label>` : ""}
         <label class="field">Department<input class="input" name="department" list="dept-list" value="${esc(p.department || "")}" placeholder="e.g. CSE"><datalist id="dept-list">${["CSE", "EEE", "ECE", "BBA", "Economics", "English", "Law", "Pharmacy", "Civil Engineering", "GEB", "Mathematics", "Sociology", "Information Studies"].map((d) => `<option value="${d}">`).join("")}</datalist></label>
         ${stu ? `<label class="field">Year<select class="select" name="year">${["1st Year", "2nd Year", "3rd Year", "4th Year", "Graduate"].map((y) => `<option ${p.year === y ? "selected" : ""}>${y}</option>`).join("")}</select></label>` : ""}
         ${role === "alumni" ? `<label class="field">Graduation year<input class="input" name="year" inputmode="numeric" value="${esc(p.year || "")}" placeholder="e.g. 2022"></label>` : ""}
-      </form>`, { back: "#/role", foot: `<button class="btn primary lg block" id="su-go" form="su-form">Continue</button>` });
+      </form>`, { back: acct ? "" : "#/role", foot: `<button class="btn primary lg block" id="su-go" form="su-form">Continue</button>` });
   };
   pages.setup.mount = (el) => {
     $("#su-card", el)?.addEventListener("click", async () => {

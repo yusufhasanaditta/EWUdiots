@@ -55,7 +55,7 @@ export function install(ctx) {
     return `${brandHead("#/sync")}<div style="max-width:560px;margin:0 auto">
       <h1 style="font-size:28px">Scanning your screenshot…</h1><p class="muted" style="margin-top:6px">We're extracting your classes, marks, and more. This may take a few seconds.</p>
       <img class="scan-art" src="/img/scan.webp" alt="" width="300" height="240">
-      <div class="card mt"><div class="steps" aria-live="polite">${step("up", "Uploading image")}${step("ocr", "Reading text (OCR)")}${step("id", "Identifying courses & data")}${step("prep", "Preparing for review")}</div></div>
+      <div class="card mt"><div class="steps" aria-live="polite">${step("up", "Uploading image")}${step("ocr", "Reading text (OCR)")}${step("id", "Identifying courses & data")}${step("prep", "Preparing for review")}</div><p class="xs muted mt-s" id="sc-note" aria-live="polite"></p></div>
       ${s.found ? `<div class="card soft mt row nowrap top"><span class="itile yellow">${icon("bulb")}</span><div><b>Looks good so far!</b><p class="small muted">We've detected ${s.found}. Please review and confirm them on the next screen.</p></div></div>` : ""}
       ${s.error ? `<div class="alert red mt"><span class="a-ic">${icon("x")}</span><div class="grow"><b>Couldn't extract text</b><p>${esc(s.error)}</p></div></div><div class="row mt"><button class="btn neutral grow" id="sc-retry">Try Again</button><button class="btn outline grow" id="sc-paste">Paste text instead</button></div>` : ""}</div>`;
   }
@@ -100,9 +100,10 @@ export function install(ctx) {
       try {
         {
           const prog = (pr) => { scan.ocr = (i + pr) / files.length; const b = $(".steps .sp:nth-child(2) .bar span"); if (b) b.style.width = Math.round(scan.ocr * 100) + "%"; };
-          let t = await readText(f, prog), r = ctx.parsePortalText(t);
+          const onStep = (st, pr) => { const n = $("#sc-note"); if (n) n.textContent = st === "download" ? `Getting the text reader ready (first time only, about 5 MB)… ${Math.round(pr * 100)}%` : "Starting the text reader…"; };
+          let t = await readText(f, prog, { onStep }), r = ctx.parsePortalText(t);
           // Zoomed-out pages have tiny text: if rows were clearly missed, read once more at a bigger size and keep the better result.
-          if (missedRows(t, r)) { const t2 = await readText(f, prog, { boost: true }), r2 = ctx.parsePortalText(t2); if (rowsOf(r2) > rowsOf(r)) { t = t2; r = r2; } }
+          if (missedRows(t, r)) { const t2 = await readText(f, prog, { boost: true, onStep }), r2 = ctx.parsePortalText(t2); if (rowsOf(r2) > rowsOf(r)) { t = t2; r = r2; } }
           raws.push(t); results.push(r);
         }
       } catch (err) { scan.error = `${err.message || "The file might be scanned or low quality."} Try a sharper screenshot, or paste the text instead.`; scan.cur = ""; paint(); return; }
@@ -227,7 +228,7 @@ export function install(ctx) {
     }
     p.faculty.forEach((f) => { St.faculty[f.init] = { ...St.faculty[f.init], ...Object.fromEntries(Object.entries(f).filter(([, v]) => v)) }; });
     if (p.payments.schedule.length) St.payments = { ...p.payments, semester: p.payments.semester || St.routineSem || ctx.currentSemester() };
-    if (p.degree.length) St.degree = p.degree;
+    if (p.degree.length) St.degree = ctx.cleanDegree(p.degree);
     if (Object.keys(p.rules).length) St.rules = { ...St.rules, ...p.rules };
     if (p.recommended.length) St.recommended = p.recommended;
     St.demo = false; St.onboarded = true; St.lastImport = new Date().toISOString();

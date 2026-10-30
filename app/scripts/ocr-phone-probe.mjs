@@ -16,7 +16,9 @@ for (const [path, w, scale] of [["/Home/Profile", 412, 2.625], ["/Home/ClassSche
   const b64 = await sp.screenshot({ fullPage: true, encoding: "base64" });
   shots[`${path}@${w}`] = "data:image/png;base64," + b64;
 }
-const p = await browser.newPage();
+// PROBE_UA=android runs it as an Android phone (smaller picture budget in src/ocr.js).
+const PHONE_UA = "Mozilla/5.0 (Linux; Android 13; SM-A135F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36";
+const p = await browser.newPage(); if (process.env.PROBE_UA === "android") await p.setUserAgent(PHONE_UA);
 p.on("pageerror", (e) => console.log("pageerror", e.message));
 await p.goto("http://localhost:5199/privacy.html");
 for (const [name, url] of Object.entries(shots)) {

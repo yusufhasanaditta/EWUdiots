@@ -60,7 +60,7 @@ export function install(ctx) {
       streak: streak(), night: hrs.some((h) => h >= 23 || h < 4), early: hrs.some((h) => h >= 5 && h < 8), reviews: s.reviews, cards: s.cards.length,
       synced: !!S0.lastImport, tasksDone: S0.tasks.filter((t) => t.done).length, planner: !!s.ev.planner,
       front: att.some((a) => a.held >= 10 && (a.held - a.missed) / a.held >= 0.95), prepDone: Object.values(s.prep).reduce((a, p) => a + Object.keys(p.done || {}).length, 0),
-      cgpa: ctx.cgpaOf(S0.grades).cgpa || S0.profile?.cgpa || 0, notes: Object.values(s.notes).filter((n) => n && n.length > 40).length
+      cgpa: ctx.cgpaOf(S0.grades).cgpa || Number(S0.profile?.cgpa) || 0, // the portal gives CGPA as text notes: Object.values(s.notes).filter((n) => n && n.length > 40).length
     };
   }
   // [id, name, how, icon, hexagon colour, test]

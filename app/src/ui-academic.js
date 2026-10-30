@@ -349,7 +349,7 @@ export function install(ctx) {
   pages.grades = () => {
     const St = S(), { cgpa, earned } = ctx.cgpaOf(St.grades);
     const total = St.profile?.creditsTotal || 140, done = Math.max(earned, St.profile?.creditsDone || 0), rem = Math.max(0, total - done);
-    const shown = cgpa || St.profile?.cgpa || 0;
+    const shown = cgpa || Number(St.profile?.cgpa) || 0;
     const rows = semRows(), last = rows[rows.length - 1], prev = rows[rows.length - 2];
     const delta = last && prev ? last.cum.cgpa - prev.cum.cgpa : 0;
     const proj = rows.length >= 2 ? (() => { const t = rows.slice(-2).map((r) => r.term.cgpa), avgT = (t[0] + t[1]) / 2, cr = ctx.cgpaOf(St.grades).credits; return Math.min(4, (shown * cr + avgT * 15) / (cr + 15)); })() : 0;
@@ -387,7 +387,7 @@ export function install(ctx) {
     const D = S().degree;
     if (!D.length) return `<p class="small muted">Sync your <b>Degree Review</b> page to see credits by requirement.</p>`;
     const IC = ["book", "cap", "grid", "star", "notes", "award"], TN = ["blue", "purple", "teal", "orange", "green", "pink"];
-    return D.filter((d) => d.total > 0).slice(0, limit).map((d, i) => `<div class="row nowrap" style="padding:7px 0"><span class="itile sm ${TN[i % 6]}">${icon(IC[i % 6])}</span><div class="grow min0"><div class="row between nowrap"><span class="small ellipsis">${esc(d.category.replace(/ Courses?$/i, ""))}</span><b class="small num nw">${d.done} / ${d.total}</b></div>${ctx.bar(d.total ? (100 * d.done) / d.total : 100, d.done >= d.total ? "green" : "")}</div>${d.done >= d.total ? `<span style="color:var(--success)">${icon("checkc", "sm")}</span>` : ""}</div>`).join("");
+    return D.filter((d) => d.total > 0).slice(0, limit).map((d, i) => `<div class="row nowrap" style="padding:7px 0"><span class="itile sm ${TN[i % 6]}">${icon(IC[i % 6])}</span><div class="grow min0"><div class="row between nowrap"><span class="small ellipsis">${esc(String(d.category || "Other").replace(/ Courses?$/i, ""))}</span><b class="small num nw">${d.done} / ${d.total}</b></div>${ctx.bar(d.total ? (100 * d.done) / d.total : 100, d.done >= d.total ? "green" : "")}</div>${d.done >= d.total ? `<span style="color:var(--success)">${icon("checkc", "sm")}</span>` : ""}</div>`).join("");
   }
   pages.grades.mount = (el) => {
     $$("[data-gr]", el).forEach((s) => s.addEventListener("change", () => { S().grades.find((g) => g.id === s.dataset.gr).g = s.value; ctx.save(); ctx.rerender(); }));

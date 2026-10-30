@@ -94,10 +94,10 @@ export function install(ctx) {
             : `<p class="small muted">Mark classes on each course's Attendance tab (or from the calendar) and they show here.</p>`}</section>
         ${pts.length ? `<section class="card"><div class="card-h"><h2>Credits per semester</h2><span class="pill">${earned} earned</span></div>
           ${bars(pts.map((p) => ({ k: p.short, full: p.sem, v: p.credits })), { label: "credits", aria: "Credits earned per semester" })}${table(["Semester", "Credits"], pts.map((p) => [p.sem, p.credits]))}</section>` : ""}
-        ${St.grades.length ? `<section class="card"><div class="card-h"><h2>Grade distribution</h2><span class="pill">${St.grades.length} courses</span></div>
+        ${dist.length ? `<section class="card"><div class="card-h"><h2>Grade distribution</h2><span class="pill">${St.grades.length} courses</span></div>
           ${bars(dist, { label: "courses", aria: "How many courses got each grade" })}${table(["Grade", "Courses"], dist.map((d) => [d.k, d.v]))}</section>` : ""}
         ${St.degree?.length ? `<section class="card"><div class="card-h"><h2>Degree areas</h2><span class="pill">${St.degree.filter((d) => d.total && d.done >= d.total).length} of ${St.degree.filter((d) => d.total).length} complete</span></div>
-          ${hbars(St.degree.filter((d) => d.total).map((d) => ({ k: d.category.split(/\s+/).slice(0, 2).join(" ").slice(0, 12), v: Math.round((100 * d.done) / d.total), tip: `${d.category}: ${d.done} of ${d.total} credits` })), { aria: "Share of credits done in each degree area" })}
+          ${hbars(St.degree.filter((d) => d.total).map((d) => ({ k: d.category.split(/\s+/).slice(0, 2).join(" ").slice(0, 12) || "Other", v: Math.min(100, Math.round((100 * d.done) / d.total)), tip: `${d.category}: ${d.done} of ${d.total} credits` })), { aria: "Share of credits done in each degree area" })}
           ${table(["Area", "Done", "Needed"], St.degree.map((d) => [d.category, d.done, d.total]))}</section>` : ""}
         <section class="card"><div class="card-h"><h2>Study time, last 7 days</h2><span class="pill">${(weekMin / 60).toFixed(1)} h</span></div>
           ${weekMin ? bars(days, { label: "min", fmt: (v) => `${v}`, aria: "Minutes studied per day this week" }) : `<p class="small muted">No focus sessions this week. <a href="#/focus">Start one</a> and your study time shows here.</p>`}</section>

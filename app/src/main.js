@@ -56,12 +56,17 @@ const blank = () => ({
   campus: { rooms: [], from: "E1" }, idcard: null,
   study: studyDefaults()
 });
+/* Degree Review rows from any source (portal sign-in, screenshot, older saves): always a name and numbers. */
+function cleanDegree(rows) {
+  return (Array.isArray(rows) ? rows : []).filter(Boolean).map((d) => ({ ...d, category: String(d.category || "").trim() || "Other", done: Number(d.done) || 0, total: Number(d.total) || 0 }));
+}
 let S;
 try { S = Object.assign(blank(), JSON.parse(localStorage.getItem(KEY) || "{}")); } catch { S = blank(); }
 S.study = Object.assign(studyDefaults(), S.study || {});
 // Class alarms: a default list of "minutes before" for every class, optional per-course lists (older saves had one remindMin).
 const alarmDefaults = (st) => Object.assign({ on: true, offsets: [st.remindMin || 10], perCourse: {}, ring: true }, st.alarms || {});
 S.settings.alarms = alarmDefaults(S.settings);
+S.degree = cleanDegree(S.degree);
 if (S.profile && !S.onboarded) S.onboarded = true; // existing users skip the welcome flow
 let snap = snapshot(S); // what each part looked like at the last save/sync (src/syncmerge.js)
 let pushTimer = null;
@@ -107,7 +112,7 @@ async function pushNow() {
 function takeMerged(state, at) {
   const theme = S.theme;
   S = Object.assign(blank(), state, { theme, syncedAt: at, lastSync: new Date(at).toISOString() });
-  S.study = Object.assign(studyDefaults(), S.study || {}); S.settings.alarms = alarmDefaults(S.settings || {});
+  S.study = Object.assign(studyDefaults(), S.study || {}); S.settings.alarms = alarmDefaults(S.settings || {}); S.degree = cleanDegree(S.degree);
   snap = snapshot(S); facCache = null;
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* storage blocked */ }
 }
@@ -132,7 +137,7 @@ async function pullNow() {
 function adopt(data, at) {
   const theme = S.theme;
   S = Object.assign(blank(), data, { theme, syncedAt: at, lastSync: new Date(at).toISOString() });
-  S.study = Object.assign(studyDefaults(), S.study || {}); S.settings.alarms = alarmDefaults(S.settings || {});
+  S.study = Object.assign(studyDefaults(), S.study || {}); S.settings.alarms = alarmDefaults(S.settings || {}); S.degree = cleanDegree(S.degree);
   snap = snapshot(S); facCache = null; idcard?.forget();
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* storage blocked */ }
 }
@@ -400,7 +405,15 @@ function route({ animate = false } = {}) {
   if (!full) renderNav(id);
   // A later render wins: a transition that hasn't painted yet skips its now-stale paint.
   const seq = ++paintSeq;
-  const paint = () => { if (seq !== paintSeq) return; target.innerHTML = `<div class="${changed && !viewTx ? "page-in" : ""}" data-page="${id}">${pages[id]()}</div>`; (pages[id].mount || (() => {}))(target); };
+  // A page that throws on odd data shows a recoverable message instead of a blank screen.
+  const crashed = (e) => { console.error(e); return `<section class="card">${empty("icon:alert", "This page hit a problem", "Your data is safe. Try again, or sync the portal again if it keeps happening.", `<button class="btn primary" data-reload>Reload</button>`)}</section>`; };
+  const paint = () => {
+    if (seq !== paintSeq) return;
+    let html, ok = true; try { html = pages[id](); } catch (e) { html = crashed(e); ok = false; }
+    target.innerHTML = `<div class="${changed && !viewTx ? "page-in" : ""}" data-page="${id}">${html}</div>`;
+    if (!ok) { target.querySelector("[data-reload]")?.addEventListener("click", () => location.reload()); return; }
+    try { (pages[id].mount || (() => {}))(target); } catch (e) { console.error(e); }
+  };
   // Background tabs throttle animation frames, so a transition there could hold taps for seconds; skip it.
   const viewTx = animate && changed && document.startViewTransition && !prefersReduced() && !modalOpen() && lastPainted !== null && document.visibilityState === "visible";
   if (viewTx) {
@@ -658,6 +671,7 @@ async function restoreOrBackup(user) {
     sync.checkInbox(); loadMessages();
     if (S.routine.length && !S.demo) cloud.contribute({ semester: S.routineSem, rows: S.routine, faculty: Object.values(S.faculty) }).catch(() => {});
   } catch (e) { console.warn(e); }
+  checkFacultyRole();
   rerender();
 }
 
@@ -667,7 +681,7 @@ const ctx = {
   icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, get events() { return events; }, get acal() { return acal; }, get attendance() { return attendanceUi; }, get charts() { return charts; }, get materials() { return materials; }, get sync() { return sync; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
   afterSignIn: () => signInDone, LETTER, toMin, fmt12, fmtShort, dayIdx, expand, overlaps, toneFor, colorFor, HEX, TONES, gradePoint, cgpaOf, fmtMoney, fmtCountdown, daysUntil, fmtDate, firstName, initials, myAvatar, greeting,
   nextClass, nextPayment, markAttendance, facultyIndex, facBy, facName, offered, sectionBlocks, roomData, freeRoomsAt, baseRoom, enableNotifications, taskLine, duePill, TASK_IC, inbox, loadDemo, onSignedIn,
-  isDark, applyTheme, palette, roleLabel, navFor, nextSemesterGuess, DAY_NAMES, WEEK, SLOTS, GRADES, NON_GPA, DEMO, parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey
+  isDark, applyTheme, palette, roleLabel, navFor, nextSemesterGuess, DAY_NAMES, WEEK, SLOTS, GRADES, NON_GPA, DEMO, cleanDegree, parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey
 };
 materials = installMaterials(ctx);
 study = installStudy(ctx);
@@ -794,9 +808,16 @@ native.onResume(async () => {
 });
 sync.takeExtHandoff();
 scheduleReminders();
+/* Teacher mode needs a verified @ewubd.edu account (the database sets role=faculty only for those).
+   Anyone else who has "faculty" saved on the device goes back to Student. */
+function checkFacultyRole() {
+  if (!cloud.enabled || S.role !== "faculty" || cloud.roleOf(C.user) === "faculty") return;
+  S.role = "student"; save({ silent: true }); rerender();
+  toast("Teacher tools need your university email", "info", "Sign in or create an account with your @ewubd.edu email.");
+}
 if (cloud.enabled) {
-  cloud.currentUser().then((u) => u && onSignedIn(u));
-  cloud.onAuth((u) => { if (u && !C.user) onSignedIn(u); else if (!u && C.user) { C.user = null; C.faculty = C.sections = C.vault = null; rerender(); } else if (u && C.user?.id === u.id) refreshUser(u); });
+  cloud.currentUser().then((u) => (u ? onSignedIn(u) : null)).then(checkFacultyRole, () => {});
+  cloud.onAuth((u) => { if (u && !C.user) onSignedIn(u); else if (!u && C.user) { C.user = null; C.faculty = C.sections = C.vault = null; checkFacultyRole(); rerender(); } else if (u && C.user?.id === u.id) refreshUser(u); });
   // The account's badges (verified student, role) change on the server: re-read them when the app comes back.
   let userAt = Date.now();
   const recheckUser = () => { if (C.user && Date.now() - userAt > 5 * 60e3) { userAt = Date.now(); cloud.currentUser().then((u) => u && C.user?.id === u.id && refreshUser(u)).catch(() => {}); } };

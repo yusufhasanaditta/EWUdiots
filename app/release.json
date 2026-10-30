@@ -1,12 +1,11 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Portal sign-in fixed: every semester's class schedule, offered courses, fees and curriculum",
-    "Attendance by date or class number: Present, Absent or Cancelled",
-    "Calendar with holiday names, a year view and long breaks with the attendance cost",
-    "My Courses: done, still to take and a road map to graduation",
-    "Scholarship road map with your own target, plus new charts",
-    "Share files or links privately or with everyone, and report fake material"
+    "Sign-up no longer asks you to sign in again after the email code",
+    "Teachers sign up with their EWU university email (@ewubd.edu)",
+    "Analytics page fixed for Degree Review data and courses without grades yet",
+    "ID card and screenshot reading: no more endless scanning on phones",
+    "First-time text reader download now shows its progress"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

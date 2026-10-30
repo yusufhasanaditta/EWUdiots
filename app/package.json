@@ -1,7 +1,7 @@
 {
   "name": "ewudiots",
   "private": true,
-  "version": "2.12.0",
+  "version": "2.12.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,7 +15,8 @@
     "android": "vite build && npx cap sync android && npx cap open android",
     "test:campus": "vite build --mode test && node scripts/campus-e2e.mjs",
     "test:community": "vite build --mode test && node scripts/community-e2e.mjs",
-    "test:portal": "node scripts/portal-sync-e2e.mjs"
+    "test:portal": "node scripts/portal-sync-e2e.mjs",
+    "test:insights": "vite build --mode test && node scripts/insights-probe.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",

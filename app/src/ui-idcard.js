@@ -41,10 +41,10 @@ export function parseCardText(text) {
 /* Read a card photo: as taken, then turned sideways both ways (cards are often shot in portrait), then bigger.
    Stops at the first try that finds the student ID; otherwise keeps whatever name it found. */
 const CARD_TRIES = [{}, { rotate: 90 }, { rotate: 270 }, { boost: true }, { rotate: 180 }];
-export async function readCard(src, onProg = () => {}) {
+export async function readCard(src, onProg = () => {}, onStep = () => {}) {
   let best = { id: "", name: "", program: "", dept: "", valid: "" };
   for (const [i, opt] of CARD_TRIES.entries()) {
-    const got = parseCardText(await readText(src, (p) => onProg((i + p) / CARD_TRIES.length), opt));
+    const got = parseCardText(await readText(src, (p) => onProg((i + p) / CARD_TRIES.length), { ...opt, onStep }));
     if (got.id) { onProg(1); return { ...got, name: got.name || best.name }; }
     if (!best.name && got.name) best = got;
   }
@@ -86,7 +86,7 @@ export function install(ctx) {
       const NONE = { id: "", name: "", dept: "", valid: "" };
       const startReading = (url) => {
         pct = 0;
-        const ocr = readCard(url, (p) => { pct = p; const b = $("#id-prog"); if (b) b.style.width = `${Math.round(10 + p * 90)}%`; });
+        const ocr = readCard(url, (p) => { pct = p; const b = $("#id-prog"); if (b) b.style.width = `${Math.round(10 + p * 90)}%`; }, (stage, p) => { const n = $("#id-ocr-note"); if (n) n.textContent = stage === "download" ? `Getting the text reader ready (first time only, about 5 MB)… ${Math.round(p * 100)}%` : "Starting the text reader…"; });
         // A slow or stuck reader never blocks you: after 90 s, or when you tap "Type it myself", you fill the form by hand.
         reading = Promise.race([ocr, new Promise((r) => setTimeout(() => r(NONE), 90000)), new Promise((r) => { skip = () => r(NONE); })])
           .catch((e) => { console.warn(e); return NONE; });
@@ -102,7 +102,7 @@ export function install(ctx) {
       openModal(pickHTML("front"), (m) => {
         const show = (html) => { m.innerHTML = `<div class="grabber" aria-hidden="true"></div>${html}`; bind(); };
         const confirm = async () => {
-          show(`${modalHead("Reading your card…")}${steps()}<div class="stack" style="align-items:center;text-align:center"><img class="id-scan-prev" src="${sides.front}" alt=""><div class="bar" style="width:100%"><span id="id-prog" style="width:${Math.round(10 + pct * 90)}%"></span></div><p class="xs">Reading your ID and name on this phone. The first time takes a little longer.</p><button type="button" class="btn ghost sm" id="id-skipocr">Type it myself</button></div>`);
+          show(`${modalHead("Reading your card…")}${steps()}<div class="stack" style="align-items:center;text-align:center"><img class="id-scan-prev" src="${sides.front}" alt=""><div class="bar" style="width:100%"><span id="id-prog" style="width:${Math.round(10 + pct * 90)}%"></span></div><p class="xs" id="id-ocr-note" aria-live="polite">Reading your ID and name on this phone. The first time takes a little longer.</p><button type="button" class="btn ghost sm" id="id-skipocr">Type it myself</button></div>`);
           $("#id-skipocr", m)?.addEventListener("click", () => skip?.());
           got = await reading;
           show(`${modalHead("Check your details")}${steps()}<form id="id-form" class="stack" novalidate>
