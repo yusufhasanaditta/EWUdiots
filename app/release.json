@@ -1,12 +1,14 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "New: EWUdiots Club (More → EWUdiots Club): every EWU club, news, events and sign-ups",
-    "Club members get a members-only space: announcements, attendance, polls, tasks and documents",
-    "Club organisers: registration forms with a responses dashboard, QR tickets and CSV export",
-    "Club admins invite members by student ID; they join automatically when they open Clubs",
-    "Certificates from clubs that anyone can check",
-    "Sign-up, teacher email, Analytics and scanner fixes from 2.12.1"
+    "EWUdiots Club, redesigned: a club home with your clubs, schedule, tasks and messages",
+    "Club chat: channels for members, executives and teams, plus direct messages (live)",
+    "Meetings with agendas and minutes, project boards, a resource library, polls and full committee elections",
+    "Positions: club admins make members President, Secretary, Treasurer, Executive Member, Merch Manager…",
+    "Club merch store: order, pay the club by bKash/Nagad/Rocket or cash, collect with a QR code",
+    "Event pages with check-in scanner, recruitment scoring, finance & budgets, club analytics",
+    "Sponsors, club collaborations, notification centre, help centre and privacy controls",
+    "Club pages now show information from EWU's club site (about, faculty moderators, past news)"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

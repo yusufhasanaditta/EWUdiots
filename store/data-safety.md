@@ -14,8 +14,10 @@
 | Files and docs (shared study materials) | Yes | No | Optional | App functionality |
 | Photos (profile photo; ID card front and back for student verification) | Yes | No | Optional | Account management, app functionality. ID card photos are visible only to the student and EWUdiots admins. Portal screenshots are read on the phone and never uploaded. |
 | Other: academic records (courses, grades, tuition amounts) | Yes | No | Optional | App functionality |
-| Personal info → Phone number (EWUdiots Club forms that ask for it) | Yes | No | Optional (only when the student fills in such a form) | App functionality: the club's organisers contact applicants. Visible only to that club's organisers with the responses permission; exports are audit-logged. |
-| App activity → Other user-generated content (club posts, comments, form answers, poll votes, attendance) | Yes | No | Optional | App functionality. Anonymous poll ballots are stored without the voter. |
+| Personal info → Phone number (EWUdiots Club forms that ask for it, and merch checkout) | Yes | No | Optional (only when the student fills in such a form or orders merchandise) | App functionality: the club's organisers contact applicants and buyers. Visible only to that club's organisers with the responses or orders permission; exports are audit-logged. |
+| Messages → Other in-app messages (club channels and direct messages between members of the same club) | Yes | No | Optional | App functionality. Visible only to people in that channel. |
+| Financial info → Purchase history (club merch orders; payment is made outside the app, the student types the transaction ID) | Yes | No | Optional | App functionality: order handling, pickup, returns. Visible to the buyer and that club's order managers. No card or wallet details are collected. |
+| App activity → Other user-generated content (club posts, comments, form answers, poll and election votes, attendance, meetings, tasks, feedback, support tickets) | Yes | No | Optional | App functionality. Anonymous poll and election ballots are stored without the voter. |
 
 \*Under Play's definition, sending data to a service provider that processes it for you (Supabase hosting, Gmail for sign-in codes) is **not** "sharing".
 

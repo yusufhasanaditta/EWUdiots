@@ -5,9 +5,11 @@ import { CATEGORIES } from "../perms.js";
 /** @param {Record<string, any>} pages @param {any} kit */
 export function register(pages, kit) {
   const { ui, icon, esc, api, store } = kit;
-  let q = "", cat = "all", only = "";
+  let q = "", cat = "all", only = "", fromLink = "";
 
   pages["club/explore"] = () => {
+    // A link like #/club/explore?cat=tech (from Home) picks the category once.
+    const lc = kit.param("cat") || ""; if (lc && lc !== fromLink) { cat = CATEGORIES[lc] ? lc : "all"; fromLink = lc; }
     const head = kit.head("Explore clubs", "Every club at East West University. Follow the ones you like, or apply to join.",
       kit.me() ? `<button class="btn outline" id="ex-request">${icon("plus")} Your club isn't listed?</button>` : "");
     if (!api) return head + kit.gate("clubs");

@@ -5,7 +5,7 @@
 import { contentSections } from "./manage-content.js";
 import { formSections } from "./manage-forms.js";
 import { opsSections } from "./manage-ops.js";
-import { CATEGORIES, JOIN_MODES, PERM_GROUPS, assignableRanks, has } from "../perms.js";
+import { CATEGORIES, JOIN_MODES, PERM_GROUPS, FEATURES, RANK_GROUPS, assignableRanks, assignableRoles, has } from "../perms.js";
 
 const GROUPS = ["Club", "Content", "People", "Activities", "Admin"];
 
@@ -101,11 +101,11 @@ export function register(pages, kit) {
           const re = has(m, "members.approve") ? store.use(`club:requests:${club.id}`, () => api.requests(club.id), { ttl: 30e3 }) : { value: [] };
           return kit.head("Requests & invites", "Invite by student ID or email. They're a member the moment they open EWUdiots Club, nothing else to do.")
             + `<form id="iv-form" class="card stack"><div class="grid g2">${ui.field("Student IDs or emails", ui.area("who", "", 'rows="3" required placeholder="2024-1-60-123\n2023-2-50-045\nname@gmail.com"'), "One per line, up to 100 at a time.")}
-              <div class="stack">${ui.field("Role", ui.select("rank", assignableRanks(m.rank).map((r) => [r.rank, r.name]), 7))}${ui.field("Title (optional)", ui.input("title", "", 'maxlength="60" placeholder="e.g. Head of PR"'))}${club.wings?.length ? ui.field("Wing", ui.select("wing", [["", "None"], ...club.wings.map((w) => [w, w])])) : ""}</div></div>
+              <div class="stack">${ui.field("Position", roleSelect("role", club, m, ""))}${ui.field("Title (optional)", ui.input("title", "", 'maxlength="60" placeholder="e.g. Head of PR"'))}${club.wings?.length ? ui.field("Wing", ui.select("wing", [["", "None"], ...club.wings.map((w) => [w, w])])) : ""}</div></div>
               <div id="cl-err"></div><button class="btn primary" style="justify-self:start">${icon("mail")} Send invites</button></form>`
             + (has(m, "members.approve") ? `<h2 class="cl-h2">Join requests</h2>${ui.view(re, (rows) => (rows.length ? `<section class="card tight">${rows.map((r) => `<div class="lrow"><span class="avatar sm">${esc(ui.initials(r.name))}</span><span class="body"><b>${esc(r.name)}</b><span>${[r.student_id, r.department, ui.ago(r.created_at)].filter(Boolean).map(esc).join(" · ")}</span>${r.note ? `<span class="xs">“${esc(r.note)}”</span>` : ""}</span>
                 <button class="btn sm primary" data-rq="${r.id}" data-ok="1">${icon("check", "sm")} Accept</button><button class="btn sm ghost" data-rq="${r.id}" data-ok="0">Decline</button></div>`).join("")}</section>` : `<p class="small muted">No requests waiting.</p>`))}` : "")
-            + `<h2 class="cl-h2">Invites</h2>${ui.view(ie, (rows) => (rows.length ? `<section class="card tight">${rows.map((x) => `<div class="lrow"><span class="itile sm ${x.status === "claimed" ? "green" : "purple"}">${icon(x.status === "claimed" ? "checkc" : "mail")}</span><span class="body"><b>${esc(x.email)}</b><span>${esc(assignableRanks(1).find((r) => r.rank === x.rank)?.name || "")}${x.title ? ` · ${esc(x.title)}` : ""} · ${x.status === "claimed" ? "joined" : `waiting · ${ui.ago(x.created_at)}`}</span></span>${x.status === "pending" ? `<button class="btn sm ghost" data-iv="${x.id}">Revoke</button>` : ""}</div>`).join("")}</section>` : `<p class="small muted">No invites yet.</p>`))}`;
+            + `<h2 class="cl-h2">Invites</h2>${ui.view(ie, (rows) => (rows.length ? `<section class="card tight">${rows.map((x) => `<div class="lrow"><span class="itile sm ${x.status === "claimed" ? "green" : "purple"}">${icon(x.status === "claimed" ? "checkc" : "mail")}</span><span class="body"><b>${esc(x.email)}</b><span>${esc((store.peek(`club:roles:${club.id}`) || []).find((r) => r.id === x.role_id)?.name || assignableRanks(1).find((r) => r.rank === x.rank)?.name || "")}${x.title ? ` · ${esc(x.title)}` : ""} · ${x.status === "claimed" ? "joined" : `waiting · ${ui.ago(x.created_at)}`}</span></span>${x.status === "pending" ? `<button class="btn sm ghost" data-iv="${x.id}">Revoke</button>` : ""}</div>`).join("")}</section>` : `<p class="small muted">No invites yet.</p>`))}`;
         },
         mount(el, club) {
           kit.$("#iv-form", el)?.addEventListener("submit", async (e) => {
@@ -114,40 +114,59 @@ export function register(pages, kit) {
             if (!list.length) return ui.fail(e.target, "Add at least one student ID or email.");
             kit.ctx.busy(btn, true, "Inviting…");
             const bad = [];
-            for (const who of list) { try { await api.invite(club.id, who, Number(f.rank), f.title || "", f.wing || ""); } catch (err) { bad.push(`${who}: ${err.message}`); } }
+            for (const who of list) { try { await api.inviteRole(club.id, who, f.role, f.title || "", f.wing || ""); } catch (err) { bad.push(`${who}: ${err.message}`); } }
             kit.ctx.busy(btn, false); store.invalidate(`club:invites:${club.id}`);
             if (bad.length) ui.fail(e.target, bad.slice(0, 3).join(" · ")); else { e.target.reset(); kit.toast(list.length === 1 ? "Invite sent" : `${list.length} invites sent`, "success", "They join automatically when they next open EWUdiots Club."); }
           });
           kit.$$("[data-rq]", el).forEach((b) => b.addEventListener("click", async () => { try { await api.reviewRequest(b.dataset.rq, b.dataset.ok === "1"); store.invalidate(`club:requests:${club.id}`, `club:members:${club.id}`, "clubs:counts"); kit.toast(b.dataset.ok === "1" ? "Accepted" : "Declined", "success"); } catch (err) { kit.toast(err.message, "error"); } }));
           kit.$$("[data-iv]", el).forEach((b) => b.addEventListener("click", async () => { try { await api.revokeInvite(b.dataset.iv); store.invalidate(`club:invites:${club.id}`); } catch (err) { kit.toast(err.message, "error"); } }));
         } },
-      roles: { label: "Roles & permissions", icon: "shield", group: "People", perm: "members.promote",
+      roles: { label: "Positions & roles", icon: "shield", group: "People", perm: "members.promote",
         render(club, m) {
           const re = store.use(`club:roles:${club.id}`, () => api.roles(club.id), { ttl: 60e3 });
-          return kit.head("Roles & permissions", "Rename ranks and choose what each can do. You can only change ranks below yours, and only give permissions you have.")
-            + ui.view(re, (rows) => `<div class="stack">${rows.map((r) => {
+          const count = (store.peek(`club:members:${club.id}`) || store.use(`club:members:${club.id}`, () => api.members(club.id), { ttl: 30e3 }).value || []).reduce((acc, x) => ((acc[x.role_id] = (acc[x.role_id] || 0) + 1), acc), {});
+          return kit.head("Positions & permissions", "Give members positions such as President, General Secretary, Treasurer or Executive Member. Each position unlocks its tools. You can only change positions below yours, and only give permissions you have.",
+              `<button class="btn primary sm" id="rl-new">${icon("plus", "sm")} Create position</button>`)
+            + ui.view(re, (rows) => `<div class="stack">${[...rows].sort((a, b) => a.rank - b.rank || a.sort - b.sort).map((r) => {
               const locked = r.perms.includes("*") || r.rank <= m.rank;
-              return `<details class="card tight cl-rolecard" ${locked ? "" : ""}><summary class="row nowrap" style="gap:10px">${ui.rolePill(r.rank, r.name)}<span class="xs grow">${r.perms.includes("*") ? "Everything" : ui.plural(r.perms.length, "permission")}</span>${locked ? icon("lock", "sm") : icon("chevR", "sm")}</summary>
-                ${locked ? `<p class="small muted mt-s">${r.perms.includes("*") ? "This rank can do everything in the club." : "You can't change your own rank or ranks above it."}</p>` : `<form class="stack mt-s" data-role="${r.id}">${ui.field("Name", ui.input("name", r.name, 'maxlength="40" required'))}
+              return `<details class="card tight cl-rolecard"><summary class="row nowrap" style="gap:10px">${ui.rolePill(r.rank, r.name)}<span class="xs grow">${esc(r.description || "")}${r.description ? " · " : ""}${r.perms.includes("*") ? "Everything" : ui.plural(r.perms.length, "permission")} · ${ui.plural(count[r.id] || 0, "person", "people")}</span>${locked ? icon("lock", "sm") : icon("chevR", "sm")}</summary>
+                ${locked ? `<p class="small muted mt-s">${r.perms.includes("*") ? "This position can do everything in the club." : "You can't change your own position or ones above it."}</p>` : `<form class="stack mt-s" data-role="${r.id}">${ui.field("Name", ui.input("name", r.name, 'maxlength="40" required'))}${ui.field("Description", ui.input("description", r.description || "", 'maxlength="200"'))}
                   ${PERM_GROUPS.map(([gname, perms]) => `<fieldset class="cl-perms"><legend>${gname}</legend>${perms.map(([p, l]) => `<label class="cl-opt ${has(m, p) ? "" : "dim"}"><input type="checkbox" data-perm="${p}" ${r.perms.includes(p) ? "checked" : ""} ${has(m, p) ? "" : "disabled"}> <span>${l}</span></label>`).join("")}</fieldset>`).join("")}
-                  <button class="btn primary sm" style="justify-self:start">${icon("check", "sm")} Save</button></form>`}</details>`;
+                  <div class="row" style="gap:8px"><button class="btn primary sm">${icon("check", "sm")} Save</button>${!r.is_system && !r.is_default && !count[r.id] ? `<button type="button" class="btn ghost sm" data-delrole="${r.id}" style="color:var(--error)">${icon("trash", "sm")} Delete position</button>` : ""}</div></form>`}</details>`;
             }).join("")}</div>`);
         },
-        mount(el, club) {
+        mount(el, club, m) {
           kit.$$("[data-role]", el).forEach((f) => f.addEventListener("submit", async (e) => {
             e.preventDefault();
             const perms = kit.$$("[data-perm]:checked", f).map((c) => c.dataset.perm);
-            try { await api.updateRole(f.dataset.role, { name: f.name.value.trim(), perms }); store.invalidate(`club:roles:${club.id}`, `club:members:${club.id}`); kit.toast("Role saved", "success"); } catch (err) { kit.toast(err.message, "error"); }
+            try { await api.updateRole(f.dataset.role, { name: f.name.value.trim(), description: f.description.value.trim(), perms }); store.invalidate(`club:roles:${club.id}`, `club:members:${club.id}`, "me:clubs"); kit.toast("Position saved", "success"); } catch (err) { kit.toast(err.message, "error"); }
           }));
+          kit.$$("[data-delrole]", el).forEach((b) => b.addEventListener("click", async () => { try { await api.deleteRole(b.dataset.delrole); store.invalidate(`club:roles:${club.id}`); } catch (err) { kit.toast(err.message, "error"); } }));
+          kit.$("#rl-new", el)?.addEventListener("click", () => ui.sheet("Create a position", `<form id="rl" class="stack">${ui.field("Name", ui.input("name", "", 'required maxlength="40" placeholder="Head of PR, Media Lead…"'))}${ui.field("Description", ui.input("description", "", 'maxlength="200"'))}
+            ${ui.field("Seniority", ui.select("rank", [[3, "Officer (like President)"], [4, "Executive (like Executive Member)"], [5, "Team role (like Moderator)"], [6, "Senior member"], [7, "Member"]].filter(([rk]) => rk > m.rank), 4))}
+            ${PERM_GROUPS.map(([gname, perms]) => `<fieldset class="cl-perms"><legend>${gname}</legend>${perms.filter(([p]) => has(m, p)).map(([p, l]) => `<label class="cl-opt"><input type="checkbox" data-perm="${p}"> <span>${l}</span></label>`).join("")}</fieldset>`).join("")}
+            <div id="cl-err"></div><button class="btn primary block">${icon("plus")} Create</button></form>`, (s) => kit.$("#rl", s).addEventListener("submit", async (e) => {
+            e.preventDefault(); const f = ui.values(e.target), perms = kit.$$("[data-perm]:checked", s).map((c) => c.dataset.perm);
+            try { await api.addRole({ club_id: club.id, name: f.name.trim(), description: f.description || "", rank: Number(f.rank), perms, color: ["blue", "blue", "teal", "pink", "green", "gray"][Number(f.rank) - 2] || "gray", sort: 50 }); kit.ctx.closeModal(); store.invalidate(`club:roles:${club.id}`); }
+            catch (err) { ui.fail(s, /duplicate|already/i.test(err.message) ? "A position with that name exists." : err.message); }
+          })));
         } }
     };
   }
 
+  /** Positions this person may hand out, grouped by seniority (perms.assignableRoles; the database checks again). */
+  function roleSelect(name, club, m, current) {
+    const roles = store.use(`club:roles:${club.id}`, () => api.roles(club.id), { ttl: 60e3 }).value || [];
+    const list = assignableRoles(m.rank === 1 || kit.isPlatform() ? { rank: 1, perms: ["*"] } : m, roles);
+    const def = current || list.find((r) => r.rank === 7)?.id || list.at(-1)?.id || "";
+    const groups = list.reduce((g, r) => { (g[r.rank] ||= []).push(r); return g; }, {});
+    return `<select class="select" name="${name}" required>${Object.entries(groups).map(([rk, rs]) => `<optgroup label="${RANK_GROUPS[rk] || `Rank ${rk}`}">${rs.map((r) => `<option value="${r.id}" ${r.id === def ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</optgroup>`).join("")}</select>`;
+  }
+
   function editMember(club, m, r) {
     if (!r) return;
-    const ranks = assignableRanks(m.rank);
     ui.sheet(`Edit ${r.display_name}`, `<form id="em-form" class="stack">
-      ${ui.field("Role", ui.select("rank", ranks.map((x) => [x.rank, x.name]), ranks.some((x) => x.rank === r.rank) ? r.rank : 7))}
+      ${ui.field("Position", roleSelect("role", club, m, r.role_id))}
       ${ui.field("Title", ui.input("title", r.title, 'maxlength="60" placeholder="e.g. General Secretary"'))}
       ${club.wings?.length ? ui.field("Wing", ui.select("wing", [["", "None"], ...club.wings.map((w) => [w, w])], r.wing)) : ui.field("Wing", ui.input("wing", r.wing, 'maxlength="40"'))}
       <div id="cl-err"></div><button class="btn primary block">${icon("check")} Save</button>
@@ -155,7 +174,7 @@ export function register(pages, kit) {
       const done = (msg) => { kit.ctx.closeModal(); store.invalidate(`club:members:${club.id}`, "clubs:counts"); kit.toast(msg, "success"); };
       kit.$("#em-form", sh).addEventListener("submit", async (e) => {
         e.preventDefault(); const f = ui.values(e.target);
-        try { await api.setMember(club.id, r.user_id, { rank: Number(f.rank) === r.rank ? null : Number(f.rank), title: f.title, wing: f.wing }); done("Saved"); } catch (err) { ui.fail(sh, err.message); }
+        try { await api.setMemberRole(club.id, r.user_id, { role: f.role === r.role_id ? null : f.role, title: f.title, wing: f.wing }); done("Saved"); } catch (err) { ui.fail(sh, err.message); }
       });
       kit.$("#em-alumni", sh).addEventListener("click", async () => { try { await api.setMember(club.id, r.user_id, { status: "alumni" }); done("Moved to club alumni"); } catch (err) { ui.fail(sh, err.message); } });
       kit.$("#em-remove", sh)?.addEventListener("click", async () => { try { await api.setMember(club.id, r.user_id, { status: "removed" }); done("Removed from the club"); } catch (err) { ui.fail(sh, err.message); } });
@@ -201,6 +220,7 @@ export function register(pages, kit) {
       handover: { label: "New committee (handover)", icon: "reset", group: "Admin", perm: "rank<=2",
         render(club) {
           const me = store.use(`club:members:${club.id}`, () => api.members(club.id), { ttl: 30e3 });
+          store.use(`club:roles:${club.id}`, () => api.roles(club.id), { ttl: 60e3 });
           const year = new Date().getFullYear();
           return kit.head("New committee", "Once a year: save the outgoing committee to History, then give the new committee its roles. Executives and wing heads who aren't re-appointed become Senior General Members.")
             + ui.view(me, (rows) => {
@@ -208,19 +228,34 @@ export function register(pages, kit) {
               return `<form id="ho-form" class="card stack">${ui.field("Name for the outgoing term", ui.input("label", `${year - 1}–${String(year).slice(2)}`, 'required maxlength="40"'))}
                 <p class="small muted">Choose the new committee. Leave people out to keep them where they are (executives fall back to Senior General Member).</p>
                 <div class="stack">${active.map((r) => `<div class="cl-ho-row row nowrap" style="gap:8px"><span class="grow min0"><b class="ellipsis">${esc(r.display_name)}</b><span class="xs">now ${esc(r.title || r.role_name)}</span></span>
-                  ${ui.select(`r_${r.user_id}`, [["", "—"], ["2", "Club Admin"], ["3", "Executive Panel"], ["4", "Wing Head"]], "", 'aria-label="New role"')}${ui.input(`t_${r.user_id}`, "", 'placeholder="Title" maxlength="60" style="max-width:180px"')}</div>`).join("")}</div>
+                  ${ui.select(`r_${r.user_id}`, [["", "—"], ...(store.peek(`club:roles:${club.id}`) || []).filter((x) => x.rank >= 2 && x.rank <= 4).sort((a, b) => a.rank - b.rank || a.sort - b.sort).map((x) => [x.id, x.name])], "", 'aria-label="New position"')}${ui.input(`t_${r.user_id}`, "", 'placeholder="Title" maxlength="60" style="max-width:180px"')}</div>`).join("")}</div>
                 <div id="cl-err"></div><button class="btn primary">${icon("reset")} Hand over</button></form>`;
             });
         },
         mount(el, club) {
           kit.$("#ho-form", el)?.addEventListener("submit", (e) => {
             e.preventDefault(); const f = ui.values(e.target);
-            const assignments = Object.keys(f).filter((k) => k.startsWith("r_") && f[k]).map((k) => { const u = k.slice(2); return { user_id: u, rank: Number(f[k]), title: String(f[`t_${u}`] || "").trim() }; });
-            if (!assignments.some((a) => a.rank === 2)) return ui.fail(e.target, "Choose at least one Club Admin for the new committee.");
+            const roles = store.peek(`club:roles:${club.id}`) || [];
+            const assignments = Object.keys(f).filter((k) => k.startsWith("r_") && f[k]).map((k) => { const u = k.slice(2); return { user_id: u, role_id: f[k], title: String(f[`t_${u}`] || "").trim() }; });
+            if (!assignments.some((a) => roles.find((x) => x.id === a.role_id)?.rank === 2)) return ui.fail(e.target, "Choose at least one Club Admin for the new committee.");
             kit.ctx.confirmModal("Hand over to the new committee?", `The current committee is saved as “${esc(f.label)}” in History, and ${ui.plural(assignments.length, "person", "people")} get new roles.`, "Hand over", async () => {
               await api.handover(club.id, f.label.trim(), assignments); store.invalidate("me:clubs", `club:members:${club.id}`, `club:terms:${club.id}`, `club:committee:${club.id}`); kit.toast("Handover done", "success", "Welcome to the new committee.");
             });
           });
+        } },
+      features: { label: "Features", icon: "sliders", group: "Admin", perm: "features.edit",
+        render(club, m) {
+          const on = m.features || {}, locked = club.features_locked || {};
+          return kit.head("Features", "Switch club tools on or off. Positions decide who can use them; members only see what's on.")
+            + `<div class="cl-list">${Object.entries(FEATURES).map(([k, [l, ic, d]]) => `<div class="cl-setrow"><span class="itile sm purple">${icon(ic)}</span><span class="body"><b>${l}</b><span>${d}${locked[k] ? " · locked off by the EWUdiots team" : ""}</span></span>
+              <label class="switch" aria-label="${l}"><input type="checkbox" data-feat="${k}" ${on[k] && !locked[k] ? "checked" : ""} ${locked[k] ? "disabled" : ""}><span></span></label></div>`).join("")}</div>
+              <p class="xs mt">The merch store, sponsors and collaborations start switched off. Turn the store on once you've added payment numbers in Merch → Settings.</p>`;
+        },
+        mount(el, club) {
+          kit.$$("[data-feat]", el).forEach((x) => x.addEventListener("change", async () => {
+            const next = { ...(club.features || {}), ...Object.fromEntries(kit.$$("[data-feat]", el).filter((c) => !c.disabled).map((c) => [c.dataset.feat, c.checked])) };
+            try { await api.setFeatures(club.id, next); store.invalidate("me:clubs", `clubid:${club.id}`, "store:", "collab:"); kit.toast("Saved", "success"); } catch (err) { x.checked = !x.checked; kit.toast(err.message, "error"); }
+          }));
         } },
       audit: { label: "Audit log", icon: "eye", group: "Admin", perm: "audit.view",
         render(club) {

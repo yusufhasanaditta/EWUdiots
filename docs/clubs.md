@@ -1,98 +1,128 @@
 # EWUdiots Club
 
 The club platform inside EWUdiots. Students open it from **More → EWUdiots Club**. Every `#/club/…` route draws in
-*club mode*, with its own navigation (Feed · Explore · Events · My clubs · Me), its own accent and a way back to the
-app. Clubs are not added to the student's sidebar or bottom bar.
+*club mode*: its own header (EWUdiots + lime “Club”, “Unofficial · not affiliated with EWU”), its own bottom bar
+(**Home · Clubs · + · Messages · More**), a desktop sidebar, and a way back to the app. Clubs are not added to the
+student's main navigation. The screens follow the boards in `UI Design/Ewudiots Club/`.
+
+## Who controls what
+
+```
+EWUdiots team (App Admin, public.can('clubs.manage'))
+  └─ creates clubs (Register Club) · appoints the Club Admin · verifies claims · locks features · suspends/archives
+     └─ Club Admin (rank 2)
+          └─ gives positions: President · Vice President · General Secretary · Treasurer (rank 3)
+             · Executive Member · Wing Head (4) · Moderator · Merch Manager (5) · Senior Member (6) · General Member (7)
+             └─ each position's permissions unlock its tools; the Club Admin switches club features on or off
+Everyone else: club pages, public posts, recruitment, events, the store, sponsors, collaborations.
+```
+
+- Nobody creates a club except the App Admin. A student's “Your club isn't listed?” makes a *pending* request that
+  stays hidden until the team approves it.
+- Several positions share a rank. `club_roles.is_default` marks the one used when only a rank is known. Invites,
+  role changes, handovers and elections carry the role id (`public.set_member_role`, `invite_member(…, rid)`).
+- You can only hand out positions below your rank, with permissions you hold (`club_may_assign`, mirrored by
+  `perms.assignableRoles`). Club Admins can create their own positions.
+- New clubs start from `club_role_template`, which the team edits in App Admin → Roles & Permissions.
+- Features (`clubs.features`): chat, meetings, projects, resources, polls, elections, finance, recruitment and events
+  are on by default; store, sponsors and collab are off. The team can lock any feature off (`features_locked`,
+  `admin_lock_feature`). RPCs check `club_feature()`.
 
 ## Layers
 
 ```
-supabase/migrations/0016_clubs.sql   tables, row-level security, RPCs, storage, the 23 EWU clubs
-supabase/migrations/0017_…sql        my_clubs() returns each club's name, slug, colour and logo
+supabase/migrations/0016_clubs.sql            v2.13 base: clubs, roles, members, posts, forms, attendance, polls…
+supabase/migrations/0018_club_platform.sql    positions, features, chat, notifications, meetings, projects,
+                                              resources, elections, recruitment scores, events, handover,
+                                              feedback, analytics, support tickets, data export, App Admin
+supabase/migrations/0019_club_store_partners.sql  merch store, orders, returns/refunds, sponsors, collaborations
+supabase/migrations/0020…0023                 fixes found by the checks (order status params, ticket quota,
+                                              archived posts on unclaimed clubs, default rubric, event budgets)
 app/src/clubs/
-  index.js       install(ctx): routes, club-mode navigation, invite claiming on sign-in, the shared `kit`
-  api.js         every database call (views never touch Supabase directly), friendly error messages
-  store.js       cache: use(key, loader) → { loading | value | error }; invalidate() after writes; refresh() for polling
-  perms.js       permission keys, default ranks, has()/canManage()/assignableRanks()
-  forms.js       form schema, templates, validation (mirrors the server), summaries, CSV export     ← unit-tested
-  checkin.js     rotating 6-digit attendance codes (same formula as public.club_code)              ← unit-tested
-  ui.js          shared components: logos, cards, badges, states, form controls, file helpers
-  clubs.css      club styles (app tokens, so light and dark both work)
-  views/         feed, explore, profile, events, form, mine (+ Me), space, cert, posts (shared post card)
-                 manage.js (console shell, overview, people, settings, handover, audit)
-                 manage-content.js · manage-forms.js · manage-ops.js
-app/src/admin/clubs-admin.js         Admin → Clubs: claims, all clubs, appoint admins, suspend, reports
+  index.js        install(ctx): routes, club-mode header/nav, + menu, live notification count, invite claiming
+  api.js          v2.13 calls · api-more.js the v2.14 calls (merged into one api object; views never call Supabase)
+  store.js        cache: use(key, loader) → { loading | value | error }; invalidate(); refresh(key, loader)
+  perms.js        permission keys, DEFAULT_ROLES, FEATURES, has/canManage/assignableRoles     ← unit-tested vs SQL
+  orders.js       order statuses and allowed moves (= public.order_next_ok), stock keys       ← unit-tested
+  cart.js         device cart grouped by club                                                   ← unit-tested
+  kanban.js       task board moves · ics.js calendar files · charts.js SVG charts               ← unit-tested
+  scan.js         camera QR scanner (BarcodeDetector) for check-in and pickups
+  forms.js / checkin.js   v2.13 form logic and rotating attendance codes
+  ui.js           shared components (cards, stat cards, tiles, pills, avatars, pager, QR…)
+  clubs.css · clubs-v2.css   styles; v2 holds the board design tokens (light + dark) and chart colours
+  views/          home, feed, explore, profile, events, eventx (event page, organiser, door check-in), form, mine
+                  (My clubs, Me), space (workspace), messages, notifications, members (+ committee/handover),
+                  meetings, projects, resources, polls (+ elections), recruit, finance, analytics, shop (store,
+                  cart, checkout, orders), merch (manager), sponsors, collab, help, privacy, more, platform (App
+                  Admin), manage (+ manage-content/forms/ops) — the club console
+app/scripts/import-ewu-clubs.mjs    reads the EWU club site from the Internet Archive → public/data/clubs-ewu.json
+app/scripts/seed-ewu-clubs.mjs      puts that into the database (logos re-hosted, only empty fields filled)
+app/scripts/sql.mjs                 run SQL / --dry / --apply a migration on the live project
 ```
 
-Rule: **the database decides**. The app uses `perms.js` only to choose what to show. Every rule that matters
-(audiences, ranks, limits, deadlines, anonymity) is enforced by row-level security or a `security definer` RPC.
+Rule: **the database decides.** The app uses `perms.js` only to choose what to show. Every rule that matters is
+enforced by row-level security or a `security definer` RPC.
 
-## Who can do what
+## EWU club data
 
-| Layer | How it's checked |
-|---|---|
-| Platform (EWUdiots team) | `public.can('clubs.manage' \| 'clubs.verify' \| 'clubs.moderate')`, the existing admin roles |
-| Club | `public.club_can(club, 'perm')`, from the caller's active membership → `club_roles.perms`. `'*'` = everything |
-
-Default ranks (renamable per club; 1 is the most senior):
-
-| Rank | Role | Default permissions |
-|---|---|---|
-| 1 | Faculty Advisor | everything |
-| 2 | Club Admin | everything |
-| 3 | Executive Panel | posts, public posts, events, forms + responses + export, invite/approve/promote, attendance, polls, tasks, docs, see finance, certificates, moderate comments, audit |
-| 4 | Wing Head | posts, events, create forms (no applicant phone numbers), attendance, polls, tasks, docs |
-| 5 | Club Moderator | posts, moderate comments, attendance |
-| 6 | Senior General Member | attendance |
-| 7 | General Member | members' space only |
-
-Nobody can give a rank at or above their own (Club Admins may add co-admins), and nobody can give a permission they
-don't hold.
+`clubs.ewubd.edu` went offline in 2026. `import-ewu-clubs.mjs` reads the Internet Archive's latest copies of
+each club's About, Leaders, News and Events pages. It keeps the about text, logo, club email, *present* faculty
+moderators (matched to `faculty.json`) and up to 12 news/event items. It never keeps student names, people's photos
+or phone numbers, and it drops committee announcements. Archived items become public posts with `source_url` set;
+they show on a club's page even before the club is claimed (0022). Re-running the seed is safe: it adds nothing twice
+and never overwrites what a club wrote itself. Three newer clubs (Science, Health & Well-Being, Book Reading) had no
+archived pages.
 
 ## Main flows
 
-- **A club goes live.** The 23 clubs from ewubd.edu/clubs are seeded as `unclaimed`. A president taps *I run this
-  club* (`claim_club`), or asks for a missing club (`request_club`). Admin → Clubs → *Verify* (`review_claim`) makes
-  them Club Admin and the club `active` with the verified badge. The team can also appoint an admin directly
-  (`admin_set_club_admin`).
-- **Access granted by the club.** An organiser invites a student ID or email (`invite_member`). On sign-in the app
-  calls `claim_club_invites()`, so the student simply *is* a member the next time they open Clubs.
-- **Joining.** Open clubs: `join_club` makes you a member at once. Apply clubs: a join request, or the club's open
-  membership form. Accepting either one creates the membership.
-- **Forms.** The builder saves `fields` (JSON) and `settings`. `submit_response` re-checks the form is open, the
-  deadline, the audience, required answers and the phone number, and puts people on the waitlist once the limit is
-  reached (with an advisory lock, so the last place isn't given twice). `review_responses` changes status in bulk and
-  messages each person.
-- **Attendance.** A session has a secret (in `club_session_keys`, which members can't read). The screen shows
-  `club_code(secret, floor(now/30s))`; `club_checkin` accepts the current and the previous code.
-- **Elections.** `club_voted` (who voted) and `club_ballots` (what was chosen, no user on anonymous polls) are kept
-  apart. Results come only from `poll_results`.
-- **Year change.** `handover_term` saves the outgoing committee to `club_terms` (shown in History), moves executives
-  and wing heads to Senior General Member, then applies the new roles.
-
-Notifications use the existing in-app inbox (`user_messages`), written by the RPCs and triggers.
+- **Club goes live:** App Admin registers or verifies it and appoints the Club Admin, who gives the committee
+  their positions.
+- **Joining:** invite by student ID or email (the student is a member the next time they sign in), open join, or
+  an application form. Accepting a membership application creates the membership.
+- **Chat:** `club_channels` are Announcements (writers only), General Members, Executive Team (rank ≤ 4), wing or
+  team groups, collaboration channels and DMs. `open_dm` only works between active members of the same club.
+  New messages arrive through Supabase Realtime (`club_messages` is in the `supabase_realtime` publication) and
+  RLS decides who receives them. Attachments must live in that channel's folder.
+- **Elections:** positions, self-nomination, organiser approval, then one anonymous ballot per position.
+  `club_election_voted` (who voted) and `club_election_ballots` (what was chosen) are kept apart. After voting
+  closes, `apply_election` gives the winners their positions through `handover_term`.
+- **Recruitment:** responses move pending → shortlisted → interview → accepted or rejected. They are scored
+  against `settings.rubric` (default Motivation 20 · Skills 20 · Portfolio 20 · Fit 40), and interviews go out as
+  notifications.
+- **Merch:** no in-app payments. `place_order` recomputes prices, stock and coupons under row locks. The buyer pays
+  the club's bKash/Nagad/Rocket number (or cash at pickup) and types the TrxID. A Merch Manager with
+  `payments.verify` checks it in the club's account. Order status moves are confirmed → processing → ready →
+  completed, and processing needs a verified payment unless the order is paid in cash. The pickup QR is
+  `ewud:o:<random token>`, and scanning it completes the order. Returns are approved by order managers. Refunds
+  need `refunds.approve` (Treasurer and above) and are booked as finance expenses.
+- **Sponsors:** sponsors that clubs add wait for team approval. A deal marked received becomes sponsorship income.
+  Sponsor pages never show amounts.
+- **Notifications:** `club_notifications` is written by triggers and RPCs (posts, tasks, mentions, DMs, meetings,
+  orders, applications, elections). It feeds the club bell, live through Realtime.
 
 ## Privacy
 
-- Applicants' phone numbers: only roles with `forms.view_responses`.
-- Exports go through `club_log_export`, which writes to `club_audit`.
-- Member emails and student IDs: only roles with `members.approve` (`club_member_list`).
-- Fellow members see name, role and wing.
-- The privacy policy (`app/privacy.html`) and the Play data-safety answers (`store/data-safety.md`) describe this.
+- Applicants' and buyers' phone numbers are visible only to holders of `forms.view_responses` or
+  `orders.manage`. Exports are audit-logged.
+- Member directory: members can hide themselves, show their email to executives, and set profile visibility per
+  club. `export_my_club_data()` downloads everything clubs hold about you.
+- `app/privacy.html` and `store/data-safety.md` describe chat, orders, return photos and support tickets.
 
 ## Testing
 
 | Command | What it checks |
 |---|---|
-| `npm test` | unit tests, including `tests/clubs.test.js` (permissions match the SQL, form validation, CSV injection, check-in codes) |
-| `npm run test:clubs-rls` | 51 security checks played as admin, executive, member, applicant and outsider against the live database, in one transaction that is **rolled back** |
-| `npm run test:clubs` | 30-step end-to-end run in Chrome against the live backend, with throwaway accounts (created confirmed, so no emails) and a throwaway club, all deleted afterwards. Screenshots go to `app/.shots/clubs` |
-| `npm run lint` | ESLint on the whole app (also runs in CI) |
+| `npm test` | unit tests: perms ↔ SQL template, order moves ↔ `order_next_ok`, cart, board, calendar file, charts, forms, check-in codes |
+| `npm run test:clubs-rls` | 106 security checks played as admin, President, Executive Member, Merch Manager, member and outsider (chat, DMs, features, positions, store, refunds, pickup, elections, sponsors, tickets), in one transaction that is **rolled back** |
+| `npm run test:clubs` | 84-step run in Chrome against the live backend, with throwaway accounts and a throwaway club, all deleted afterwards. It covers: invite → join; form → accept; attendance; poll; certificates; Treasurer position; live chat between two browsers; merch order → TrxID → verify → ready → QR pickup; a tour of every screen; App Admin; feature lock. Screenshots go to `app/.shots/clubs` |
+| `npm run lint` | ESLint |
 
 ## Adding a feature
 
-1. If it needs data, add a migration with RLS and, for anything with rules, an RPC. Extend `clubs-rls-check.mjs`.
-2. Add the calls to `api.js`.
-3. Add a view section. For console sections, use `{ label, icon, group, perm, render, mount }`; the console lists
-   only sections the person may use.
-4. If you add a permission, put it in `PERM_GROUPS` (perms.js) **and** the SQL. The unit test fails if they differ.
+1. Write a migration with RLS and RPCs for anything with rules. Extend `clubs-rls-check.mjs`.
+2. Add calls to `api-more.js`.
+3. Add a view in `views/` registered in `index.js`, and add it to `ACTIVE` (nav highlight) and `more.js` (and to
+   the workspace tiles in `space.js` if it's a member tool).
+4. New permission keys go in `perms.js` PERM_GROUPS **and** the SQL (the unit test fails otherwise). A new club
+   feature goes in `FEATURES`, `club_features()` and `club_feature_default()`.
+5. Don't use `data-page` as an attribute in views: the router's page wrapper uses it (the pager uses `data-pg`).

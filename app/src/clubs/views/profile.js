@@ -56,7 +56,7 @@ export function register(pages, kit) {
   const unclaimed = (club) => `<section class="card soft mt row nowrap top"><span class="itile orange">${icon("info")}</span><div class="grow">
       <b>${club.status === "pending" ? "Waiting for the EWUdiots team" : "This club isn't run on EWUdiots yet"}</b>
       <p class="small muted">${club.status === "pending" ? "We're checking this club before it goes live." : "Its president can claim it to post news, open registrations and manage members here."}</p>
-      <div class="row mt-s" style="gap:8px">${club.official_url ? `<a class="btn sm" href="${esc(club.official_url)}" target="_blank" rel="noopener noreferrer">${icon("external", "sm")} Official page</a>` : ""}
+      <div class="row mt-s" style="gap:8px">${official(club) ? `<a class="btn sm" href="${esc(official(club))}" target="_blank" rel="noopener noreferrer">${icon("external", "sm")} EWU club page (archived)</a>` : ""}
         ${club.status === "unclaimed" && kit.me() ? `<button class="btn sm primary" id="cp-claim">${icon("crown", "sm")} I run this club</button>` : ""}</div></div></section>`;
 
   function body(club, t) {
@@ -91,7 +91,16 @@ export function register(pages, kit) {
     }, { n: 1, h: 220 });
   }
 
-  const about = (club) => `<div class="grid g2">
+  /** clubs.ewubd.edu went offline in 2026; the Internet Archive copy is the official page now. */
+  const official = (club) => club.ewu_info?.about_source || (club.official_url ? `https://web.archive.org/web/2026/${club.official_url.replace(/^http:/, "https:")}` : "");
+  /** Faculty moderators imported from the EWU club site (names, designations and photos are public EWU faculty data). */
+  const moderators = (club) => {
+    const list = club.ewu_info?.moderators || [];
+    if (!list.length) return "";
+    return `<section class="card mt"><h2>Faculty Moderators</h2><div class="cl-list mt-s" style="border:0;box-shadow:none">${list.map((m) => `<${m.profile ? `a href="${esc(m.profile)}" target="_blank" rel="noopener noreferrer"` : "div"} class="cl-li" style="padding:10px 0">${ui.ava(m.name, m.photo, "lg")}
+      <span class="body"><b>${esc(m.name)}</b><span>${esc([m.designation, m.department].filter(Boolean).join(", "))}</span>${m.tenure ? `<span class="xs">Moderator ${esc(m.tenure)}</span>` : ""}</span>${m.profile ? icon("external", "sm") : ""}</${m.profile ? "a" : "div"}>`).join("")}</div></section>`;
+  };
+  const about = (club) => `${club.source === "ewubd" && club.status === "unclaimed" ? `<div class="alert blue"><span class="a-ic">${icon("info")}</span><div class="grow"><b>From the EWU club site</b><p>This page shows public information from EWU's club website (archived ${esc(club.ewu_info?.fetched || "")}). The club hasn't joined EWUdiots yet.</p></div></div>` : ""}<div class="grid g2">
       <section class="card"><h2>About</h2><p class="mt-s">${club.about ? ui.rich(club.about) : `<span class="muted">The club hasn't written an introduction yet.</span>`}</p>
         ${club.mission ? `<h3 class="mt">Mission</h3><p class="small">${ui.rich(club.mission)}</p>` : ""}</section>
       <section class="card"><h2>Details</h2><div class="mt-s">
@@ -100,10 +109,11 @@ export function register(pages, kit) {
         ${club.wings?.length ? `<div class="lrow"><span class="itile teal">${icon("layers")}</span><span class="body"><b>Wings</b><span>${club.wings.map(esc).join(" · ")}</span></span></div>` : ""}
         ${club.contact_email ? `<a class="lrow" href="mailto:${esc(club.contact_email)}"><span class="itile blue">${icon("mail")}</span><span class="body"><b>Email</b><span>${esc(club.contact_email)}</span></span></a>` : ""}
         ${Object.entries(club.socials || {}).filter(([k, v]) => SOCIAL[k] && /^https:\/\//.test(v)).map(([k, v]) => `<a class="lrow" href="${esc(v)}" target="_blank" rel="noopener noreferrer"><span class="itile pink">${icon(SOCIAL[k][1])}</span><span class="body"><b>${SOCIAL[k][0]}</b><span class="ellipsis">${esc(v.replace(/^https:\/\/(www\.)?/, ""))}</span></span></a>`).join("")}
-        ${club.official_url ? `<a class="lrow" href="${esc(club.official_url)}" target="_blank" rel="noopener noreferrer"><span class="itile green">${icon("globe")}</span><span class="body"><b>Official EWU page</b><span class="ellipsis">${esc(club.official_url.replace(/^https?:\/\//, ""))}</span></span></a>` : ""}</div></section></div>`;
+        ${official(club) ? `<a class="lrow" href="${esc(official(club))}" target="_blank" rel="noopener noreferrer"><span class="itile green">${icon("globe")}</span><span class="body"><b>EWU club page (archived)</b><span class="ellipsis">${esc(club.official_url.replace(/^https?:\/\//, ""))}</span></span></a>` : ""}
+        <a class="lrow" href="#/club/committee?c=${club.id}"><span class="itile purple">${icon("award")}</span><span class="body"><b>Executive Committee</b><span>Current and past committees</span></span>${icon("chevR", "sm")}</a></div></section></div>${moderators(club)}`;
 
-  // Events with a registration form open the form; others open the campus Events page.
-  const eventRow = (e) => `<a class="card cl-event" href="${e.form_id ? `#/club/form?id=${e.form_id}` : `#/events?id=${e.id}`}"><div class="ev-date"><b>${ui.when(e.starts_at, { day: "numeric" })}</b><span>${ui.when(e.starts_at, { month: "short" })}</span></div>
+  // Every club event opens its event page (details, registration, add to calendar).
+  const eventRow = (e) => `<a class="card cl-event" href="#/club/event?id=${e.id}"><div class="ev-date"><b>${ui.when(e.starts_at, { day: "numeric" })}</b><span>${ui.when(e.starts_at, { month: "short" })}</span></div>
       <div class="grow min0"><b>${esc(e.title)}</b><p class="xs">${ui.dateTime(e.starts_at)}${e.venue ? ` · ${esc(e.venue)}` : ""}</p></div>${e.visibility === "members" ? ui.pill(`${icon("lock", "sm")} Members`, "purple") : ""}${e.form_id ? ui.pill("Registration", "green") : ""}</a>`;
 
   pages["club/c"].mount = (el) => {

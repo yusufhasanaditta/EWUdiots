@@ -2,18 +2,27 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { CLUB_PERMS, RANKS, has, canManage, assignableRanks } from "../src/clubs/perms.js";
+import { CLUB_PERMS, DEFAULT_ROLES, has, canManage, assignableRanks, assignableRoles } from "../src/clubs/perms.js";
 import { template, cleanFields, validate, normPhone, openState, summarize, toCSV, newField, FIELD_TYPES } from "../src/clubs/forms.js";
 import { codeFor, windowOf, qrText, parseQr, secondsLeft } from "../src/clubs/checkin.js";
 
-const SQL = readFileSync(new URL("../../supabase/migrations/0016_clubs.sql", import.meta.url), "utf8");
+const MIG = (f) => readFileSync(new URL(`../../supabase/migrations/${f}`, import.meta.url), "utf8");
+const SQL = MIG("0016_clubs.sql"), SQL18 = MIG("0018_club_platform.sql");
 
-test("every app permission exists in the database migration", () => {
-  for (const p of CLUB_PERMS) assert.ok(SQL.includes(`'${p}'`), `${p} missing from 0016_clubs.sql`);
+test("every app permission exists in the database migrations", () => {
+  for (const p of CLUB_PERMS) assert.ok((SQL + SQL18).includes(`'${p}'`), `${p} missing from the club migrations`);
   assert.equal(new Set(CLUB_PERMS).size, CLUB_PERMS.length, "no duplicate permission keys");
 });
-test("default rank names match the migration", () => {
-  for (const r of RANKS) assert.ok(SQL.includes(`(new.id, ${r.rank}, '${r.name}'`), `rank ${r.rank} ${r.name}`);
+test("default positions match the role template, and grant only known permissions", () => {
+  const rows = [...SQL18.matchAll(/^ {2}\((\d), '([^']+)', '\w+', array\[([^\]]*)\]/gm)];
+  assert.deepEqual(rows.map((m) => `${m[1]} ${m[2]}`), DEFAULT_ROLES.map((r) => `${r.rank} ${r.name}`), "same positions in the same order");
+  for (const m of rows) for (const k of m[3].match(/'[^']+'/g) || []) assert.ok(k === "'*'" || CLUB_PERMS.includes(k.slice(1, -1)), `${m[2]}: ${k}`);
+});
+test("positions you may hand out: below your rank, only permissions you hold", () => {
+  const roles = [{ id: "a", rank: 2, perms: ["*"], sort: 1 }, { id: "p", rank: 3, perms: ["posts.write", "refunds.approve"], sort: 2 }, { id: "m", rank: 5, perms: ["orders.manage"], sort: 3 }, { id: "g", rank: 7, perms: [], sort: 4 }];
+  assert.deepEqual(assignableRoles({ rank: 2, perms: ["*"] }, roles).map((r) => r.id), ["a", "p", "m", "g"]);
+  assert.deepEqual(assignableRoles({ rank: 3, perms: ["posts.write", "orders.manage"] }, roles).map((r) => r.id), ["m", "g"]);
+  assert.deepEqual(assignableRoles({ rank: 4, perms: [] }, roles).map((r) => r.id), ["g"]);
 });
 test("permission checks: '*' grants everything, inactive members get nothing", () => {
   assert.ok(has({ status: "active", perms: ["*"] }, "finance.edit"));
@@ -95,4 +104,66 @@ test("check-in QR text round-trips and rejects anything else", () => {
 });
 test("field types used by templates all exist", () => {
   for (const k of ["membership", "event", "competition", "volunteer", "survey"]) for (const x of template(k)) assert.ok(FIELD_TYPES[x.type], x.type);
+});
+
+/* ── v2.14: store, board, calendar, charts ── */
+import { TRANSITIONS, canMove, nextSteps, progress, canReturn, stockKey, stockOf, stockKeys, couponDiscount } from "../src/clubs/orders.js";
+import { addLine, setQty, byClub, subtotal } from "../src/clubs/cart.js";
+import { move, column, stats } from "../src/clubs/kanban.js";
+import { toICS } from "../src/clubs/ics.js";
+import { niceScale, line, donut, delta } from "../src/clubs/charts.js";
+const SQL19 = MIG("0019_club_store_partners.sql");
+
+test("order status moves match public.order_next_ok", () => {
+  const body = SQL19.match(/order_next_ok[\s\S]*?select \(cur, nxt\) in \(([\s\S]*?)\);\n\$\$/)[1];
+  const pairs = [...body.matchAll(/\('(\w+)', '(\w+)'\)/g)].map((m) => `${m[1]}>${m[2]}`).sort();
+  assert.deepEqual(TRANSITIONS.map(([a, b]) => `${a}>${b}`).sort(), pairs);
+  assert.ok(canMove("ready", "completed") && !canMove("processing", "completed") && !canMove("completed", "cancelled"));
+});
+test("an unpaid bKash order can't be prepared; cash can", () => {
+  assert.deepEqual(nextSteps({ status: "confirmed", payment_method: "bkash", payment_status: "submitted" }), ["cancelled"]);
+  assert.deepEqual(nextSteps({ status: "confirmed", payment_method: "cash", payment_status: "unpaid" }), ["processing", "cancelled"]);
+  const p = progress({ status: "processing" });
+  assert.deepEqual(p.map((s) => [s.done, s.current]), [[true, false], [false, true], [false, false], [false, false]]);
+});
+test("returns only inside the window after pickup", () => {
+  const done = { status: "completed", completed_at: new Date(Date.now() - 3 * 864e5).toISOString() };
+  assert.ok(canReturn(done, 7)); assert.ok(!canReturn(done, 2)); assert.ok(!canReturn(done, 0)); assert.ok(!canReturn({ ...done, status: "ready" }, 7));
+});
+test("stock keys match the database's", () => {
+  const hoodie = { sizes: ["M", "L"], colors: [{ name: "Black" }], track_stock: true, stock: { "M|Black": 3 } };
+  assert.equal(stockKey(hoodie, "M", "Black"), "M|Black"); assert.equal(stockOf(hoodie, "M", "Black"), 3); assert.equal(stockOf(hoodie, "L", "Black"), 0);
+  assert.deepEqual(stockKeys(hoodie), ["M|Black", "L|Black"]);
+  const sticker = { sizes: [], colors: [], track_stock: true, stock: { "": 40 } };
+  assert.equal(stockKey(sticker, "", ""), ""); assert.equal(stockOf(sticker), 40);
+  assert.equal(stockOf({ ...sticker, preorder: true }), Infinity);
+  assert.equal(couponDiscount(1650, { percent: 10 }), 165); assert.equal(couponDiscount(100, { amount: 500 }), 100);
+});
+test("cart merges the same item and groups by club", () => {
+  let c = addLine([], { product_id: "p", club_id: "a", club_name: "A", price: 650, size: "L", color: "", qty: 1 });
+  c = addLine(c, { product_id: "p", club_id: "a", club_name: "A", price: 650, size: "L", color: "", qty: 2 });
+  c = addLine(c, { product_id: "q", club_id: "b", club_name: "B", price: 450, size: "", color: "", qty: 1 });
+  assert.equal(c.length, 2); assert.equal(c[0].qty, 3); assert.equal(subtotal(c), 2400); assert.equal(byClub(c).length, 2);
+  assert.equal(setQty(c, c[0], 0).length, 1); assert.equal(addLine(c, { ...c[0], qty: 20 })[0].qty, 10);
+});
+test("task board moves renumber the target column", () => {
+  const t = [{ id: "a", status: "todo", position: 0 }, { id: "b", status: "todo", position: 1 }, { id: "c", status: "doing", position: 0 }];
+  assert.deepEqual(move(t, "b", "doing", "c"), [{ id: "b", status: "doing", position: 0 }, { id: "c", status: "doing", position: 1 }]);
+  assert.deepEqual(move(t, "a", "todo"), [{ id: "b", status: "todo", position: 0 }, { id: "a", status: "todo", position: 1 }]);
+  assert.deepEqual(column(t, "todo").map((x) => x.id), ["a", "b"]); assert.equal(stats(t).total, 3);
+});
+test("calendar file is valid and escaped", () => {
+  const ics = toICS({ id: "e1", title: "Tech Talk; 2026, Q&A", starts_at: "2026-10-28T09:00:00Z", venue: "CSE Lab 403" }, new Date("2026-10-01T00:00:00Z"));
+  assert.match(ics, /^BEGIN:VCALENDAR\r\n/); assert.match(ics, /DTSTART:20261028T090000Z/); assert.match(ics, /DTEND:20261028T110000Z/);
+  assert.ok(ics.includes("SUMMARY:Tech Talk\\; 2026\\, Q&A\r\n")); assert.ok(ics.split("\r\n").every((l) => l.length <= 75));
+});
+test("charts: nice axis, escaped labels, empty state", () => {
+  assert.deepEqual(niceScale(420), { top: 500, step: 100 });
+  assert.deepEqual(niceScale(52000), { top: 60000, step: 20000 });
+  assert.equal(niceScale(0).top, 4);
+  const svg = line({ title: "t", labels: ["<b>"], series: [{ name: "x", values: [3] }] });
+  assert.ok(!svg.includes("<b>") || svg.includes("&lt;b&gt;"));
+  assert.match(line({ title: "t", labels: ["a"], series: [{ name: "x", values: [0] }] }), /No data/);
+  assert.match(donut({ title: "d", items: [1, 2, 3, 4, 5, 6].map((v) => ({ label: `c${v}`, value: v })) }), /Other/);
+  assert.equal(delta(110, 100).text, "↑ 10%"); assert.equal(delta(5, 0), null);
 });

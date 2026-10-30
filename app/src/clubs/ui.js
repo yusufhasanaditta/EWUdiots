@@ -1,5 +1,6 @@
 /* EWUdiots Club: shared building blocks for the club screens (cards, badges, states, form controls, files).
    Everything that puts text into HTML goes through esc(); links and images are https-only (the database checks too). */
+import qrcode from "qrcode-generator";
 import { CATEGORIES, AUDIENCES, rankTone } from "./perms.js";
 
 const TZ = "Asia/Dhaka";
@@ -92,6 +93,45 @@ export function createUI(ctx) {
   /* ── Sheets ── */
   const sheet = (title, body, onMount, opts) => ctx.openModal(`${ctx.modalHead(title)}${body}`, onMount, opts);
 
+  /* ── v2.14 building blocks (clubs-v2.css) ── */
+  /** Big page title with a muted line and actions on the right. */
+  const ph = (title, sub = "", actions = "") => `<header class="cl-ph"><div class="min0"><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ""}</div>${actions ? `<div class="actions">${actions}</div>` : ""}</header>`;
+  /** Stat card. d = delta() from charts.js; spark = sparkline SVG. */
+  const stat = (ic, tone, num, label, { d = null, spark = "", href = "", sub = "" } = {}) => {
+    const tag = href ? "a" : "div";
+    return `<${tag} class="cl-stat t-${tone}" ${href ? `href="${href}"` : ""}><span class="top"><span class="itile sm ${tone}">${icon(ic)}</span><b class="num">${num}</b></span><span class="lbl">${label}</span>
+      ${d || spark || sub ? `<span class="foot">${d ? `<span class="d ${d.up ? "up" : "down"}">${d.text}</span>` : sub ? `<span class="xs">${sub}</span>` : "<span></span>"}${spark}</span>` : ""}</${tag}>`;
+  };
+  const tile = (ic, tone, label, href, badge = 0) => `<a class="cl-tile t-${tone}" href="${href}">${icon(ic)}<span>${label}</span>${badge ? `<span class="badge-n">${badge > 9 ? "9+" : badge}</span>` : ""}</a>`;
+  /** Pill tabs: items [[value, label, count?]], links built with href(value). */
+  const seg = (items, active, href, cls = "") => `<nav class="cl-seg ${cls}" role="tablist">${items.map(([v, l, n]) => `<a role="tab" href="${href(v)}" aria-selected="${v === active}">${l}${n != null ? ` <span class="n">${n}</span>` : ""}</a>`).join("")}</nav>`;
+  /** Status pill: [label, tone] from a status table, always text + colour. */
+  const st = (pair, ic = "") => `<span class="st ${pair?.[1] || "gray"}">${ic ? icon(ic) : ""}${esc(pair?.[0] || "")}</span>`;
+  const ava = (name, photo = "", size = "") => (photo ? `<span class="cl-ava ${size}"><img src="${esc(photo)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>` : `<span class="cl-ava ${size}" aria-hidden="true">${esc(initials(name))}</span>`);
+  const avaStack = (people, max = 4) => `<span class="cl-stack">${people.slice(0, max).map((p) => ava(p.display_name || p.name, p.photo_url, "sm")).join("")}${people.length > max ? `<span class="more">+${people.length - max}</span>` : ""}</span>`;
+  const dchip = (d, cls = "") => `<span class="cl-dchip ${cls}"><b>${when(d, { day: "2-digit" })}</b><span>${when(d, { month: "short" })}</span></span>`;
+  /** Cover art: the image, or the title in big letters on the brand gradient. */
+  const art = (img, text = "") => (img ? `<img src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span>${esc(String(text).slice(0, 28))}</span>`);
+  const money = (n) => `৳${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
+  const time = (d) => when(d, { hour: "numeric", minute: "2-digit" });
+  const sec = (title, link = "") => `<div class="cl-sec"><h2>${title}</h2>${link}</div>`;
+  /** File-type badge from a name or mime type. */
+  function ftype(name = "", mime = "") {
+    const s = `${name} ${mime}`.toLowerCase();
+    const [k, l] = /pdf/.test(s) ? ["pdf", "PDF"] : /(word|\.docx?\b)/.test(s) ? ["doc", "DOC"] : /(sheet|excel|\.xlsx?\b|\.csv\b|csv)/.test(s) ? ["xls", "XLS"] : /(presentation|\.pptx?\b)/.test(s) ? ["ppt", "PPT"]
+      : /(image|\.png|\.jpe?g|\.webp|\.gif)/.test(s) ? ["img", "IMG"] : /zip/.test(s) ? ["zip", "ZIP"] : /^https?:/.test(name) ? ["link", "LINK"] : ["other", "FILE"];
+    return `<span class="cl-ftype ${k}" aria-hidden="true">${l}</span>`;
+  }
+  const size = (b) => (!b ? "" : b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1e3))} KB`);
+  /** Page numbers for long lists. */
+  const pager = (page, pages) => (pages <= 1 ? "" : `<nav class="cl-pager" aria-label="Pages"><button data-pg="${page - 1}" ${page <= 1 ? "disabled" : ""} aria-label="Previous page">${icon("chevL", "sm")}</button>${
+    Array.from({ length: pages }, (_, i) => i + 1).filter((p) => p === 1 || p === pages || Math.abs(p - page) <= 1).map((p, i, a) => `${i && p - a[i - 1] > 1 ? "<span>…</span>" : ""}<button data-pg="${p}" ${p === page ? 'aria-current="page"' : ""}>${p}</button>`).join("")
+  }<button data-pg="${page + 1}" ${page >= pages ? "disabled" : ""} aria-label="Next page">${icon("chevR", "sm")}</button></nav>`);
+  const qrSvg = (text) => { const q = qrcode(0, "M"); q.addData(text); q.make(); return q.createSvgTag({ cellSize: 5, margin: 2, scalable: true }); };
+  /** Confirm before anything consequential, then run fn (errors show as a toast and keep the dialog open). */
+  const confirm = (title, text, yes, fn, danger = false) => ctx.confirmModal(title, text, yes, fn, danger);
+
   return { when, dateShort, dateLong, dateTime, ago, initials, rich, plural, logo, verified, pill, audiencePill, rolePill, person, clubCard,
-    skeleton, errorBox, emptyBox, view, field, input, area, select, toggle, values, fail, pickFile, shrink, download, sheet };
+    skeleton, errorBox, emptyBox, view, field, input, area, select, toggle, values, fail, pickFile, shrink, download, sheet,
+    ph, stat, tile, seg, st, ava, avaStack, dchip, art, money, time, sec, ftype, size, pager, qrSvg, confirm };
 }

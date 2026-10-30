@@ -8,7 +8,9 @@
  * @typedef {{ id: string, club_id: string, author_id: string, author_name: string, kind: string, title: string, body: string, images: string[], link: string, visibility: string, wing: string, pinned: boolean, status: string, created_at: string }} Post
  */
 
-const CLUB_COLS = "id, slug, name, short_name, category, tagline, logo_url, cover_url, color, join_mode, recruiting, verified, status, wings";
+import { moreApi } from "./api-more.js";
+
+const CLUB_COLS = "id, slug, name, short_name, category, tagline, logo_url, cover_url, color, join_mode, recruiting, verified, status, wings, source, features";
 const PUBLIC_BUCKET = "clubs-public", PRIVATE_BUCKET = "clubs-private";
 
 /** Turn database errors into sentences people can act on. */
@@ -29,7 +31,7 @@ export function createClubApi(sb, me) {
   const from = (t) => sb.from(t), rpc = (fn, args) => sb.rpc(fn, args);
   const uid = () => me()?.id;
 
-  return {
+  const core = {
     /* ── Directory and profiles ── */
     /** @returns {Promise<Club[]>} */
     listClubs: async () => ok(await from("clubs").select(CLUB_COLS).in("status", ["unclaimed", "active"]).order("name")),
@@ -205,4 +207,5 @@ export function createClubApi(sb, me) {
       hidePost: async (id, hidden = true) => ok(await from("club_posts").update({ status: hidden ? "hidden" : "published" }).eq("id", id))
     }
   };
+  return Object.assign(core, moreApi(sb, me, ok, safeName));
 }

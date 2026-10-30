@@ -10,7 +10,7 @@ export function register(pages, kit) {
   pages["club/events"] = () => {
     const head = kit.head("Club events", "Workshops, competitions, meetups and recruitment from EWU's clubs.");
     if (!api) return head + kit.gate("club events");
-    const ee = store.use("events:upcoming", api.upcomingClubEvents, { ttl: 60e3 });
+    const ee = store.use("club:upcoming", api.upcomingClubEvents, { ttl: 60e3 });
     const mine = new Set((kit.memberships().value || []).filter((m) => m.status === "active").map((m) => m.club_id));
     const follows = new Set(kit.me() ? store.use("me:follows", api.follows).value || [] : []);
     return `${head}${kit.me() ? kit.ctx.seg([["all", "All clubs"], ["mine", "My clubs & following"]], scope, "data-es") : ""}
@@ -25,7 +25,7 @@ export function register(pages, kit) {
       <div class="grow min0"><div class="row" style="gap:6px">${ui.pill(esc(KINDS[e.kind] || "Event"))}${e.visibility === "members" ? ui.pill(`${icon("lock", "sm")} Members only`, "purple") : ""}</div>
         <b class="cl-ev-title">${esc(e.title)}</b><p class="xs">${ui.dateTime(e.starts_at)}${e.venue ? ` · ${icon("pin", "sm")} ${esc(e.venue)}` : ""}</p>
         <a class="row nowrap xs mt-s" style="gap:6px" href="#/club/c?slug=${encodeURIComponent(e.clubs?.slug || "")}">${ui.logo(e.clubs, "xs")} ${esc(e.clubs?.name || e.organizer)}</a></div>
-      <div class="cl-ev-cta">${e.form_id ? `<a class="btn sm primary" href="#/club/form?id=${e.form_id}">${icon("edit", "sm")} Register</a>` : ""}<a class="btn sm ghost" href="#/events?id=${e.id}">Details</a></div></article>`;
+      <div class="cl-ev-cta">${e.form_id ? `<a class="btn sm primary" href="#/club/form?id=${e.form_id}">${icon("edit", "sm")} Register</a>` : ""}<a class="btn sm ghost" href="#/club/event?id=${e.id}">Details</a></div></article>`;
   pages["club/events"].mount = (el) => {
     kit.$$("[data-es]", el).forEach((b) => b.addEventListener("click", () => { scope = b.dataset.es; kit.ctx.rerender(); }));
     kit.bindRetry(el);

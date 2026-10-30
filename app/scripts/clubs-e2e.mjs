@@ -44,8 +44,8 @@ async function setup() {
   await sql(`select public.club_add_member('${clubId}', '${users.admin.id}', 2, 'Ayesha Admin', '${users.admin.email}', '${PEOPLE.admin[0]}', 'CSE', null)`);
 }
 async function cleanup() {
-  try { if (clubId) await sql(`delete from public.clubs where id = '${clubId}'`); } catch (e) { console.warn("club cleanup:", e.message); }
-  for (const u of Object.values(users)) { try { await sql(`delete from public.user_messages where user_id = '${u.id}'`); await adminApi(`users/${u.id}`, "DELETE"); } catch (e) { console.warn("user cleanup:", e.message); } }
+  try { if (clubId) await sql(`delete from public.club_orders where club_id = '${clubId}'; delete from public.clubs where id = '${clubId}'`); } catch (e) { console.warn("club cleanup:", e.message); }
+  for (const u of Object.values(users)) { try { await sql(`delete from public.admins where user_id = '${u.id}'; delete from public.user_messages where user_id = '${u.id}'`); await adminApi(`users/${u.id}`, "DELETE"); } catch (e) { console.warn("user cleanup:", e.message); } }
 }
 
 const PORT = 4183, BASE = `http://localhost:${PORT}`;
@@ -81,11 +81,14 @@ try {
   /* ── 1. Admin opens EWUdiots Club from More ── */
   const A = await person("admin");
   await go(A, "#/more");
-  check("More shows the EWUdiots Club entry", !!(await A.$('.cl-entry[href="#/club/feed"]')));
+  check("More shows the EWUdiots Club entry", !!(await A.$('.cl-entry[href="#/club/home"]')));
   await click(A, ".cl-entry");
   check("club mode: its own navigation", await until(A, () => document.body.dataset.mode === "club" && !!document.querySelector('#bottom-nav a[href="#/club/explore"]')));
+  check("club home: greeting and my clubs", await hasText(A, "My Clubs") && await hasText(A, "E2ERC"));
+  check("header: EWUdiots Club brand + disclaimer", await A.evaluate(() => getComputedStyle(document.querySelector(".topbar .mlogo .word"), "::after").content.includes("Club")));
+  await shot(A, "01-home");
+  await go(A, "#/club/feed");
   check("feed renders", await hasText(A, "What's happening in EWU's clubs"));
-  await shot(A, "01-feed");
   await go(A, "#/club/explore");
   check("explore lists EWU's 23 clubs (+ the test club)", await until(A, () => document.querySelectorAll(".cl-card").length >= 24));
   await shot(A, "02-explore");
@@ -196,7 +199,117 @@ try {
   check("member sees the certificate under Me", await hasText(B, "E2E Robotics Workshop", 20000));
   if (cert) { await go(B, `#/club/cert?code=${cert.code}`); check("public check confirms it", await hasText(B, "Real certificate", 15000)); await shot(B, "11-cert-check"); }
 
-  /* ── 10. Desktop console look ── */
+  /* ── 10. v2.14: positions ── */
+  await go(A, `#/club/member?c=${clubId}&u=${users.member.id}`);
+  await click(A, "#mb-role");
+  await A.waitForSelector('#ar [name="role"]');
+  const tre = await A.$eval('#ar [name="role"]', (s) => [...s.options].find((o) => o.textContent === "Treasurer")?.value);
+  check("Club Admin can give the Treasurer position", !!tre);
+  if (tre) { await A.select('#ar [name="role"]', tre); await click(A, "#ar button.primary"); }
+  check("member is now Treasurer", (await (async () => { for (let i = 0; i < 20; i++) { const r = await sql(`select r.name from public.club_members m join public.club_roles r on r.id = m.role_id where m.club_id = '${clubId}' and m.user_id = '${users.member.id}'`); if (r[0]?.name === "Treasurer") return true; await wait(500); } return false; })()));
+  await shot(A, "13-member-profile");
+
+  /* ── 11. Chat: live messages between members ── */
+  await go(A, "#/club/messages");
+  check("channels listed (Announcements, General, Executive)", await until(A, () => document.querySelectorAll(".cl-chlist .cl-li").length >= 3, null, 20000));
+  const general = (await sql(`select id from public.club_channels where club_id = '${clubId}' and kind = 'all'`))[0].id;
+  await go(B, `#/club/chat?id=${general}`); await B.reload({ waitUntil: "networkidle2" });
+  await go(A, `#/club/chat?id=${general}`);
+  await A.waitForSelector("#ch-text", { timeout: 20000 });
+  await A.type("#ch-text", "Hello from the e2e test 👋");
+  await A.$eval("#ch-form", (f) => f.requestSubmit());
+  check("sender sees the message", await hasText(A, "Hello from the e2e test", 15000));
+  check("other member gets it live (Realtime)", await hasText(B, "Hello from the e2e test", 20000));
+  await shot(B, "14-chat");
+
+  /* ── 12. Merch: order → TrxID → verify → ready → pickup scan ── */
+  await sql(`update public.clubs set features = features || '{"store":true}', store_settings = '{"payment_numbers":{"bkash":"01700000000"},"pickup_points":["Admin Building"],"allow_cash":true,"return_days":7}' where id = '${clubId}';
+    insert into public.club_products (club_id, name, category, price, sizes, colors, stock, status) values ('${clubId}', 'E2E Hoodie', 'hoodies', 1200, array['M','L'], '[{"name":"Black","hex":"#111111"}]', '{"M|Black":3,"L|Black":0}', 'active');`);
+  const prod = (await sql(`select id from public.club_products where club_id = '${clubId}'`))[0].id;
+  await go(C, `#/club/product?id=${prod}`); await C.reload({ waitUntil: "networkidle2" });
+  check("sold-out size is disabled", await until(C, () => document.querySelector('[data-size="L"]')?.disabled === true, null, 20000));
+  await click(C, "#pd-buy");
+  await C.waitForSelector("#co", { timeout: 20000 });
+  await shot(C, "15-checkout");
+  await typeIn(C, '#co [name="phone"]', "01812345678");
+  await typeIn(C, '#co [name="ref"]', "TRXE2E1234");
+  await click(C, "#co button.primary");
+  check("order placed", await hasText(C, "Order Placed Successfully", 20000));
+  const ord = (await sql(`select id, total, status, payment_status from public.club_orders where club_id = '${clubId}'`))[0];
+  check("price from the database, payment waiting for verification", ord && Number(ord.total) === 1200 && ord.payment_status === "submitted");
+  await shot(C, "16-order-placed");
+  await go(A, `#/club/orderadmin?id=${ord.id}`); await A.reload({ waitUntil: "networkidle2" });
+  await click(A, "#od-ok"); await click(A, "#cf-go");
+  check("payment verified → confirmed", (await (async () => { for (let i = 0; i < 20; i++) { const r = await sql(`select status from public.club_orders where id = '${ord.id}'`); if (r[0].status === "confirmed") return true; await wait(500); } return false; })()));
+  await go(A, `#/club/orderadmin?id=${ord.id}`); await A.reload({ waitUntil: "networkidle2" });
+  await A.waitForSelector("#od-status"); await A.select("#od-status", "processing");
+  await A.waitForSelector("#et"); await click(A, "#et button.primary"); await wait(800);
+  await A.reload({ waitUntil: "networkidle2" }); await A.waitForSelector("#od-status"); await A.select("#od-status", "ready"); await click(A, "#cf-go");
+  check("order ready for pickup", (await (async () => { for (let i = 0; i < 20; i++) { const r = await sql(`select status from public.club_orders where id = '${ord.id}'`); if (r[0].status === "ready") return true; await wait(500); } return false; })()));
+  await go(C, `#/club/order?id=${ord.id}`); await C.reload({ waitUntil: "networkidle2" });
+  check("buyer sees the active pickup QR", await until(C, () => !!document.querySelector(".cl-qrbox:not(.dim) svg"), null, 20000));
+  await shot(C, "17-pickup-qr");
+  const tok = (await sql(`select pickup_token from public.club_orders where id = '${ord.id}'`))[0].pickup_token;
+  await go(A, `#/club/ordersadmin?c=${clubId}`); await click(A, "#oa-scan");
+  await typeIn(A, '#pk [name="t"]', `ewud:o:${tok}`); await click(A, "#pk button.primary");
+  check("pickup completes the order", await hasText(A, "Hand over", 20000));
+  check("stock went down by one", (await sql(`select (stock ->> 'M|Black')::int n from public.club_products where id = '${prod}'`))[0].n === 2);
+  await go(A, `#/club/merch?c=${clubId}`);
+  check("merch dashboard shows the sale", await hasText(A, "৳1,200", 20000));
+  await shot(A, "18-merch-dashboard");
+
+  /* ── 13. App Admin is for the EWUdiots team only ── */
+  await go(C, "#/club/admin");
+  check("students can't open App Admin", await hasText(C, "For the EWUdiots team", 15000));
+
+  /* ── 14. Tour: every v2.14 screen renders (no crash card, no JS errors), with screenshots ── */
+  await sql(`update public.clubs set features = features || '{"sponsors":true,"collab":true}' where id = '${clubId}';
+    insert into public.club_projects (club_id, title, description, status, due, team) values ('${clubId}', 'Tech Talk 2026', 'Industry talk for CSE students', 'in_progress', current_date + 20, array['${users.admin.id}'::uuid, '${users.member.id}'::uuid]);
+    insert into public.club_tasks (club_id, project_id, title, status, priority, assignee, due) select '${clubId}', id, t, st, pr, '${users.member.id}', current_date + d from public.club_projects, (values ('Design event poster', 'doing', 'high', 3), ('Book CSE Lab 403', 'done', 'medium', 1), ('Confirm speakers', 'todo', 'high', 5)) v(t, st, pr, d) where club_id = '${clubId}';
+    insert into public.club_meetings (club_id, title, starts_at, ends_at, location, online_link, agenda, minutes) values ('${clubId}', 'Executive Planning Meeting', now() + interval '2 days', now() + interval '2 days 90 minutes', 'Room 405, Main Building', 'https://meet.google.com/abc-defg-hij', '[{"at":"5:00 PM","title":"Review previous action items"},{"at":"5:10 PM","title":"Upcoming events"}]', '');
+    insert into public.club_folders (club_id, name, color) values ('${clubId}', 'Event Planning', 'amber');
+    insert into public.club_elections (club_id, title, term_label, nomination_start, nomination_end, voting_start, voting_end, status) values ('${clubId}', 'Executive Committee Election 2026', '2026–27', now() - interval '1 day', now() + interval '5 days', now() + interval '6 days', now() + interval '9 days', 'published');
+    insert into public.club_election_positions (election_id, club_id, name, role_id) select e.id, e.club_id, 'President', r.id from public.club_elections e join public.club_roles r on r.club_id = e.club_id and r.name = 'President' where e.club_id = '${clubId}';
+    insert into public.club_finance (club_id, kind, amount, category, note) values ('${clubId}', 'income', 25000, 'Sponsorship', 'Sponsorship from TechCorp'), ('${clubId}', 'expense', 4500, 'Venue', 'Hall booking (Tech Talk)');
+    insert into public.sponsors (name, industry, tagline, status, verified, added_club) values ('E2E TechNova ${tag}', 'Technology', 'Supporting young innovators.', 'approved', true, '${clubId}');
+    insert into public.club_collabs (lead_club, title, description, kind, seeking, starts_at, venue, goals) values ('${clubId}', 'Tech for a Greener Campus ${tag}', 'A joint initiative.', 'co_organized', 'partners', now() + interval '10 days', 'EWU Campus', array['Raise awareness about sustainability']);`);
+  const pid = (await sql(`select id from public.club_projects where club_id = '${clubId}'`))[0].id;
+  const mid = (await sql(`select id from public.club_meetings where club_id = '${clubId}'`))[0].id;
+  const eid = (await sql(`select id from public.club_elections where club_id = '${clubId}'`))[0].id;
+  const cxid = (await sql(`select id from public.club_collabs where lead_club = '${clubId}'`))[0].id;
+  const spid = (await sql(`select id from public.sponsors where added_club = '${clubId}'`))[0].id;
+  const tour = [["space", `#/club/space?c=${clubId}`, "private member workspace"], ["members", `#/club/members?c=${clubId}`, "Club Members"], ["committee", `#/club/committee?c=${clubId}`, "Executive Committee"],
+    ["meetings", `#/club/meetings?c=${clubId}`, "Executive Planning Meeting"], ["meeting", `#/club/meeting?id=${mid}`, "Meeting Agenda"], ["projects", `#/club/projects?c=${clubId}`, "Tech Talk 2026"],
+    ["project-board", `#/club/project?id=${pid}&tab=tasks`, "Task Board"], ["resources", `#/club/resources?c=${clubId}`, "Event Planning"], ["polls", "#/club/polls", "Polls & Voting"],
+    ["elections", "#/club/elections", "Executive Committee Election 2026"], ["election", `#/club/election?id=${eid}`, "Election Timeline"], ["recruit", `#/club/recruit?form=${formId}`, "Applications"],
+    ["finance", `#/club/finance?c=${clubId}`, "Finance & Budget"], ["analytics", `#/club/analytics?c=${clubId}`, "Membership Growth"], ["analytics-engagement", `#/club/analytics?c=${clubId}&tab=engagement`, "Engagement rate"],
+    ["store", "#/club/store", "E2E Hoodie"], ["products", `#/club/merch?c=${clubId}&tab=products`, "Product & Inventory"], ["orders-admin", `#/club/ordersadmin?c=${clubId}`, "Orders Management"],
+    ["sponsors", "#/club/sponsors", "Sponsorship & Partnership Hub"], ["sponsor", `#/club/sponsor?id=${spid}`, "Sponsor Details"], ["collab", "#/club/collab", "Club Marketplace"], ["collab-detail", `#/club/collab?id=${cxid}`, "Involved Clubs"],
+    ["notifications", "#/club/notifications", "Notifications"], ["help", "#/club/help", "Help Center"], ["privacy", "#/club/privacy", "Privacy & Data Control"], ["me", "#/club/me", "Profile & Settings"],
+    ["more", "#/club/more", "Run your club"], ["features", `#/club/manage?c=${clubId}&tab=features`, "Merch store"], ["roles", `#/club/manage?c=${clubId}&tab=roles`, "General Secretary"],
+    ["event-list", "#/club/events", "Club events"], ["messages", "#/club/messages", "Messages"]];
+  for (const [name, hash, text] of tour) {
+    await go(A, hash);
+    const okText = await hasText(A, text, 15000);
+    const crashed = await A.evaluate(() => document.querySelector("#main")?.innerText.includes("This page hit a problem"));
+    check(`screen: ${name}`, okText && !crashed, crashed ? "crash card" : okText ? "" : `missing “${text}”`);
+    await shot(A, `t-${name}`);
+  }
+
+  /* ── 15. App Admin control centre (the throwaway admin is made an EWUdiots team admin for this step only) ── */
+  await sql(`insert into public.admins (user_id, email, role) values ('${users.admin.id}', '${users.admin.email}', 'admin') on conflict do nothing`);
+  await A.reload({ waitUntil: "networkidle2" });
+  for (const [name, hash, text] of [["admin-home", "#/club/admin", "Platform Control Center"], ["admin-clubs", `#/club/admin?tab=clubs&club=${clubId}`, "Club Management"], ["admin-roles", "#/club/admin?tab=roles", "Faculty Advisor"], ["admin-matrix", "#/club/admin?tab=roles&r=matrix", "Permission"], ["admin-queue", "#/club/admin?tab=queue", "Club Verification"]]) {
+    await go(A, hash);
+    const okText = await hasText(A, text, 20000), crashed = await A.evaluate(() => document.querySelector("#main")?.innerText.includes("This page hit a problem"));
+    check(`screen: ${name}`, okText && !crashed, crashed ? "crash card" : okText ? "" : `missing “${text}”`);
+    await shot(A, `t-${name}`);
+  }
+  check("App Admin can lock a club feature", await (async () => { await go(A, `#/club/admin?tab=clubs&club=${clubId}`); await A.waitForSelector('[data-lock="chat"]', { timeout: 15000 }); await A.$eval('[data-lock="chat"]', (c) => c.click());
+    for (let i = 0; i < 20; i++) { const r = await sql(`select (features_locked ->> 'chat')::boolean l from public.clubs where id = '${clubId}'`); if (r[0].l) return true; await wait(500); } return false; })());
+  await sql(`delete from public.admins where user_id = '${users.admin.id}'`);
+
+  /* ── 16. Desktop console look ── */
   await A.setViewport({ width: 1366, height: 900 });
   await go(A, `#/club/manage?c=${clubId}&tab=responses&form=${formId}`); await wait(1500);
   check("desktop console sidebar", await A.$eval(".cl-console-nav", (n) => getComputedStyle(n).display !== "none").catch(() => false));

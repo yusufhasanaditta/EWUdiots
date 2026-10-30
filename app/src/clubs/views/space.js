@@ -3,14 +3,14 @@
 import { createPosts } from "./posts.js";
 import { parseQr } from "../checkin.js";
 
-const TABS = [["posts", "Announcements", "megaphone"], ["calendar", "Calendar", "calendar"], ["attendance", "Attendance", "checkc"], ["polls", "Polls", "bars"], ["tasks", "Tasks", "clipboard"], ["docs", "Docs", "file"], ["members", "Members", "users"]];
+const TABS = [["home", "Workspace", "grid"], ["posts", "Announcements", "megaphone"], ["calendar", "Calendar", "calendar"], ["attendance", "Attendance", "checkc"], ["polls", "Polls", "bars"], ["tasks", "Tasks", "clipboard"], ["docs", "Docs", "file"], ["members", "Members", "users"]];
 
 /** @param {Record<string, any>} pages @param {any} kit */
 export function register(pages, kit) {
   const { ui, icon, esc, api, store } = kit;
   const posts = createPosts(kit);
   const cid = () => kit.param("c") || "";
-  const tab = () => (TABS.some(([t]) => t === kit.param("tab")) ? kit.param("tab") : "posts");
+  const tab = () => (TABS.some(([t]) => t === kit.param("tab")) ? kit.param("tab") : "home");
   const clubE = (id) => store.use(`clubid:${id}`, () => api.clubById(id), { ttl: 5 * 60e3 });
 
   pages["club/space"] = () => {
@@ -31,6 +31,32 @@ export function register(pages, kit) {
 
   /* ── Sections ── */
   const SECTIONS = {
+    /** Workspace dashboard ("Workspace Dashboard" board): numbers, tools, what's next, my tasks, news and chats. */
+    home(club, m) {
+      const id = club.id, f = (k) => kit.feature(id, k), counts = store.use("clubs:counts", api.counts, { ttl: 60e3 }).value?.[id] || {};
+      const pe = f("projects") ? store.use(`club:projects:${id}`, () => api.projects(id), { ttl: 60e3 }).value || [] : [];
+      const te = store.use(`club:tasks:${id}`, () => api.tasks(id), { ttl: 30e3 }), tasks = te.value || [];
+      const ee = store.use(`club:events:${id}`, () => api.clubEvents(id), { ttl: 60e3 }).value || [];
+      const me = f("meetings") ? store.use(`club:meetings:${id}`, () => api.meetings(id), { ttl: 60e3 }).value || [] : [];
+      const ch = f("chat") ? (store.use("me:channels", api.channels, { ttl: 30e3 }).value || []).filter((c) => c.club_id === id) : [];
+      const pp = store.use(`club:posts:${id}`, () => api.clubPosts(id), { ttl: 30e3 }).value || [];
+      const now = Date.now(), upcoming = [...ee.filter((e) => new Date(e.starts_at) > now).map((e) => ({ at: e.starts_at, title: e.title, place: e.venue, href: `#/club/event?id=${e.id}` })),
+        ...me.filter((x) => new Date(x.starts_at) > now && x.status !== "cancelled").map((x) => ({ at: x.starts_at, title: x.title, place: x.location || "Online", href: `#/club/meeting?id=${x.id}`, red: true }))].sort((a, b) => new Date(a.at) - new Date(b.at)).slice(0, 4);
+      const mine = tasks.filter((t) => t.assignee === kit.me()?.id && t.status !== "done").slice(0, 4);
+      const tiles = [["megaphone", "pink", "Announcements", `#/club/space?c=${id}&tab=posts`], ["users", "blue", "Members", `#/club/members?c=${id}`], ["checksq", "green", "Tasks", `#/club/space?c=${id}&tab=tasks`],
+        f("meetings") && ["clipboard", "purple", "Meetings", `#/club/meetings?c=${id}`], f("projects") && ["kanban", "orange", "Projects", `#/club/projects?c=${id}`], f("resources") && ["folder", "red", "Resources", `#/club/resources?c=${id}`],
+        f("chat") && ["chat", "blue", "Discussions", "#/club/messages"], ["calendar", "amber", "Events", `#/club/space?c=${id}&tab=calendar`], f("polls") && ["bars", "teal", "Polls", "#/club/polls"], f("elections") && ["ballot", "purple", "Elections", "#/club/elections"],
+        ["award", "green", "Committee", `#/club/committee?c=${id}`], kit.can(id, "finance.view") && f("finance") && ["wallet", "amber", "Finance", `#/club/finance?c=${id}`], kit.can(id, "analytics.view") && ["chart", "blue", "Analytics", `#/club/analytics?c=${id}`],
+        (kit.can(id, "store.manage") || kit.can(id, "orders.manage")) && ["bag", "orange", "Merch", `#/club/merch?c=${id}`], kit.can(id, "forms.view_responses") && ["userpen", "purple", "Recruitment", "#/club/recruit"]].filter(Boolean);
+      return `<div class="alert purple"><span class="a-ic">${icon("lock")}</span><div class="grow"><b>This is a private member workspace</b><p>Only ${esc(club.short_name || club.name)} members can see it.</p></div></div>
+        <div class="cl-stats mt">${ui.stat("users", "purple", counts.members || 0, "Members")}${f("projects") ? ui.stat("layers", "blue", pe.length, "Projects") : ""}${ui.stat("checksq", "green", tasks.filter((t) => t.status !== "done").length, "Ongoing tasks")}${ui.stat("calendar", "amber", ee.filter((e) => new Date(e.starts_at) > now).length, "Upcoming events")}</div>
+        <div class="cl-tiles">${tiles.map((t) => ui.tile(...t)).join("")}</div>
+        ${ui.sec("Upcoming Activities", `<a href="#/club/space?c=${id}&tab=calendar">View all</a>`)}${upcoming.length ? `<div class="cl-row2">${upcoming.map((x) => `<a class="cl-sched" href="${x.href}">${ui.dchip(x.at, x.red ? "red" : "")}<span class="min0 grow"><b class="ellipsis">${esc(x.title)}</b><span class="xs">${icon("clock")} ${ui.time(x.at)}</span>${x.place ? `<span class="xs ellipsis">${icon("pin")} ${esc(x.place)}</span>` : ""}</span>${icon("chevR", "sm")}</a>`).join("")}</div>` : `<p class="small muted">Nothing scheduled.</p>`}
+        ${ui.sec("My Tasks", `<a href="#/club/space?c=${id}&tab=tasks">View all</a>`)}${mine.length ? `<div class="cl-list">${mine.map((t) => `<a class="cl-li" href="${t.project_id ? `#/club/project?id=${t.project_id}` : `#/club/space?c=${id}&tab=tasks`}"><span class="itile sm ${t.status === "doing" ? "blue" : "gray"}">${icon("checksq")}</span><span class="body"><b>${esc(t.title)}</b><span>${t.due ? `Due ${ui.dateShort(t.due)}` : "No due date"}</span></span>${ui.st({ high: ["High", "red"], medium: ["Medium", "amber"], low: ["Low", "gray"] }[t.priority] || ["Medium", "amber"])}</a>`).join("")}</div>` : `<p class="small muted">No tasks for you.</p>`}
+        <div class="cl-row2"><section>${ui.sec("Recent Announcements", `<a href="#/club/space?c=${id}&tab=posts">View all</a>`)}${pp.length ? `<div class="cl-list">${pp.slice(0, 3).map((p) => `<a class="cl-li" href="#/club/post?id=${p.id}"><span class="itile sm pink">${icon("megaphone")}</span><span class="body"><b class="ellipsis">${esc(p.title)}</b><span>${ui.ago(p.created_at)}</span></span>${icon("chevR", "sm")}</a>`).join("")}</div>` : `<p class="small muted">No announcements yet.</p>`}</section>
+          ${f("chat") ? `<section>${ui.sec("Unread Messages", `<a href="#/club/messages">View all</a>`)}${ch.length ? `<div class="cl-list">${ch.slice(0, 3).map((c) => `<a class="cl-li" href="#/club/chat?id=${c.id}">${ui.ava(c.name)}<span class="body"><b class="ellipsis">${esc(c.name)}</b><span class="ellipsis">${esc(c.last_body || "No messages yet")}</span></span>${c.unread ? `<span class="badge-n">${c.unread}</span>` : ""}</a>`).join("")}</div>` : `<p class="small muted">No chats yet.</p>`}</section>` : ""}</div>
+        ${m.rank <= 3 || kit.canManage(id) ? `<a class="btn outline mt" href="#/club/manage?c=${id}">${icon("settings")} Open the club console</a>` : ""}`;
+    },
     posts(club) {
       const pe = store.use(`club:posts:${club.id}`, () => api.clubPosts(club.id), { ttl: 30e3 });
       const write = kit.can(club.id, "posts.write") ? `<a class="btn sm primary" href="#/club/manage?c=${club.id}&tab=posts&new=1">${icon("plus", "sm")} New post</a>` : "";
