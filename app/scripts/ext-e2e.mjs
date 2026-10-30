@@ -1,3 +1,4 @@
+/* global chrome */
 // Full real-world test of the Chrome extension + app, in real Chrome:
 // installs extension/ unpacked, browses portal-shaped pages (fake data) served at
 // https://portal.ewubd.edu, lets auto-save capture them, sends them to the app via the

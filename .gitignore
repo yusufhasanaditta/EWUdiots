@@ -21,3 +21,6 @@ new
 .secrets/
 extension.zip
 /logo.png
+
+# Test screenshots (npm run test:clubs)
+app/.shots/

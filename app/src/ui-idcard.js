@@ -267,7 +267,6 @@ export function install(ctx) {
   async function verifyAccount() {
     const user = ctx.C.user;
     if (!user) { ctx.go("#/login?from=profile"); return false; }
-    const want = String(user.email || "").split("@")[0];
     const card = await scan({ title: "Verify with your ID card", cta: "Verify my account" });
     return card ? verifyWithCard(card) : false;
   }

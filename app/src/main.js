@@ -31,6 +31,7 @@ import { install as installMaterials } from "./ui-materials.js";
 import { install as installClassroom } from "./ui-classroom.js";
 import { install as installInsights } from "./ui-insights.js";
 import { install as installAttendance } from "./ui-attendance.js";
+import { install as installClubs } from "./clubs/index.js";
 import { createContent, FEATURES } from "./content.js";
 import { applyBrand } from "./theme.js";
 import { snapshot, stamp, merge } from "./syncmerge.js";
@@ -88,7 +89,7 @@ const loadDirectory = () => (dirP = dirP || fetch("/data/faculty.json").then((r)
 // A faculty photo that fails to load falls back to the initials underneath it.
 addEventListener("error", (e) => { const t = e.target; if (t.tagName === "IMG" && t.closest(".face")) t.remove(); }, true);
 let study = null; // study-mode API, installed at boot (src/study.js)
-let charts = null, attendanceUi = null, campus = null, idcard = null, notices = null, community = null, people = null, events = null, acal = null, materials = null;
+let clubs = null, charts = null, attendanceUi = null, campus = null, idcard = null, notices = null, community = null, people = null, events = null, acal = null, materials = null;
 const content = createContent(cloud); // admin-managed posts, settings, overrides // campus map + ID card APIs (src/ui-map.js, src/ui-idcard.js)
 async function pushNow() {
   if (!C.user) return false;
@@ -282,11 +283,17 @@ const PAGE_FEATURE = { notices: "notices", news: "news", alumni: "alumni", map: 
 const SUB = { insights: "grades", scholarship: "grades", calendar: "routine", course: "courses", marks: "courses", degree: "grades", whatif: "grades", plan: "planner", combos: "planner", fee: "fees", prof: "faculty", file: "vault", cards: "focus", exams: "tasks", account: "more", profile: "more", notifications: "home", help: "more", about: "more", cover: "more", sync: "more", idcard: "more", alarms: "routine", ask: "ask", post: "blog", write: "blog" };
 const prefersReduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 function renderNav(route) {
+  const unread = inbox().filter((n) => !S.read[n.id]).length;
+  $("#top-bell").innerHTML = `${icon("bell")}${unread ? `<span class="dot-n">${unread > 9 ? "9+" : unread}</span>` : ""}`;
+  $("#top-bell").setAttribute("aria-label", `Notifications${unread ? `, ${unread} unread` : ""}`);
+  const p = S.profile;
+  $("#side-user").innerHTML = `${myAvatar("sm")}<div class="grow min0"><b class="ellipsis">${esc(p?.name || "Set up profile")}</b><span class="ellipsis" style="display:block">${esc(p ? (p.program || p.department || roleLabel()) : "Tap to start")}</span></div>${icon("chevR", "sm")}`;
+  // EWUdiots Club (#/club/…) has its own navigation; everything else uses the app's.
+  if (clubs?.owns(route)) return clubs.renderNav(route);
+  clubs?.leave();
   const active = SUB[route] || route;
   const dueSoon = S.tasks.filter((t) => !t.done && new Date(t.due) - Date.now() < 3 * 864e5 && new Date(t.due) > Date.now()).length;
   $("#side-nav").innerHTML = navFor().map((n) => `<a href="#/${n.id}" ${active === n.id ? 'aria-current="page"' : ""}>${icon(n.icon)}<span>${n.label}</span>${n.id === "tasks" && dueSoon ? `<span class="badge-n">${dueSoon}</span>` : ""}${n.id === "notices" && notices?.unseenCount() ? `<span class="badge-n">${notices.unseenCount()}</span>` : ""}</a>`).join("");
-  const p = S.profile;
-  $("#side-user").innerHTML = `${myAvatar("sm")}<div class="grow min0"><b class="ellipsis">${esc(p?.name || "Set up profile")}</b><span class="ellipsis" style="display:block">${esc(p ? (p.program || p.department || roleLabel()) : "Tap to start")}</span></div>${icon("chevR", "sm")}`;
   const B = S.role === "student" ? [["home", "home", "Home"], ["routine", "calendar", "Routine"], ["fab"], ["grades", "bars", "CGPA"], ["more", "grid", "More"]]
     : S.role === "faculty" ? [["home", "home", "Home"], ["teach", "briefcase", "Teaching"], ["fab"], ["blog", "notes", "Blog"], ["more", "grid", "More"]]
     : [["home", "home", "Home"], ["alumhub", "cap", "Hub"], ["fab"], ["jobs", "briefcase", "Jobs"], ["more", "grid", "More"]];
@@ -294,9 +301,6 @@ function renderNav(route) {
     ? `<button class="fab" id="fab" type="button" aria-label="Quick add"><span class="fab-btn">${icon("plus")}</span></button>`
     : `<a href="#/${id}" ${active === id || (id === "more" && !B.some((b) => b[0] === active)) ? 'aria-current="page"' : ""}>${icon(ic)}<span>${l}</span></a>`).join("");
   $("#fab").addEventListener("click", quickAdd);
-  const unread = inbox().filter((n) => !S.read[n.id]).length;
-  $("#top-bell").innerHTML = `${icon("bell")}${unread ? `<span class="dot-n">${unread > 9 ? "9+" : unread}</span>` : ""}`;
-  $("#top-bell").setAttribute("aria-label", `Notifications${unread ? `, ${unread} unread` : ""}`);
 }
 const roleLabel = () => ({ student: "Student", faculty: "Faculty member", alumni: "Alumni" }[S.role] || "Student");
 function quickAdd() {
@@ -703,6 +707,7 @@ attendanceUi = installAttendance(ctx);
 installScholar(ctx);
 installClassroom(ctx);
 charts = installInsights(ctx);
+clubs = installClubs(ctx);
 content.onChange(() => { facCache = null; applyTheme(); rerender(); });
 content.refresh();
 setInterval(() => { if (document.visibilityState === "visible") { content.refresh(); loadMessages(); } }, 10 * 60e3);

@@ -8,7 +8,7 @@ export const PERMS = [
   ["posts.write", "Write posts & announcements"], ["messages.send", "Message users"], ["site.edit", "Edit website, banner & theme"], ["features.edit", "Features & maintenance mode"],
   ["media.write", "Upload & delete media"], ["news.edit", "Edit the news & notice feed"], ["alumni.review", "Review & edit alumni"], ["faculty.edit", "Edit faculty listings"],
   ["rooms.edit", "Edit campus rooms"], ["reports.handle", "Moderate reports"], ["feedback.handle", "Handle feedback"], ["users.view", "See users"], ["users.manage", "Suspend users / end sessions"],
-  ["security.view", "See security events"], ["analytics.view", "See analytics"], ["jobs.run", "Run scheduled jobs"], ["events.review", "Approve & add events"], ["blog.moderate", "Moderate the blog & jobs board"]
+  ["security.view", "See security events"], ["analytics.view", "See analytics"], ["jobs.run", "Run scheduled jobs"], ["events.review", "Approve & add events"], ["blog.moderate", "Moderate the blog & jobs board"], ["clubs.verify", "Verify club claims"], ["clubs.manage", "Manage every club (appoint admins, suspend)"], ["clubs.moderate", "Hide reported club posts"]
 ];
 const SITE_FIELDS = [
   ["hero_chip", "Small headline above the title", "3D campus map, live EWU notices & ID pass", 80], ["hero_title", "Main title", "Your whole EWU life,", 60],

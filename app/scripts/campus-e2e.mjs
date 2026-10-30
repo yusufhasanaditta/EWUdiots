@@ -5,7 +5,7 @@ import puppeteer from "puppeteer-core";
 import sharp from "sharp";
 import { preview } from "vite";
 import { resolve, join } from "node:path";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 
 const CHROME = process.env.CHROME || "C:/Program Files/Google/Chrome/Application/chrome.exe";

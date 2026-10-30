@@ -3,7 +3,7 @@
 const CACHE = "ewudiots.content";
 const EMPTY = { at: 0, posts: [], settings: {}, faculty: [], rooms: [], alumni: [] };
 // Sections an admin can switch off for everyone (Settings → Features).
-export const FEATURES = [["news", "News"], ["notices", "Notice board"], ["alumni", "Alumni"], ["alumni_submissions", "New alumni profiles"], ["map", "Campus map"], ["vault", "Study vault"], ["reviews", "Faculty reviews"], ["idcard", "ID card"], ["focus", "Focus & study tools"]];
+export const FEATURES = [["news", "News"], ["notices", "Notice board"], ["alumni", "Alumni"], ["alumni_submissions", "New alumni profiles"], ["map", "Campus map"], ["vault", "Study vault"], ["reviews", "Faculty reviews"], ["idcard", "ID card"], ["focus", "Focus & study tools"], ["clubs", "EWUdiots Club"]];
 
 export function createContent(cloud) {
   let data = (() => { try { return { ...EMPTY, ...JSON.parse(localStorage.getItem(CACHE)) }; } catch { return { ...EMPTY }; } })();

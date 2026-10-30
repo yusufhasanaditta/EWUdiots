@@ -1,7 +1,6 @@
 /* News (official EWU news + EWUdiots team posts) and Alumni ("where are they now": EWU newsletter success stories
    + profiles alumni submit and an admin approves). */
 const NEWS_CACHE = "ewudiots.news";
-const SECTOR_TONE = { Pharma: "teal", Banking: "blue", Technology: "purple", Fintech: "purple", "Higher study": "green", Academia: "green", "NGO / Development": "orange", Telecom: "blue", FMCG: "yellow", Healthcare: "teal", Conglomerate: "orange" };
 
 export function install(ctx) {
   const { pages, icon, esc, $, $$, toast, openModal, closeModal, modalHead, busy } = ctx;

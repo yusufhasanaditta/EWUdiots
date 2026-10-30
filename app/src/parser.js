@@ -243,7 +243,7 @@ export function apiToParsed(api) {
 }
 
 export function parsePortalText(input, kind = "") {
-  const T = joinBrokenLines(String(input || "").replace(/–|—/g, "-").replace(/\r/g, "").replace(/ /g, " "));
+  const T = joinBrokenLines(String(input || "").replace(/–|—/g, "-").replace(/\r/g, "").replace(/\u00a0/g, " "));
   const profile = grabProfile(T);
   const rules = grabRules(T);
   const payments = grabPayments(T);

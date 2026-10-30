@@ -1,11 +1,12 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Sign-up no longer asks you to sign in again after the email code",
-    "Teachers sign up with their EWU university email (@ewubd.edu)",
-    "Analytics page fixed for Degree Review data and courses without grades yet",
-    "ID card and screenshot reading: no more endless scanning on phones",
-    "First-time text reader download now shows its progress"
+    "New: EWUdiots Club (More → EWUdiots Club): every EWU club, news, events and sign-ups",
+    "Club members get a members-only space: announcements, attendance, polls, tasks and documents",
+    "Club organisers: registration forms with a responses dashboard, QR tickets and CSV export",
+    "Club admins invite members by student ID; they join automatically when they open Clubs",
+    "Certificates from clubs that anyone can check",
+    "Sign-up, teacher email, Analytics and scanner fixes from 2.12.1"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

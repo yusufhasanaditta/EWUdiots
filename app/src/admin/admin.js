@@ -13,6 +13,7 @@ import { FEATURES } from "../content.js";
 import { BLOCKS, floorsOf, floorLabel, parseRoom } from "../campus-data.js";
 import { supabaseBackend, demoBackend } from "./backend.js";
 import { cmsViews } from "./cms.js";
+import { clubViews } from "./clubs-admin.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -26,7 +27,7 @@ const ALL_SECTIONS = [
   ["posts", "Posts & announcements", "megaphone", "Content", "posts.write"], ["feed", "News & notices feed", "globe", "Content", "news.edit"], ["website", "Website & theme", "layers", "Content", "site.edit"],
   ["media", "Media library", "image", "Content", "media.write"], ["messages", "Messages to users", "mail", "Content", "messages.send"], ["banner", "Home banner", "bell", "Content", "site.edit"], ["features", "Features & maintenance", "sliders", "Content", "features.edit"],
   ["users", "Users", "user", "People", "users.view"], ["alumni", "Alumni waiting", "community", "People", "alumni.review"], ["alumdb", "All alumni & import", "cap", "People", "alumni.review"], ["faculty", "Faculty listings", "users", "People", "faculty.edit"],
-  ["events", "Events", "calendar", "Community", "events.review"], ["feedback", "Feedback inbox", "help", "Community", "feedback.handle"], ["reports", "Reports", "flag", "Community", "reports.handle"], ["rooms", "Campus rooms", "map", "Campus", "rooms.edit"],
+  ["events", "Events", "calendar", "Community", "events.review"], ["clubs", "Clubs", "community", "Community", "clubs.verify"], ["feedback", "Feedback inbox", "help", "Community", "feedback.handle"], ["reports", "Reports", "flag", "Community", "reports.handle"], ["rooms", "Campus rooms", "map", "Campus", "rooms.edit"],
   ["security", "Security centre", "lock", "System", "security.view"], ["jobs", "Scheduled jobs", "zap", "System", "jobs.run"], ["history", "Change history", "clock", "System"],
   ["roles", "Roles & permissions", "shield", "System"], ["admins", "Admins", "crown", "System"], ["activity", "Activity log", "list", "System"]
 ];
@@ -457,7 +458,7 @@ const VIEWS = {
 };
 // Website, media, feed, alumni import, analytics, jobs, history and roles live in cms.js.
 const H = { $, $$, esc, icon, toast, openModal, closeModal, confirmAct, act, busy, sw, ago, downloadCSV, barChart, delta, refreshBadges, api: () => api, me: () => me, go: (t) => go(t), VIEWS };
-Object.assign(VIEWS, cmsViews(H));
+Object.assign(VIEWS, cmsViews(H), clubViews(H));
 const logRow = (l) => `<div class="lrow"><span class="itile sm purple">${icon("clock")}</span><span class="body"><b>${esc(l.action)}${l.target ? ` · ${esc(l.target)}` : ""}</b><span>${esc(l.email)} · ${ago(l.created_at)}</span></span></div>`;
 const bindGo = (el) => $$("[data-go]", el).forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));
 

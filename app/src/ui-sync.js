@@ -5,7 +5,7 @@ import { start as portalStart, signIn as portalSignIn, readAll as portalRead, ST
 import { apiToParsed } from "./parser.js";
 
 export function install(ctx) {
-  const { pages, icon, esc, uid, $, $$, toast, openModal, closeModal, modalHead, busy } = ctx;
+  const { pages, icon, esc, uid, $, $$, toast, busy } = ctx;
   const S = () => ctx.S;
   let pending = null, method = "img", stage = "pick", scan = null, extDetected = false, rvTab = "courses";
 
