@@ -6,6 +6,7 @@ import "./fx.css";
 import "./mobile.css";
 import "./v212.css";
 import "./v216.css";
+import "./v217.css";
 import { start as startDropdowns } from "./dropdown.js";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";
@@ -337,6 +338,12 @@ function inbox() {
   const p = nextPayment();
   if (p && daysUntil(p.due) <= 7) out.push({ id: `p${p.due}`, cat: "System", icon: "wallet", tone: daysUntil(p.due) <= 3 ? "red" : "orange", title: "Payment reminder", body: `${fmtMoney(p.amount)} due ${daysUntil(p.due) === 0 ? "today" : `in ${daysUntil(p.due)} days`} (${fmtDate(p.due)})${p.late ? "" : ". Late fee after that"}.`, at: new Date(new Date(p.due) - 7 * 864e5).toISOString(), href: "#/fees" });
   Object.entries(S.attendance).forEach(([c, a]) => { if (a.held >= 4 && (a.held - a.missed) / a.held < 0.7) out.push({ id: `a${c}${a.held}`, cat: "Academic", icon: "alert", tone: "red", title: "You're below 70% attendance", body: `${c}: ${Math.round((100 * (a.held - a.missed)) / a.held)}%. Attend upcoming classes to stay eligible.`, at: new Date().toISOString(), href: `#/course?c=${encodeURIComponent(c)}&tab=attendance` }); });
+  // Classes that ended today or yesterday without attendance marked.
+  if (acal?.ready()) for (const d of [0, 1]) {
+    const day = new Date(now - d * 864e5), key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`, nm = new Date().getHours() * 60 + new Date().getMinutes();
+    acal.classesOn(key).filter((b) => b.start && (d || b.e <= nm) && !S.attendance[b.code]?.marks?.[`${key}|${b.start}`]).forEach((b) => out.push({ id: `pa${b.code}${key}${b.start}`, cat: "Academic", icon: "checksq", tone: "orange",
+      title: `Mark attendance: ${b.code}`, body: `${d ? "Yesterday" : "Today"} ${fmt12(b.s)}. Were you there? Add a note on what you covered.`, at: new Date(new Date(key + "T00:00:00").getTime() + b.e * 6e4), href: d ? `#/course?c=${encodeURIComponent(b.code)}&tab=attendance` : "#/home" }));
+  }
   const due = study ? study.dueCards().length : 0;
   if (due) out.push({ id: `c${new Date().toDateString()}`, cat: "Academic", icon: "cards", tone: "blue", title: `${due} flashcard${due === 1 ? "" : "s"} due today`, body: "A quick review keeps your streak alive.", at: new Date(new Date().setHours(8, 0, 0, 0)).toISOString(), href: "#/cards" });
   if (notices) out.push(...notices.inboxItems());
@@ -537,6 +544,12 @@ function scheduleReminders() {
       items.push({ key: "pay1" + p.due, title: "Tuition due tomorrow", body: `${fmtMoney(p.amount)} by ${p.due}`, at: new Date(at - 864e5) });
     });
     if (acal) items.push(...acal.reminderItems().filter((x) => x.at > Date.now()));
+    // 5 minutes after each class this week: mark attendance and note what was covered (skipped once it's marked).
+    if (acal?.ready() && S.settings.attendNudge !== false) for (let d = 0; d < 7; d++) {
+      const day = new Date(Date.now() + d * 864e5), key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+      for (const b of acal.classesOn(key)) if (b.start && !S.attendance[b.code]?.marks?.[`${key}|${b.start}`])
+        items.push({ key: `att|${b.code}|${key}|${b.start}`, title: `How was ${b.code}?`, body: "Mark your attendance and note what you covered.", at: new Date(new Date(key + "T00:00:00").getTime() + (b.e + 5) * 6e4) });
+    }
     const t = S.study?.timer;
     if (t?.endAt) items.push({ key: "focus" + t.endAt, title: t.kind === "focus" ? "Focus session done" : "Break's over", body: t.kind === "focus" ? "Nice work. Take a short break." : "Start your next focus session.", at: new Date(t.endAt) });
     // With the EWU calendar known, class alarms are dated (no alarm on Durga Puja or after the last class); else weekly.
@@ -726,6 +739,8 @@ const setOnline = () => document.body.classList.toggle("offline", !navigator.onL
 addEventListener("online", setOnline); addEventListener("offline", setOnline); setOnline();
 native.boot({ dark: isDark(), onBack: () => { if (modalOpen()) { closeModal(); return true; } if (currentRoute !== "home") { history.back(); return true; } return false; } });
 route();
+// The welcome loader (app.html) fades once the first page is on screen; at least 0.7 s so it reads as a moment, not a flicker.
+setTimeout(() => { const b = document.getElementById("boot-loader"); if (!b) return; b.classList.add("done"); setTimeout(() => b.remove(), 500); }, Math.max(0, 700 - performance.now()));
 // Web: keep the browser's install offer so More → "Install EWUdiots" can show it (Windows, Mac, Android Chrome).
 addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); C.install = e; if (currentRoute === "more") rerender(); });
 addEventListener("appinstalled", () => { C.install = null; toast("EWUdiots installed", "success", "Open it from your apps. Your account is the same everywhere."); });

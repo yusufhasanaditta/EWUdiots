@@ -44,7 +44,7 @@ async function setup() {
   await sql(`select public.club_add_member('${clubId}', '${users.admin.id}', 2, 'Ayesha Admin', '${users.admin.email}', '${PEOPLE.admin[0]}', 'CSE', null)`);
 }
 async function cleanup() {
-  try { if (clubId) await sql(`delete from public.club_orders where club_id = '${clubId}'; delete from public.clubs where id = '${clubId}'`); } catch (e) { console.warn("club cleanup:", e.message); }
+  try { if (clubId) await sql(`delete from public.sponsors where added_club = '${clubId}'; delete from public.club_orders where club_id = '${clubId}'; delete from public.clubs where id = '${clubId}'`); } catch (e) { console.warn("club cleanup:", e.message); }
   for (const u of Object.values(users)) { try { await sql(`delete from public.admins where user_id = '${u.id}'; delete from public.user_messages where user_id = '${u.id}'`); await adminApi(`users/${u.id}`, "DELETE"); } catch (e) { console.warn("user cleanup:", e.message); } }
 }
 
@@ -332,7 +332,7 @@ try {
   /* ── 15. App Admin control centre (the throwaway admin is made an EWUdiots team admin for this step only) ── */
   await sql(`insert into public.admins (user_id, email, role) values ('${users.admin.id}', '${users.admin.email}', 'admin') on conflict do nothing`);
   await A.reload({ waitUntil: "networkidle2" });
-  for (const [name, hash, text] of [["admin-home", "#/club/admin", "Platform Control Center"], ["admin-clubs", `#/club/admin?tab=clubs&club=${clubId}`, "Club Management"], ["admin-roles", "#/club/admin?tab=roles", "Faculty Advisor"], ["admin-matrix", "#/club/admin?tab=roles&r=matrix", "Permission"], ["admin-queue", "#/club/admin?tab=queue", "Club Verification"]]) {
+  for (const [name, hash, text] of [["admin-home", "#/club/admin", "Platform Control Center"], ["admin-clubs", `#/club/admin?tab=clubs&club=${clubId}`, "Club Management"], ["admin-roles", "#/club/admin?tab=roles", "Faculty Moderator"], ["admin-matrix", "#/club/admin?tab=roles&r=matrix", "Permission"], ["admin-queue", "#/club/admin?tab=queue", "Club Verification"]]) {
     await go(A, hash);
     const okText = await hasText(A, text, 20000), crashed = await A.evaluate(() => document.querySelector("#main")?.innerText.includes("This page hit a problem"));
     check(`screen: ${name}`, okText && !crashed, crashed ? "crash card" : okText ? "" : `missing “${text}”`);

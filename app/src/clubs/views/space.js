@@ -15,7 +15,8 @@ const DUTIES = [
   [/secretary/i, ["Write agendas and minutes for every meeting", "Keep members informed with announcements", "Look after documents and records"]],
   [/treasurer|finance/i, ["Keep the finance book up to date", "Collect and record payments and receipts", "Report the balance at every meeting"]],
   [/wing|head|executive/i, ["Lead your wing's projects and tasks", "Plan events with the committee", "Mentor new members in your wing"]],
-  [/moderator/i, ["Keep chats and comments friendly", "Review reported posts", "Help members find their way"]],
+  [/faculty|advis/i, ["Guide the club as its faculty moderator", "Approve big events and spending", "Sign off the yearly handover"]],
+  [/community lead|moderator/i, ["Keep chats and comments friendly", "Review reported posts", "Help members find their way"]],
   [/merch/i, ["Manage products, stock and orders", "Verify payments and pickups", "Plan new merch with the committee"]],
   [/senior/i, ["Help with events and projects", "Mentor general members", "Vote in polls and elections"]],
   [/./, ["Join events, meetings and projects", "Vote in polls and elections", "Share ideas with the committee"]]

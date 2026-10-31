@@ -152,7 +152,7 @@ export function register(pages, kit) {
     const te = store.use(`club:terms:${id}`, () => api.terms(id), { ttl: 5 * 60e3 });
     const year = new Date().getMonth() >= 6 ? new Date().getFullYear() : new Date().getFullYear() - 1, label = `${year} - ${year + 1}`;
     const edit = kit.can(id, "settings.edit") || kit.isPlatform();
-    const tabs = [["current", "Current Committee"], ["previous", "Previous Committees"], ...(inner ? [["handover", "Handover"]] : [])];
+    const tabs = [["current", "Current Committee"], ["previous", "Previous & event teams"], ...(inner ? [["handover", "Handover"]] : [])];
     return `${kit.back(club ? `#/club/c?slug=${encodeURIComponent(club.slug)}` : "#/club/explore", club?.name || "Club")}
       ${ui.ph("Executive Committee", "Meet the current team and explore past committees", `<span class="cl-disclaimer">${label}</span>`)}
       ${ui.seg(tabs, t, (v) => `#/club/committee?c=${id}&tab=${v}`)}
@@ -185,14 +185,15 @@ export function register(pages, kit) {
     const id = cid();
     // Past committees by hand: label, end date and one "Name, Position" per line.
     const termForm = (x) => kit.ctx.openModal(kit.ctx.modalHead(x ? "Edit past committee" : "Add a past committee") + `<form id="tf" class="stack">
-        <div class="grid g2"><label class="field">Term<input class="input" name="label" required minlength="2" maxlength="40" placeholder="2024 - 2025" value="${esc(x?.label || "")}"></label>
+        <div class="grid g2"><label class="field">Term<input class="input" name="label" required minlength="2" maxlength="40" placeholder="2024 - 2025 or Tech Fest 2025" value="${esc((x?.label || "").replace(/^events*[·:-]s*/i, ""))}"></label>
           <label class="field">Ended on<input class="input" type="date" name="ended_on" required value="${esc(x?.ended_on || new Date().toISOString().slice(0, 10))}"></label></div>
+        <label class="field">Kind<select class="input" name="kind"><option value="exec">Executive committee</option><option value="event" ${/^event/i.test(x?.label || "") ? "selected" : ""}>Event team (organised one event)</option></select></label>
         <label class="field">Committee (one per line: Name, Position)<textarea class="input" name="list" rows="8" placeholder="Rafi Ahmed, President&#10;Nusrat Jahan, General Secretary">${esc((x?.committee || []).map((p) => `${p.name}, ${p.title || p.role || ""}`).join("\n"))}</textarea></label>
         <button class="btn primary block">${icon("check", "sm")} Save</button></form>`, (m) => kit.$("#tf", m).addEventListener("submit", async (e) => {
         e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
         const committee = String(f.list).split("\n").map((l) => l.trim()).filter(Boolean).map((l) => { const [name, ...r] = l.split(","); return { name: name.trim().slice(0, 80), title: r.join(",").trim().slice(0, 60), role: r.join(",").trim().slice(0, 60) }; });
         if (!committee.length) return kit.toast("Add at least one person", "error");
-        try { await api.saveTerm({ ...(x ? { id: x.id } : { club_id: id }), label: f.label.trim(), ended_on: f.ended_on, committee }); kit.ctx.closeModal(); store.invalidate(`club:terms:${id}`); kit.toast("Saved", "success"); } catch (err) { kit.toast(err.message, "error"); }
+        try { await api.saveTerm({ ...(x ? { id: x.id } : { club_id: id }), label: (f.kind === "event" ? "Event · " : "") + f.label.trim(), ended_on: f.ended_on, committee }); kit.ctx.closeModal(); store.invalidate(`club:terms:${id}`); kit.toast("Saved", "success"); } catch (err) { kit.toast(err.message, "error"); }
       }));
     kit.$("#term-add", el)?.addEventListener("click", () => termForm(null));
     kit.$$("[data-term]", el).forEach((b) => b.addEventListener("click", () => termForm((store.peek(`club:terms:${id}`) || []).find((x) => x.id === b.dataset.term))));

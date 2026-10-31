@@ -27,7 +27,8 @@ export function install(ctx) {
     const TILES = [["routine", "calendar", "purple", "Routine", "View your classes"], ["planner", "listcheck", "green", "Planner", "Plan next semester"], ["grades", "bars", "blue", "CGPA", "Track your progress"], ["focus", "target", "pink", "Focus", "Study timer"],
       ["map", "map", "purple", "Campus Map", "Find any room"], ["vault", "vault", "yellow", "Vault", "Notes, past papers"], ["rooms", "building", "blue", "Free Rooms", "Find empty classrooms"], ["fees", "wallet", "orange", "Fees", "Payments & installments"]];
     const prof = nc ? ctx.facName(nc.faculty) : "";
-    const ncCard = nc ? `<a class="next-card" href="#/course?c=${encodeURIComponent(nc.code)}" aria-live="polite"><span class="fluid" aria-hidden="true"><i></i><i></i><i></i></span>
+    const ncAt = nc ? (() => { const t = new Date(); t.setSeconds(0, 0); return t.getTime() + nc.mins * 6e4; })() : 0;
+    const ncCard = nc ? `<a class="next-card" data-at="${ncAt}" data-live="${nc.live ? 1 : 0}" href="#/course?c=${encodeURIComponent(nc.code)}" aria-live="polite"><span class="fluid" aria-hidden="true"><i></i><i></i><i></i></span>
         <div class="top"><span class="row" style="gap:8px">${icon("school", "sm")} ${nc.live ? "Happening now" : "Next Class"} ${icon("chevR", "sm")}</span>${nc.live ? "" : `<span class="starts">Starts in</span>`}</div>
         <h2>${esc(nc.code)}</h2><div class="t">${esc(nc.title || (nc.lab ? "Lab session" : ""))}</div>
         ${nc.live ? `<div class="cd"><div class="ring sm" style="--p:${Math.round(100 * (1 - nc.mins / (nc.e - nc.s)))};--rc:var(--accent);background:conic-gradient(var(--accent) calc(var(--p)*1%), rgba(255,255,255,.25) 0)"><div><b style="color:#fff">${nc.mins}</b><span style="color:#fff">min left</span></div></div></div>` :
@@ -71,23 +72,65 @@ export function install(ctx) {
     const holidayStrip = holidayToday && !todays.length ? `<a class="cg-off-banner mt" href="#/calendar"><span class="itile red">${icon("sun")}</span><div><b>Today: ${esc(ctx.acal.short(holidayToday))}</b><p class="small">University holiday, no classes.</p></div></a>` : "";
     const todayStrip = todays.length ? `<div class="today-strip" role="list" aria-label="Today's classes">${todays.map((b) => { const live = b.s <= nowM && nowM < b.e, past = b.e <= nowM;
       return `<a role="listitem" class="tchip${live ? " live" : ""}${past ? " past" : ""}" href="#/course?c=${encodeURIComponent(b.code)}" style="--cc:${ctx.colorFor(b.code)}"><span class="tt">${ctx.fmtShort(b.s)}</span><b>${esc(b.code)}${b.lab ? " Lab" : ""}</b><span class="tr">${live ? "Now" : esc(ctx.baseRoom(b.room) || "TBA")}</span></a>`; }).join("")}</div>` : "";
+    // Classes that ended today and aren't marked yet: one tap for Present / Absent, and a note on what was covered.
+    const marksOf = (c) => St.attendance[c]?.marks || {};
+    const ended = holidayToday ? [] : todays.filter((b) => b.e <= nowM && b.start);
+    const pend = ended.filter((b) => !marksOf(b.code)[`${todayIso}|${b.start}`]);
+    const pendCard = ended.length ? `<section class="card att-pend">${ended.map((b) => { const key = `${todayIso}|${b.start}`, v = marksOf(b.code)[key], note = (St.classNotes || {})[`${b.code}|${key}`];
+        return `<div class="lrow"><span class="itile sm ${v === "p" ? "green" : v === "a" ? "red" : "orange"}">${icon(v ? (v === "p" ? "checkc" : "x") : "clock")}</span><span class="body"><b>${esc(b.code)}${b.lab ? " Lab" : ""} · ${ctx.fmt12(b.s)}</b><span class="ellipsis">${note ? `${icon("notes", "sm")} ${esc(note)}` : v ? (v === "p" ? "Present" : "Absent") : "Were you there?"}</span></span>
+          <span class="row nowrap" style="gap:6px">${v ? "" : `<button class="btn sm primary" data-am="${esc(b.code)}" data-k="${key}" data-v="p" aria-label="Present in ${esc(b.code)}">${icon("check", "sm")}</button><button class="btn sm danger-soft" data-am="${esc(b.code)}" data-k="${key}" data-v="a" aria-label="Absent from ${esc(b.code)}">${icon("x", "sm")}</button>`}
+          <button class="btn sm ghost" data-cn="${esc(b.code)}" data-k="${key}" aria-label="Note what ${esc(b.code)} covered">${icon("edit", "sm")}</button></span></div>`; }).join("")}</section>` : "";
+    const sec = (ic, tone, title, sub, body, link = "") => (body ? `<section class="h-sec"><div class="h-sh"><span class="itile sm ${tone}">${icon(ic)}</span><div class="grow min0"><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ""}</div>${link}</div>${body}</section>` : "");
+    const campusBits = `${ctx.notices.homeCard() || ""}${ctx.acal?.homeCard() || ""}${eventsCard()}`;
     const mobile = `<div class="m-only">
       <div class="m-hello">${ctx.myAvatar("", "a", 'href="#/profile" aria-label="Your profile"')}
         <div class="grow min0"><p class="hi">${ctx.greeting()}</p><h1 class="ellipsis">${first}</h1></div>
         <a class="streak-chip" href="#/me" aria-label="${str} day study streak">${icon("flame", "sm")}<b>${str}</b></a></div>
       <div class="m-summary">${[[todays.length ? `${todays.filter((b) => b.e > nowM).length}` : "0", todays.length === 1 ? "class today" : "classes today", "#/routine"], [dueToday, "due today", "#/tasks"], [shown ? shown.toFixed(2) : "—", "CGPA", "#/grades"]]
         .map(([v, l, h]) => `<a href="${h}"><b class="num">${v}</b><span>${l}</span></a>`).join("")}</div>
-      <a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Remind me 30 min before”</span></span>${icon("arrow")}</a>
-      ${ncCard}${holidayStrip}${todayStrip}${navStrip}
-      <h2 class="mgroup-h">Quick access</h2><div class="qgrid">${TILES.map(([id, ic, tone, t]) => `<a class="qtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span>${t}</a>`).join("")}</div>
-      <div class="mt">${deadlines}</div>${ctx.notices.homeCard() ? `<div class="mt">${ctx.notices.homeCard()}</div>` : ""}${ctx.acal?.homeCard() || ""}${eventsCard()}
-      <div class="g2m mt">${streakCard}${attCard}</div></div>`;
+      ${sec("school", "purple", "Right now", nc ? (nc.live ? "Class in progress" : "Your next class") : "", `${ncCard}${holidayStrip}${todayStrip}${navStrip}`)}
+      ${sec("checksq", pend.length ? "orange" : "green", "Today's attendance", pend.length ? `${pend.length} class${pend.length === 1 ? "" : "es"} to mark · add a note on what you covered` : "All marked · tap the pen to note what you covered", pendCard)}
+      ${sec("grid", "blue", "Quick access", "", `<div class="qgrid">${TILES.map(([id, ic, tone, t]) => `<a class="qtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span>${t}</a>`).join("")}</div>`)}
+      ${sec("clipboard", "red", "Due soon", "", deadlines, `<a class="see" href="#/tasks">All</a>`)}
+      ${sec("flame", "orange", "Your progress", "", `<div class="g2m">${streakCard}${attCard}</div>`)}
+      ${sec("megaphone", "pink", "On campus", "Notices, calendar and events", campusBits)}
+      <div class="h-sec"><a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Remind me 30 min before”</span></span>${icon("arrow")}</a></div></div>`;
     const b = ctx.content.banner();
     const banner = b ? `<div class="alert ${b.tone || "purple"} admin-banner fx-rise${String(b.image || "").startsWith("https://") ? " has-img" : ""}">${String(b.image || "").startsWith("https://") ? `<img class="bn-img" src="${esc(b.image)}" alt="" loading="lazy">` : ""}<span class="a-ic">${icon(b.tone === "red" ? "alert" : "megaphone")}</span><div class="grow"><b>${esc(b.title || "From the EWUdiots team")}</b><p>${esc(b.text)}</p></div>${b.link ? `<a class="btn sm" href="${esc(b.link)}" ${/^https:/.test(b.link) ? 'target="_blank" rel="noopener"' : ""}>${esc(b.cta || "Open")}</a>` : ""}</div>` : "";
     const up = ctx.C.update && ctx.native.isNative ? `<a class="alert green update-card" href="${esc(ctx.C.update.url)}" data-update target="_blank" rel="noopener"><span class="a-ic">${icon("download")}</span><div class="grow"><b>Update available: EWUdiots ${esc(ctx.C.update.version)}</b><p>Tap to update. Your data stays.</p></div>${icon("chevR")}</a>` : "";
     const verify = needsVerify() ? `<a class="alert green fx-rise" href="#/profile?verify=1"><span class="a-ic">${icon("shield")}</span><div class="grow"><b>Verify your student account</b><p>Scan your EWU ID card once to get the verified badge.</p></div>${icon("chevR")}</a>` : "";
     return `${up}${banner}${verify}${ctx.demoBanner()}${mobile}${desktop}${ctx.community.homeNews()}`;
   };
+  // Home: live countdown to the next class (ticks every second), attendance buttons and class notes.
+  let cdTimer = 0;
+  pages.home.mount = (el) => {
+    clearInterval(cdTimer);
+    const card = $(".m-only .next-card[data-at], .next-card[data-at]", el);
+    if (card) {
+      const at = Number(card.dataset.at), live = card.dataset.live === "1", cd = $(".cd", card);
+      const tick = () => {
+        if (!document.body.contains(card)) return clearInterval(cdTimer);
+        const left = Math.max(0, Math.round((at - Date.now()) / 1000));
+        if (!left) { clearInterval(cdTimer); return ctx.rerender(); }
+        const h = Math.floor(left / 3600), m = Math.floor((left % 3600) / 60), s = left % 60, two = (n) => String(n).padStart(2, "0");
+        if (!live && cd) cd.innerHTML = `<b class="countdown">${h ? `${h}:${two(m)}` : m}:${two(s)}</b><span>${h ? "hours" : "min"} left</span>`;
+      };
+      if (live || at - Date.now() < 864e5) { tick(); cdTimer = setInterval(tick, 1000); }
+    }
+    $$("[data-am]", el).forEach((b) => b.addEventListener("click", () => ctx.attendance.mark(b.dataset.am, b.dataset.k, b.dataset.v)));
+    $$("[data-cn]", el).forEach((b) => b.addEventListener("click", () => classNote(b.dataset.cn, b.dataset.k)));
+  };
+  /* What was covered in one class: kept per class (course + date + start) and shown on Home and the course page. */
+  function classNote(code, key) {
+    const id = `${code}|${key}`, notes = (S().classNotes = S().classNotes || {});
+    ctx.openModal(ctx.modalHead(`${code}: what did you cover?`) + `<form id="cn-f" class="stack"><p class="small muted">${esc(new Date(key.split("|")[0] + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" }))}</p>
+        <textarea class="input" name="t" rows="5" maxlength="1000" placeholder="e.g. Chapter 3: linked lists, insertion and deletion. Quiz next week.">${esc(notes[id] || "")}</textarea>
+        <button class="btn primary block">${icon("check", "sm")} Save note</button></form>`, (m) => $("#cn-f", m).addEventListener("submit", (e) => {
+      e.preventDefault(); const t = String(new FormData(e.target).get("t") || "").trim();
+      if (t) notes[id] = t; else delete notes[id];
+      ctx.closeModal(); ctx.save(); ctx.rerender(); ctx.toast(t ? "Note saved" : "Note removed", "success");
+    }));
+  }
   // Next few campus events (approved), with a link to the full list.
   const eventsCard = () => {
     const list = ctx.events?.upcoming(3) || [];
@@ -141,6 +184,7 @@ export function install(ctx) {
     return `<a class="me-card" href="#/profile">${ctx.myAvatar("lg")}<span class="grow min0"><b class="ellipsis">${esc(p.name || "Set up your profile")}</b><span class="ellipsis">${esc([p.id, p.program || p.department].filter(Boolean).join(" · ") || ctx.roleLabel())}</span>
         <span class="me-sync ${ctx.C.user ? "on" : ""}">${icon(ctx.C.user ? "cloud" : "database", "sm")} ${ctx.C.user ? "Synced on all your devices" : "Saved on this device"}</span></span>${icon("chevR")}</a>
       ${ctx.content.feature("clubs") ? `<a class="cl-entry" href="#/club/home"><span class="cl-entry-ic">${icon("community")}</span><span class="grow min0"><b>Club Town Hall</b><span>Your clubs, chats, events, elections and merch</span></span>${icon("chevR")}</a>` : ""}
+      ${rk !== "a" ? arcade() : ""}
       ${GROUPS.map(([g, list]) => `<h2 class="mgroup-h">${g}</h2><div class="mtiles">${list.map(([id, ic, tone, t, d]) => `<a class="mtile" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span><div class="min0"><b>${t}</b><span>${d}</span></div></a>`).join("")}</div>`).join("")}
       ${ctx.C.install ? `<button class="get-app mt" id="mo-install" style="width:100%;text-align:left;cursor:pointer"><span class="itile green">${icon("download")}</span><span class="grow"><b>Install EWUdiots on this device</b><span>Its own window, works offline, same account</span></span>${icon("chevR", "chev")}</button>` : ""}
       <a class="get-app mt" href="${ctx.native.isNative ? ctx.SITE : ""}/#download"${ctx.native.isNative ? ' target="_blank" rel="noopener"' : ""}><span class="itile purple">${icon("download")}</span><span class="grow"><b>Get EWUdiots everywhere</b><span>Android app, Windows and the Chrome extension</span></span>${icon("chevR", "chev")}</a>
@@ -151,6 +195,19 @@ export function install(ctx) {
         <button class="lrow" id="mo-share"><span class="itile purple">${icon("share")}</span><span class="body"><b>Share with Friends</b><span>Help your friends find it</span></span>${icon("chevR", "chev")}</button>
       </section>
       ${devCard()}`;
+  };
+  /* Arcade: the study tools as games, with your level and XP from Focus Quest. */
+  const arcade = () => {
+    const L = ctx.study.levelInfo(), streak = ctx.study.streak(), due = ctx.study.dueCards().length;
+    const GAMES = [["focus", "target", "linear-gradient(135deg,#5b3df5,#8b5cf6)", "Focus Quest", "Beat the 25-min boss", `Lv ${L.n}`],
+      ["cards", "cards", "linear-gradient(135deg,#e0457b,#f59e0b)", "Flashcard Duel", due ? `${due} cards waiting` : "Win your daily review", due ? `${due}` : "Ready"],
+      ["me", "trophy", "linear-gradient(135deg,#f08a24,#facc15)", "Trophy Room", "Badges and records", `${ctx.study.unlockedCount()} won`],
+      ["map", "map", "linear-gradient(135deg,#0ea5e9,#22c55e)", "Campus Quest", "Walk the campus in 3D", "Explore"],
+      ["whatif", "bars", "linear-gradient(135deg,#15122e,#5b3df5)", "CGPA Boss Fight", "What grade do you need?", "Plan"],
+      ["exams", "exam", "linear-gradient(135deg,#16a34a,#84cc16)", "Exam Raid", "A revision plan per exam", "Prep"]].filter(([id]) => ctx.pages[id]);
+    return `<section class="arcade-head mt"><div class="row between nowrap" style="gap:10px"><div class="min0"><h2 class="mgroup-h" style="margin:0">Arcade</h2><p class="xs" style="margin:2px 0 0">Level ${L.n} · ${esc(L.name)} · ${streak}-day streak</p></div>
+        <span class="xp-pill">${icon("zap", "sm")} ${L.xp} XP</span></div><div class="xp-bar mt-s" role="progressbar" aria-valuenow="${L.pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Progress to level ${L.n + 1}"><i style="width:${L.pct}%"></i></div><p class="xs mt-s">${L.toNext} XP to level ${L.n + 1}</p></section>
+      <div class="arcade mt-s">${GAMES.map(([id, ic, bg, t, d, lv]) => `<a class="arc" href="#/${id}" style="background:${bg}"><span class="lvl">${esc(lv)}</span>${icon(ic)}<b>${t}</b><span>${d}</span></a>`).join("")}</div>`;
   };
   /* The maker of EWUdiots (More and About). */
   const devCard = () => `<section class="dev-card mt" aria-label="Made by">
@@ -365,7 +422,9 @@ export function install(ctx) {
   pages.about = () => `${ctx.subHead("About EWUdiots", "", "#/more")}<div style="max-width:760px;margin:0 auto">
     <section class="card" style="text-align:center"><div class="ob-word" style="padding:8px 0"><span class="w" style="font-size:38px">EWU<i>diots</i></span><p>Your Uni Life, In One App</p><span class="unoff">Unofficial · not affiliated with EWU</span></div>
       <p class="small muted mt">Version ${ctx.APP_VERSION}. Made by EWU students, for EWU students. EWUdiots is not affiliated with, endorsed by or connected to East West University. Always confirm important information on the official portal.</p>
-      <div class="row center mt"><a class="btn sm" href="/privacy.html" target="_blank" rel="noopener">Privacy policy</a><a class="btn sm" href="/terms.html" target="_blank" rel="noopener">Terms</a></div></section>${devCard()}</div>`;
+      <div class="row center mt"><a class="btn sm" href="/privacy.html" target="_blank" rel="noopener">Privacy policy</a><a class="btn sm" href="/terms.html" target="_blank" rel="noopener">Terms</a></div></section>
+    <section class="card credits mt"><span class="itile purple" style="margin:0 auto">${icon("heart")}</span><h2>Built by a student, <span>for students</span></h2><p class="small muted">Credits</p>
+      <ul>${[["user", "Design, code and campus research by Yusuf Hasan Aditta, CSE, East West University"], ["users", "Ideas, bug reports and testing from EWU students"], ["school", "Public information from EWU notices, the academic calendar and club pages"], ["heart", "Free and open to every EWU student, teacher and alumnus"]].map(([ic, t]) => `<li>${icon(ic, "sm")}<span>${t}</span></li>`).join("")}</ul></section>${devCard()}</div>`;
 
   /* ═════════════ ONBOARDING + ACCOUNTS (full screen) ═════════════
      Split layout: a brand panel (logo, promise, live-looking cards drawn in CSS) and the form. No cropped pictures. */

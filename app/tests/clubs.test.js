@@ -15,7 +15,8 @@ test("every app permission exists in the database migrations", () => {
   assert.equal(new Set(CLUB_PERMS).size, CLUB_PERMS.length, "no duplicate permission keys");
 });
 test("default positions match the role template, and grant only known permissions", () => {
-  const rows = [...SQL18.matchAll(/^ {2}\((\d), '([^']+)', '\w+', array\[([^\]]*)\]/gm)];
+  const RENAMED = { "Faculty Advisor": "Faculty Moderator", Moderator: "Community Lead" }; // 0028
+  const rows = [...SQL18.replace(/'(Faculty Advisor|Moderator)'/g, (_, n) => `'${RENAMED[n]}'`).matchAll(/^ {2}\((\d), '([^']+)', '\w+', array\[([^\]]*)\]/gm)];
   assert.deepEqual(rows.map((m) => `${m[1]} ${m[2]}`), DEFAULT_ROLES.map((r) => `${r.rank} ${r.name}`), "same positions in the same order");
   for (const m of rows) for (const k of m[3].match(/'[^']+'/g) || []) assert.ok(k === "'*'" || CLUB_PERMS.includes(k.slice(1, -1)), `${m[2]}: ${k}`);
 });

@@ -7,6 +7,8 @@
 const KINDS = { sponsor: "Sponsors", industry: "Industry Partners", media: "Media Partners", supporter: "Supporters" };
 const DEAL = { prospect: ["Prospect", "gray"], proposed: ["Proposal sent", "blue"], confirmed: ["Confirmed", "purple"], received: ["Received", "green"], declined: ["Declined", "red"] };
 
+import { PROSPECTS, fitLabel } from "../prospects.js";
+
 /** @param {Record<string, any>} pages @param {any} kit */
 export function register(pages, kit) {
   const { ui, icon, esc, api, store, ctx } = kit;
@@ -29,7 +31,17 @@ export function register(pages, kit) {
           : ui.emptyBox("handshake", "No sponsors listed yet", mine.length ? "Add the companies your club works with; the EWUdiots team approves them." : "Sponsors appear here once clubs add them.")}`;
       }, { n: 3, h: 160 })}
       ${ui.view(oe, (rows) => (rows.length ? `${ui.sec("Sponsorship Opportunities")}<div class="cl-hscroll">${rows.map((e) => `<a class="cl-vcard" href="#/club/event?id=${e.id}" style="width:220px"><span class="art">${ui.art(e.image, e.title)}${ui.dchip(e.starts_at)}</span><span class="in">${ui.st(["Sponsorship", "amber"])}<b>${esc(e.title)}</b><span class="xs">${esc(e.clubs?.name || "")}</span><span class="xs">${icon("pin", "sm")} ${esc(e.venue || "EWU")}</span></span></a>`).join("")}</div>` : ""))}
+      ${prospects()}
       ${ui.sec("Why Partner with EWUdiots Clubs?")}<div class="cl-perks">${[["users", "green", "Reach motivated university students"], ["sparkle", "purple", "Support meaningful student initiatives"], ["building", "blue", "Build your brand on campus"], ["heart", "pink", "Create long-term community impact"]].map(([ic, t, l]) => `<div><span class="itile sm ${t}">${icon(ic)}</span>${l}</div>`).join("")}</div>`}`;
+  };
+  /* Who is likely to sponsor a student event: companies that have backed university events in Dhaka, ranked by fit. */
+  const prospects = () => {
+    const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+    const list = PROSPECTS.filter((p) => !words.length || words.every((w) => `${p.name} ${p.industry} ${p.backs}`.toLowerCase().includes(w))).sort((a, b) => b.fit - a.fit);
+    if (!list.length) return "";
+    return `${ui.sec("Likely Sponsors to Approach")}<p class="xs" style="margin:-4px 0 10px">Companies that often back university events in Bangladesh, by how likely they are to say yes. They aren't partners of EWUdiots; approach them through their websites.</p>
+      <div class="sp-list">${list.map((p) => { const [l, tone] = fitLabel(p.fit); return `<a class="sp-pro" href="${esc(p.web)}" target="_blank" rel="noopener noreferrer"><span class="itile ${tone === "green" ? "green" : tone === "blue" ? "blue" : "orange"}">${icon(p.icon)}</span>
+        <span class="body"><b>${esc(p.name)}</b><span>${esc(p.industry)} · ${esc(p.backs)}</span><span class="sp-fit"><i style="width:${p.fit}%"></i></span></span><span class="st ${tone}">${p.fit}% · ${l}</span></a>`; }).join("")}</div>`;
   };
   pages["club/sponsors"].mount = (el) => {
     kit.bindRetry(el);

@@ -20,14 +20,14 @@ export const CLUB_PERMS = PERM_GROUPS.flatMap(([, list]) => list.map(([k]) => k)
 
 /** Default positions (club_role_template). Several positions can share a rank; 1 is the most senior. */
 export const DEFAULT_ROLES = [
-  { rank: 1, name: "Faculty Advisor", color: "orange" }, { rank: 2, name: "Club Admin", color: "purple" },
+  { rank: 1, name: "Faculty Moderator", color: "orange" }, { rank: 2, name: "Club Admin", color: "purple" },
   { rank: 3, name: "President", color: "blue" }, { rank: 3, name: "Vice President", color: "blue" }, { rank: 3, name: "General Secretary", color: "pink" }, { rank: 3, name: "Treasurer", color: "green" },
   { rank: 4, name: "Executive Member", color: "teal" }, { rank: 4, name: "Wing Head", color: "teal" },
-  { rank: 5, name: "Moderator", color: "pink" }, { rank: 5, name: "Merch Manager", color: "orange" },
+  { rank: 5, name: "Community Lead", color: "pink" }, { rank: 5, name: "Merch Manager", color: "orange" },
   { rank: 6, name: "Senior Member", color: "green" }, { rank: 7, name: "General Member", color: "gray" }
 ];
 /** Rank names for filters ("Executives" etc.). */
-export const RANK_GROUPS = { 1: "Advisors", 2: "Admins", 3: "Officers", 4: "Executives", 5: "Moderators", 6: "Senior members", 7: "General members" };
+export const RANK_GROUPS = { 1: "Faculty moderators", 2: "Admins", 3: "Officers", 4: "Executives", 5: "Team leads", 6: "Senior members", 7: "General members" };
 const RANK_TONE = { 1: "orange", 2: "purple", 3: "blue", 4: "teal", 5: "pink", 6: "green", 7: "gray" };
 export const rankTone = (rank) => RANK_TONE[rank] || "gray";
 /** Ranks 1–3 run the club ("committee"); 1–4 appear on the public profile. */

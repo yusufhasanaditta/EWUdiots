@@ -53,7 +53,7 @@ const steps = [
   as("admin"),
   `select public.invite_member(${v("club")}::uuid, '2021-2-60-902', 7, '', 'IT');`,
   `select public.invite_member(${v("club")}::uuid, '2021-1-60-905', 3, 'General Secretary', '');`,
-  fails("admin can't invite someone as Faculty Advisor", `perform public.invite_member(${v("club")}::uuid, 'x@gmail.com', 1)`),
+  fails("admin can't invite someone as Faculty Moderator", `perform public.invite_member(${v("club")}::uuid, 'x@gmail.com', 1)`),
   as("member"),
   expect("not a member before claiming the invite", `not public.is_club_member(${v("club")}::uuid)`),
   expect("claiming the invite joins one club", `public.claim_club_invites() = 1`),

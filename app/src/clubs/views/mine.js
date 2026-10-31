@@ -45,8 +45,8 @@ export function register(pages, kit) {
     const done = [!!p.name, !!p.photo, !!p.department || !!p.program, mine.length > 0, mine.some((m) => m.bio || m.skills?.length)].filter(Boolean).length, pct = Math.round((done / 5) * 100);
     const body = tab === "tasks" ? tasks() : tab === "certs" ? certs() : tab === "orders" ? orders() : tab === "following" ? following() : regs();
     return `${kit.head("Profile & Settings", "Manage your account, privacy, and preferences")}
-      <section class="card row" style="gap:16px;flex-wrap:wrap;align-items:center"><span class="cl-ava xl">${kit.ctx.myAvatar("lg")}</span><div class="grow min0"><h2 style="font-size:22px">${esc(p.name || user?.user_metadata?.name || "Your name")}</h2>
-          <p class="xs">${esc([p.program || p.department, p.id && `Batch ${String(p.id).slice(0, 4)}`].filter(Boolean).join(" · "))}</p></div><a class="btn outline" href="#/profile">${icon("edit")} Edit Profile</a></section>
+      <section class="card me-head"><span class="cl-ava xl">${kit.ctx.myAvatar("lg")}</span><div class="min0"><h2>${esc(p.name || user?.user_metadata?.name || "Your name")}</h2>
+          <p class="xs">${esc([p.program || p.department, p.id && `Batch ${String(p.id).slice(0, 4)}`].filter(Boolean).join(" · "))}</p></div><a class="btn outline sm" href="#/profile">${icon("edit", "sm")} Edit profile</a></section>
       <div class="cl-stats mt">${ui.stat("community", "purple", mine.length, "Clubs")}${ui.stat("calendar", "blue", resp.filter((r) => r.checked_in_at).length, "Events attended")}${ui.stat("edit", "green", resp.length, "Registrations")}${ui.stat("award", "amber", certsN, "Certificates")}</div>
       ${pct < 100 ? `<a class="alert purple" href="#/profile" style="text-decoration:none;color:inherit"><span class="a-ic">${icon("crown")}</span><div class="grow"><b>Complete Your Profile</b><p>A complete profile helps you connect with club members and opportunities.</p></div>${kit.charts.ring({ value: pct / 100, label: `${pct}%`, size: 64 })}</a>` : ""}
       <nav class="cl-seg mt">${TABS.map(([v, l]) => `<button data-mt="${v}" aria-pressed="${tab === v}">${l}</button>`).join("")}</nav><div>${body}</div>

@@ -477,6 +477,54 @@ export function install(ctx) {
 
   /* ───────── My courses + course hub ───────── */
   const attOf = (code) => { const a = S().attendance[code]; return a && a.held ? Math.round((100 * (a.held - a.missed)) / a.held) : null; };
+  /* Courses from earlier semesters: grades first, then every earlier semester's classes from the portal sync, so a
+     finished semester shows up even before its grade report is synced (its grade reads "Pending"). */
+  function pastRows(St, ds) {
+    const rows = ds.done.concat(Object.values(latestGrades(St.grades)).filter((x) => !ds.done.includes(x)));
+    const seen = new Set(St.grades.map((g) => `${g.sem}|${g.code}`).concat(rows.map((r) => `${r.sem}|${r.code}`)));
+    Object.entries(St.history || {}).filter(([sem]) => sem && sem !== St.routineSem).forEach(([sem, list]) => list.forEach((r) => {
+      if (r.code && !seen.has(`${sem}|${r.code}`)) { seen.add(`${sem}|${r.code}`); rows.push({ code: r.code, title: r.title || "", cr: r.cr ?? "", g: r.grade || "", sem }); }
+    }));
+    return rows;
+  }
+  /* 12-semester plan (4 years × Spring/Summer/Fall): semesters you've done (grades and synced classes), this one, then
+     the road map from the curriculum. Any future semester can be edited by hand; "Auto-plan" fills the rest again. */
+  const TERMS = ["Spring", "Summer", "Fall"];
+  function firstSem(St, rows) {
+    const id = String(St.profile?.id || ""), m = id.match(/^(\d{4})-([123])-/);
+    if (m) return `${TERMS[Number(m[2]) - 1]}-${m[1]}`;
+    const sems = rows.map((r) => r.sem).filter(Boolean).sort((a, b) => ctx.semesterKey(a) - ctx.semesterKey(b));
+    return sems[0] || St.routineSem || ctx.currentSemester();
+  }
+  function plan12(St, rows, curCodes, plan) {
+    const cur = St.routineSem || ctx.currentSemester(), own = (St.plan12 = St.plan12 || {});
+    const auto = Object.fromEntries(plan.map((p) => [p.sem, p.courses.map((c) => ({ code: c.code, title: c.title, cr: c.cr }))]));
+    const cr = (code) => Number((St.curriculum || []).find((c) => c.code === code)?.cr) || 3;
+    let sem = firstSem(St, rows);
+    const out = [];
+    for (let i = 0; i < 12; i++, sem = nextSem(sem)) {
+      const done = rows.filter((r) => r.sem === sem), k = ctx.semesterKey(sem), ck = ctx.semesterKey(cur);
+      const state = k < ck ? "done" : k === ck ? "now" : "next";
+      const courses = state === "done" ? done.map((r) => ({ code: r.code, title: r.title, cr: r.cr, g: r.g || "" }))
+        : state === "now" ? curCodes.map((c) => ({ code: c, title: (St.routine.find((r) => r.code === c) || {}).title || "", cr: cr(c) }))
+        : own[sem] ? own[sem].map((c) => ({ code: c, cr: cr(c), title: (St.curriculum || []).find((x) => x.code === c)?.title || "" })) : auto[sem] || [];
+      out.push({ n: i + 1, sem, state, courses, mine: !!own[sem] });
+    }
+    return `<div class="row between mt wrap" style="gap:8px"><p class="small muted" style="margin:0">Four years, three semesters a year. Done semesters come from your grades; future ones from your curriculum.</p>
+        <button class="btn sm primary" id="p12-auto">${icon("sparkle", "sm")} Auto-plan</button></div>
+      <div class="plan12 mt">${out.map((s) => `<section class="card ${s.state}"><h3><span>${s.n}. ${esc(s.sem)}</span><span class="xs">${s.state === "done" ? "Done" : s.state === "now" ? "Now" : s.mine ? "Your plan" : s.courses.length ? "Auto" : "Free"}</span></h3>
+          ${s.courses.length ? s.courses.map((c) => `<div class="pc"><span><b>${esc(c.code)}</b>${c.title ? ` <span class="xs">${esc(c.title)}</span>` : ""}</span><span class="xs num">${c.g ? esc(c.g) : c.cr !== "" ? `${c.cr} cr` : ""}</span></div>`).join("") : `<p class="xs">${s.state === "done" ? "No courses synced for this semester." : "Nothing planned."}</p>`}
+          ${s.state === "next" ? `<button class="btn sm ghost mt-s" data-p12="${esc(s.sem)}">${icon("edit", "sm")} Edit</button>` : ""}</section>`).join("")}</div>`;
+  }
+  function editPlan12(sem) {
+    const St = S(), own = (St.plan12 = St.plan12 || {}), cur = own[sem] || [];
+    ctx.openModal(ctx.modalHead(`Plan for ${sem}`) + `<form id="p12f" class="stack"><label class="field">Course codes (comma or new line)<textarea class="input" name="c" rows="5" placeholder="CSE246, MAT205, ENG102">${esc(cur.join(", "))}</textarea></label>
+        <p class="xs">Leave empty to use the auto-plan for this semester.</p><button class="btn primary block">${icon("check", "sm")} Save</button></form>`, (m) => $("#p12f", m).addEventListener("submit", (e) => {
+      e.preventDefault(); const list = String(new FormData(e.target).get("c") || "").toUpperCase().split(/[\s,;]+/).map((x) => x.trim()).filter((x) => /^[A-Z]{2,4}\d{3}[A-Z]?$/.test(x));
+      if (list.length) own[sem] = [...new Set(list)]; else delete own[sem];
+      ctx.closeModal(); ctx.save(); ctx.rerender();
+    }));
+  }
   let coTab = "ongoing";
   /* A course from an earlier semester: its latest grade and the section/faculty it ran with (portal history). */
   function pastCourse(code) {
@@ -501,12 +549,13 @@ export function install(ctx) {
         <div class="meta"><span>${icon("room")} ${esc(c.room || "TBA")}</span>${c.faculty ? `<span>${icon("user")} ${esc(ctx.facName(c.faculty))}</span>` : ""}</div>
         <div class="bars"><div><span class="xs">Attendance</span><div class="row nowrap">${ctx.bar(att ?? 0, att !== null && att < 70 ? "red" : "green")}<b class="small num">${att !== null ? att + "%" : "—"}</b></div></div>
           <div><span class="xs">Current Marks</span><div class="row nowrap">${ctx.bar(ms && ms.of ? (100 * ms.got) / ms.of : 0)}<b class="small num">${ms && ms.of ? `${ms.got}/${ms.of}` : "—"}</b></div></div></div></a>`; };
-    const doneCard = (r) => { const p = pastCourse(r.code); return `<a class="ccard done" href="#/course?c=${encodeURIComponent(r.code)}" style="--cc:${ctx.colorFor(r.code)}"><div class="row between nowrap"><h3>${esc(r.code)}</h3><span class="grade-chip g-${esc(r.g.replace("+", "p").replace("-", "m"))}">${esc(r.g)}</span></div><div class="t">${esc(r.title || p?.title || "")}</div><p class="xs mt-s">${r.cr} credits${p?.faculty ? ` · ${esc(ctx.facName(p.faculty))}` : ""}${p?.sec ? ` · Sec ${esc(p.sec)}` : ""}</p></a>`; };
+    const doneCard = (r) => { const p = pastCourse(r.code); return `<a class="ccard done" href="#/course?c=${encodeURIComponent(r.code)}" style="--cc:${ctx.colorFor(r.code)}"><div class="row between nowrap"><h3>${esc(r.code)}</h3><span class="grade-chip g-${esc(r.g ? r.g.replace("+", "p").replace("-", "m") : "na")}">${esc(r.g || "Pending")}</span></div><div class="t">${esc(r.title || p?.title || "")}</div><p class="xs mt-s">${r.cr !== "" ? `${r.cr} credits` : "Credits after grade sync"}${p?.faculty ? ` · ${esc(ctx.facName(p.faculty))}` : ""}${p?.sec ? ` · Sec ${esc(p.sec)}` : ""}</p></a>`; };
     const leftCard = (c, needs) => `<div class="ccard left" style="--cc:${ctx.colorFor(c.code)}"><div class="row between nowrap"><h3>${esc(c.code)}</h3><span class="pill">${c.cr} cr</span></div><div class="t">${esc(c.title || "")}</div>${needs?.length ? `<p class="xs mt-s">${icon("lock", "sm")} Needs ${needs.map(esc).join(", ")}</p>` : `<p class="xs mt-s" style="color:var(--success-t)">${icon("checkc", "sm")} You can take it next</p>`}</div>`;
     let body = "";
     if (coTab === "ongoing") body = cur.length ? `<div class="grid g2 mt">${cur.map(card).join("")}</div>` : `<div class="card mt">${ctx.empty("icon:book", "No courses this semester", "Sync your class schedule to see your courses.", `<a class="btn primary" href="#/sync">Sync portal</a>`)}</div>`;
     else if (coTab === "completed") {
-      const bySem = {}; ds.done.concat(Object.values(latestGrades(St.grades)).filter((x) => !ds.done.includes(x))).forEach((r) => (bySem[r.sem || "Earlier"] = bySem[r.sem || "Earlier"] || []).push(r));
+      const rows = pastRows(St, ds);
+      const bySem = {}; rows.forEach((r) => (bySem[r.sem || "Earlier"] = bySem[r.sem || "Earlier"] || []).push(r));
       const sems = Object.keys(bySem).sort((a, b) => ctx.semesterKey(b) - ctx.semesterKey(a));
       body = sems.length ? sems.map((s) => { const t = ctx.cgpaOf(bySem[s]); return `<div class="sem-h mt"><h3>${esc(s)}</h3><span class="xs">${t.credits ? `Term GPA ${t.cgpa.toFixed(2)} · ` : ""}${bySem[s].reduce((a, r) => a + (Number(r.cr) || 0), 0)} credits</span></div><div class="grid g3 mt-s">${bySem[s].map(doneCard).join("")}</div>`; }).join("")
         : `<div class="card mt">${ctx.empty("icon:cap", "No completed courses yet", "Sync your grade report to see every course you've done.", `<a class="btn primary" href="#/sync">Sync portal</a>`)}</div>`;
@@ -516,7 +565,8 @@ export function install(ctx) {
         ${!ds.left.length ? `<div class="card mt">${ctx.empty("icon:trophy", "Every course done or in progress", "Only this semester stands between you and graduation.")}</div>` : ""}`
         : `${St.degree?.length ? `<section class="card mt"><div class="card-h"><h2>Credits still needed by area</h2></div>${St.degree.map((d) => `<div class="deg-row"><div class="row between"><b class="small">${esc(d.category)}</b><span class="xs num">${d.done} / ${d.total}</span></div>${ctx.bar(d.total ? (100 * d.done) / d.total : 100, d.done >= d.total ? "green" : "")}</div>`).join("")}</section>` : ""}
           <div class="alert purple mt">${icon("info")}<div><b>Sync your curriculum to list every course left</b><p>Sign in to the portal from the Sync page (Android app) and we read your program's curriculum and prerequisites.</p></div></div>`;
-    } else {
+    } else if (coTab === "plan12") body = plan12(St, pastRows(St, ds), curCodes, plan);
+    else {
       body = plan.length ? `<div class="row between mt wrap" style="gap:8px"><p class="small muted" style="margin:0">Every remaining course placed after its prerequisites. Your advising planner's picks come first.</p>
           <label class="row nowrap small" style="gap:6px">Credits a semester<select class="select sm" id="co-per">${[9, 12, 15, 18].map((v) => `<option ${v === perSem ? "selected" : ""}>${v}</option>`).join("")}</select></label></div>
         <ol class="road mt">${plan.map((p, i) => `<li class="road-step"><span class="road-dot">${i + 1}</span><div class="grow min0"><div class="row between nowrap"><b>${esc(p.sem)}</b><span class="xs num">${p.credits} credits</span></div><div class="road-courses">${p.courses.map((c) => `<span class="road-c" style="--cc:${ctx.colorFor(c.code)}" title="${esc(c.title)}"><b>${esc(c.code)}</b> ${esc(c.title)}</span>`).join("")}</div></div></li>`).join("")}
@@ -526,12 +576,14 @@ export function install(ctx) {
     return `${ctx.demoBanner()}${ctx.head("My Courses", "Everything you've done, what's on now, and what's left until graduation.", `<span class="pill" style="padding:8px 12px">${esc(St.routineSem || ctx.currentSemester())}</span>`)}
       <section class="deg-hero fx-rise"><i class="sheen" aria-hidden="true"></i><div class="ring lg" style="--p:${pct}"><div><b>${pct}%</b><span>of degree</span></div></div>
         <div class="deg-stats">${[["Credits earned", `${earned} / ${total}`], ["Courses done", ds.done.length], ["This semester", cur.length], [St.curriculum?.length ? "Courses left" : "Credits left", St.curriculum?.length ? ds.left.length : leftCr], ["Graduation", gradSem || "—"]].map(([l, v]) => `<div><span>${l}</span><b class="num">${esc(String(v))}</b></div>`).join("")}</div></section>
-      <div class="mt">${ctx.seg([["ongoing", "This semester"], ["completed", "Completed"], ["left", "Still to take"], ["roadmap", "Road map"]], coTab, "data-co")}</div>
+      <div class="mt">${ctx.seg([["ongoing", "This semester"], ["completed", "Completed"], ["left", "Still to take"], ["roadmap", "Road map"], ["plan12", "12-semester plan"]], coTab, "data-co")}</div>
       ${body}
       <div class="row mt"><a class="btn outline" href="#/marks">${icon("percent")} Marks &amp; Attendance Estimator</a><a class="btn outline" href="#/planner">${icon("calcheck")} Advising planner</a></div>`;
   };
   pages.courses.mount = (el) => {
     $$("[data-co]", el).forEach((b) => b.addEventListener("click", () => { coTab = b.dataset.co; ctx.rerender(); }));
+    $("#p12-auto", el)?.addEventListener("click", () => { S().plan12 = {}; ctx.save(); ctx.rerender(); ctx.toast("Plan rebuilt from your curriculum", "success"); });
+    $$("[data-p12]", el).forEach((b) => b.addEventListener("click", () => editPlan12(b.dataset.p12)));
     $("#co-per", el)?.addEventListener("change", (e) => { S().settings.perSem = Number(e.target.value); ctx.save(); ctx.rerender(); });
   };
   const safeUrl = (u) => (/^https?:\/\/[^\s"'<>]+$/i.test(u) ? u : "");

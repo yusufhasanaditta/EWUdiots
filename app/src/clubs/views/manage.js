@@ -143,7 +143,7 @@ export function register(pages, kit) {
           }));
           kit.$$("[data-delrole]", el).forEach((b) => b.addEventListener("click", async () => { try { await api.deleteRole(b.dataset.delrole); store.invalidate(`club:roles:${club.id}`); } catch (err) { kit.toast(err.message, "error"); } }));
           kit.$("#rl-new", el)?.addEventListener("click", () => ui.sheet("Create a position", `<form id="rl" class="stack">${ui.field("Name", ui.input("name", "", 'required maxlength="40" placeholder="Head of PR, Media Lead…"'))}${ui.field("Description", ui.input("description", "", 'maxlength="200"'))}
-            ${ui.field("Seniority", ui.select("rank", [[3, "Officer (like President)"], [4, "Executive (like Executive Member)"], [5, "Team role (like Moderator)"], [6, "Senior member"], [7, "Member"]].filter(([rk]) => rk > m.rank), 4))}
+            ${ui.field("Seniority", ui.select("rank", [[3, "Officer (like President)"], [4, "Executive (like Executive Member)"], [5, "Team role (like Community Lead)"], [6, "Senior member"], [7, "Member"]].filter(([rk]) => rk > m.rank), 4))}
             ${PERM_GROUPS.map(([gname, perms]) => `<fieldset class="cl-perms"><legend>${gname}</legend>${perms.filter(([p]) => has(m, p)).map(([p, l]) => `<label class="cl-opt"><input type="checkbox" data-perm="${p}"> <span>${l}</span></label>`).join("")}</fieldset>`).join("")}
             <div id="cl-err"></div><button class="btn primary block">${icon("plus")} Create</button></form>`, (s) => kit.$("#rl", s).addEventListener("submit", async (e) => {
             e.preventDefault(); const f = ui.values(e.target), perms = kit.$$("[data-perm]:checked", s).map((c) => c.dataset.perm);
@@ -158,7 +158,7 @@ export function register(pages, kit) {
   // "Roles and Permissions" board: people per level, then the hierarchy as a pyramid (top = most access).
   function hierarchy(roles, count) {
     const LEVELS = [[2, "crown", "Club Admin", "Full control over club settings and members", "amber"], [3, "crown", "Officers", "President, Vice President, General Secretary, Treasurer", "pink"],
-      [4, "users", "Executive", "Manage assigned modules and activities", "purple"], [5, "shield", "Moderator", "Moderate content, run the merch store", "blue"],
+      [4, "users", "Executive", "Manage assigned modules and activities", "purple"], [5, "shield", "Community Lead", "Keep chats friendly, run the merch store", "blue"],
       [6, "user", "Senior Member", "Access additional member features", "green"], [7, "users", "General Member", "Basic access to club features", "gray"]];
     const n = (rank) => roles.filter((r) => r.rank === rank).reduce((s, r) => s + (count[r.id] || 0), 0);
     return `<div class="cl-rolecounts">${LEVELS.map(([rank, ic, l, , tone]) => `<div class="t-${tone}">${icon(ic)}<span><b>${n(rank)}</b><span>${l}</span></span></div>`).join("")}</div>
@@ -264,6 +264,20 @@ export function register(pages, kit) {
           kit.$$("[data-feat]", el).forEach((x) => x.addEventListener("change", async () => {
             const next = { ...(club.features || {}), ...Object.fromEntries(kit.$$("[data-feat]", el).filter((c) => !c.disabled).map((c) => [c.dataset.feat, c.checked])) };
             try { await api.setFeatures(club.id, next); store.invalidate("me:clubs", `clubid:${club.id}`, "store:", "collab:"); kit.toast("Saved", "success"); } catch (err) { x.checked = !x.checked; kit.toast(err.message, "error"); }
+          }));
+        } },
+      visibility: { label: "Public page", icon: "eye", group: "Admin", perm: "settings.edit",
+        render(club) {
+          const on = club.public_sections || {};
+          const SECS = [["committee", "Executives", "users", "Current, previous and event committees"], ["events", "Events", "calendar", "Upcoming and past events"], ["posts", "Posts", "megaphone", "Public announcements"], ["gallery", "Gallery", "image", "Photo albums"], ["history", "Achievements", "trophy", "Awards and milestones"]];
+          return kit.head("Public page", "Choose what visitors see on the club's page. Members always see everything.")
+            + `<div class="cl-list">${SECS.map(([k, l, ic, d]) => `<div class="cl-setrow"><span class="itile sm purple">${icon(ic)}</span><span class="body"><b>${l}</b><span>${d}</span></span>
+              <label class="switch" aria-label="Show ${l} to visitors"><input type="checkbox" data-pub="${k}" ${on[k] !== false ? "checked" : ""}><span></span></label></div>`).join("")}</div>`;
+        },
+        mount(el, club) {
+          kit.$$("[data-pub]", el).forEach((x) => x.addEventListener("change", async () => {
+            const next = Object.fromEntries(kit.$$("[data-pub]", el).map((c) => [c.dataset.pub, c.checked]));
+            try { await api.updateClub(club.id, { public_sections: next }); club.public_sections = next; store.invalidate(`club:${club.slug}`, `clubid:${club.id}`); kit.toast("Saved", "success"); } catch (err) { x.checked = !x.checked; kit.toast(err.message, "error"); }
           }));
         } },
       audit: { label: "Audit log", icon: "eye", group: "Admin", perm: "audit.view",

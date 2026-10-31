@@ -1,12 +1,12 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Club Town Hall: every member gets their own panel for their position",
-    "Club admins and the app admin can add and edit past committees",
-    "Messages now pop up as phone notifications",
-    "Event tickets you can tilt like a real 3D card",
-    "Easier reading on phones, and a bottom bar that stays put",
-    "Study Library: shared notes get a Verified badge from the team"
+    "Club pages redesigned: cover, stats, executives with photos, achievements and sponsors",
+    "Presidents choose what visitors see; previous and event committees",
+    "Home in clear sections with a live countdown to your next class",
+    "Mark attendance after each class and note what you covered",
+    "Past semesters with grades, and a 12-semester plan you can auto-generate",
+    "Arcade: study tools as games, a welcome loader and smoother page slides"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"
