@@ -728,3 +728,218 @@ button.cl-more { border: 0; background: none; cursor: pointer; height: 32px; bor
 .cl-pyramid .tri { height: 100%; min-height: 46px; display: grid; place-items: center; color: #fff; background: currentColor; clip-path: polygon(calc(50% - (var(--i) * 8% + 10%)) 0, calc(50% + (var(--i) * 8% + 10%)) 0, calc(50% + (var(--i) * 8% + 18%)) 100%, calc(50% - (var(--i) * 8% + 18%)) 100%); }
 .cl-pyramid .tri .icon { width: 18px; height: 18px; color: #fff; }
 .cl-pyramid .lbl { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; padding: 6px 10px; min-width: 0; } .cl-pyramid .lbl .icon { display: none; } .cl-pyramid .lbl b { font-size: 13.5px; color: var(--text); } .cl-pyramid .lbl span { font-size: 11px; color: var(--text-3); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MASTER RESPONSIVE & OVERFLOW AUDIT FIXES (Small Android 320px to iPhone 393px)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* 1. Global Viewport & Container Overflow Defenses */
+body[data-mode="club"] {
+  overflow-x: hidden;
+  max-width: 100vw;
+  -webkit-text-size-adjust: 100%;
+}
+
+body[data-mode="club"] .main {
+  max-width: 100%;
+  overflow-x: hidden;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+body[data-mode="club"] * {
+  box-sizing: border-box;
+}
+
+body[data-mode="club"] :is(h1, h2, h3, h4, p, span, b, a, strong, label) {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* 2. Page Headers and Action Rows Responsive Wrapping */
+@media (max-width: 540px) {
+  .cl-ph {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .cl-ph > .min0 {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .cl-ph .actions {
+    max-width: 100% !important;
+    width: 100% !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+  }
+  .cl-ph .actions .btn {
+    flex: 1 1 auto;
+    text-align: center;
+    justify-content: center;
+  }
+  .cl-ph .actions .cl-disclaimer {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* 3. Small-screen stat card grids (prevent 4/5 overflow on 320px-390px) */
+@media (max-width: 440px) {
+  .cl-stats,
+  .cl-stats.c5,
+  .cl-stats.c4,
+  .cl-stats:has(> .cl-stat:nth-child(4):last-child),
+  .cl-stats:has(> .cl-stat:nth-child(5):last-child) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  .cl-stats.c5 > .cl-stat:last-child {
+    grid-column: 1 / -1 !important;
+  }
+  .cl-stats.v .cl-stat {
+    padding: 10px 8px !important;
+  }
+  .cl-stat .num {
+    font-size: 17px !important;
+  }
+  .cl-stat .lbl {
+    font-size: 11px !important;
+  }
+}
+
+/* 4. Quick tiles 3-col wrapping on compact viewports */
+@media (max-width: 440px) {
+  .cl-tiles.c6 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+  .cl-tiles:not(.c6) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+  .cl-tile {
+    min-height: 72px !important;
+    padding: 8px 4px !important;
+  }
+}
+
+/* 5. Role counts & Role hierarchy on small viewports */
+@media (max-width: 480px) {
+  .cl-rolecounts {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+  .cl-pyramid .lv {
+    grid-template-columns: 28% 1fr !important;
+  }
+  .cl-pyramid .lbl b {
+    font-size: 12px !important;
+  }
+  .cl-pyramid .lbl span {
+    font-size: 10px !important;
+  }
+}
+
+/* 6. Event page details, stats, perks, and check-in scanner */
+@media (max-width: 480px) {
+  .cl-evfacts {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+    padding: 8px !important;
+  }
+  .cl-evfacts > div + div {
+    border-left: 0 !important;
+    border-top: 1px solid var(--border) !important;
+    padding-left: 2px !important;
+    padding-top: 6px !important;
+  }
+  .cl-evperks {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+  .cl-evkpis {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  .cl-evkpis > div + div {
+    border-left: 0 !important;
+    border-top: 1px solid var(--border) !important;
+    padding-top: 8px !important;
+  }
+  .cl-evafter {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+  .cl-scanrow {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* 7. Product Detail Page & Cart on small viewports */
+@media (max-width: 720px) {
+  .cl-pdp {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  .cl-cartline {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .cl-cartline .row.nowrap {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+}
+
+/* 8. Data Tables & Filters Scroll Safeguards */
+.cl-dtable {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+}
+
+.cl-table-wrap,
+section.card[style*="overflow:auto"],
+div[style*="overflow:auto"] {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 9. Floating Navigation Padding and Safe Area Protection */
+@media (max-width: 960px) {
+  body[data-mode="club"] .main {
+    padding-bottom: calc(115px + env(safe-area-inset-bottom)) !important;
+  }
+  body[data-mode="club"] .bottom-nav {
+    max-width: calc(100vw - 20px);
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+}
+
+/* 10. Horizontal Scroll Strips Safe Touch Bounds */
+.cl-hscroll,
+.cl-strip,
+.cl-seg {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 11. Profile Identity overlapping cover on narrow screens */
+@media (max-width: 480px) {
+  .cl-sphead .id {
+    margin: -36px 0 0 8px !important;
+    gap: 8px !important;
+  }
+  .cl-sphead .id .cl-logo.xl {
+    width: 72px !important;
+    height: 72px !important;
+  }
+  .cl-sphead h1 {
+    font-size: 18px !important;
+  }
+}
+
