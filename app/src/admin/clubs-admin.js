@@ -58,6 +58,8 @@ export function clubViews(h) {
     $$("[data-ce]", body).forEach((b) => b.addEventListener("click", () => {
       const c = rows.find((x) => x.id === b.dataset.ce);
       openModal(c.name, `<div class="stack"><p class="small muted">Status: <b>${STATUS[c.status]?.[0]}</b>${c.verified ? " · verified" : ""}</p>
+        <div class="row" style="gap:8px;flex-wrap:wrap"><a class="btn sm primary" href="/app.html#/club/manage?c=${c.id}" target="_blank" rel="noopener">${icon("settings", "sm")} Open club console</a><a class="btn sm outline" href="/app.html#/club/committee?c=${c.id}&tab=previous" target="_blank" rel="noopener">${icon("users", "sm")} Committees & history</a></div>
+        <p class="xs">As a platform admin you have every club permission there: members, positions, committees, events, posts, finance.</p>
         <form id="ca-f" class="row nowrap" style="gap:8px"><input class="input grow" name="who" placeholder="Student ID or email of the new club admin" required><button class="btn primary">${icon("crown", "sm")} Appoint</button></form>
         <p class="xs">If they have no account yet, they get an invite and become admin when they sign up.</p>
         <div class="row" style="gap:8px;flex-wrap:wrap">${c.status !== "active" ? `<button class="btn sm" data-st="active">${icon("play", "sm")} Activate</button>` : `<button class="btn sm danger-soft" data-st="suspended">${icon("lock", "sm")} Suspend</button>`}

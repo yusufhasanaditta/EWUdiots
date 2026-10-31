@@ -37,6 +37,17 @@ export function register(pages, kit) {
   };
   pages["club/tickets"].mount = (el) => { kit.bindRetry(el); const t = kit.param("tab"); if (t && t !== ttab) { ttab = t; ctx.rerender(); } };
 
+  /* A ticket you can tilt like a real card: pointer or the phone's motion sensor sets --rx/--ry; the shine follows. */
+  function tilt(el) {
+    const wrap = el.querySelector(".tk3d"), card = el.querySelector(".tk3d-card");
+    if (!wrap || !card || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const set = (x, y) => { card.style.setProperty("--ry", `${(x - 0.5) * 18}deg`); card.style.setProperty("--rx", `${(0.5 - y) * 14}deg`); card.style.setProperty("--mx", `${x * 100}%`); card.style.setProperty("--my", `${y * 100}%`); };
+    wrap.addEventListener("pointermove", (e) => { const r = card.getBoundingClientRect(); set(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))); wrap.classList.add("live"); });
+    wrap.addEventListener("pointerleave", () => { set(0.5, 0.5); wrap.classList.remove("live"); });
+    const orient = (e) => { if (!document.contains(card)) return removeEventListener("deviceorientation", orient); if (e.gamma == null) return; set(0.5 + Math.max(-30, Math.min(30, e.gamma)) / 60, 0.5 + Math.max(-30, Math.min(30, (e.beta || 45) - 45)) / 60); };
+    addEventListener("deviceorientation", orient);
+  }
+
   /* ═════════ One ticket ═════════ */
   pages["club/pass"] = () => {
     const g = kit.gate("this ticket"); if (g) return g;
@@ -46,7 +57,7 @@ export function register(pages, kit) {
       if (!t) return ui.emptyBox("ticket", "Ticket not found", "It may belong to another account.");
       const [label, tone] = ticketState(t), qr = showsQR(t);
       const nums = Object.entries(t.numbers || {});
-      return `<section class="cl-ticketx">
+      return `<div class="tk3d"><section class="cl-ticketx tk3d-card"><i class="tk3d-shine" aria-hidden="true"></i>
           <div class="top"><span class="art">${ui.art(t.image, t.title)}</span><div><span class="xs">${esc(t.club_name)}</span><h1>${esc(t.title)}</h1>${ui.st([label, tone], tone === "green" ? "checkc" : "")}</div></div>
           <div class="facts"><div><span class="xs">Date</span><b>${ui.dateLong(t.starts_at)}</b></div><div><span class="xs">Time</span><b>${ui.time(t.starts_at)}${t.ends_at ? ` – ${ui.time(t.ends_at)}` : ""}</b></div>
             <div><span class="xs">Venue</span><b>${esc(t.venue || "To be announced")}</b></div><div><span class="xs">Ticket</span><b>${esc(t.tier_name)} · ${priceLabel(t.price)}</b></div></div>
@@ -55,7 +66,7 @@ export function register(pages, kit) {
               <p class="xs muted">Turn your screen brightness up. Don't share this code: it works once.</p></div>`
             : t.status === "used" ? `<div class="qrbox done">${icon("checkc")}<b>Checked in</b><p class="xs">${ui.dateTime(t.checked_in_at)}</p></div>`
             : `<div class="qrbox off">${icon(t.status === "cancelled" ? "x" : "clock")}<b>${esc(label)}</b><p class="xs">${t.status === "waitlisted" ? "You'll get a notification if a seat opens." : t.payment === "submitted" ? `We sent your ${esc(METHODS[t.pay_method] || "")} transaction ${esc(t.pay_ref)} to the club. Your QR appears once they confirm it.` : t.payment === "rejected" ? esc(t.pay_note || "The club couldn't find your payment. Check the transaction ID and send it again.") : ""}</p></div>`}
-        </section>
+        </section><span class="tk3d-floor" aria-hidden="true"></span></div>
         ${(t.status === "active" && t.payment === "unpaid" && t.pay_method && t.pay_method !== "cash") || (t.status === "active" && t.payment === "rejected") ? payForm(t, nums) : ""}
         ${t.status === "active" && t.payment === "unpaid" && (t.pay_method === "cash" || !t.pay_method) ? `<div class="alert amber mt"><span class="a-ic">${icon("wallet")}</span><div><b>Pay ${priceLabel(t.price)} at the door</b><p>Show this QR. The ticket checker takes the cash and lets you in.</p></div></div>` : ""}
         <div class="row mt" style="gap:8px;flex-wrap:wrap"><a class="btn outline" href="#/club/event?id=${t.event_id}">${icon("info")} Event details</a><button class="btn outline" id="tp-ics">${icon("calendar")} Add to Calendar</button>
@@ -67,6 +78,7 @@ export function register(pages, kit) {
     <form id="tp-pay" class="stack mt-s">${ui.field("Paid with", ui.select("method", Object.entries(METHODS).filter(([k]) => k !== "cash")))}${ui.field("Transaction ID", ui.input("ref", "", 'required maxlength="20" autocomplete="off" placeholder="e.g. 9JK2LM4XQ1" style="text-transform:uppercase"'))}<div id="cl-err"></div><button class="btn primary block">Send for checking</button></form></section>`;
   pages["club/pass"].mount = (el) => {
     kit.bindRetry(el);
+    tilt(el);
     const t = (store.peek("club:mytickets") || []).find((x) => x.id === kit.param("id")); if (!t) return;
     kit.$("#tp-ics", el)?.addEventListener("click", () => ui.download(`${t.title.replace(/[^\w]+/g, "-").slice(0, 40)}.ics`, toICS({ ...t, description: `Ticket ${t.code}`, url: `${location.origin}${location.pathname}#/club/pass?id=${t.id}` }), "text/calendar"));
     kit.$$("[data-copy]", el).forEach((b) => b.addEventListener("click", async () => { try { await navigator.clipboard.writeText(b.dataset.copy); kit.toast("Number copied", "success"); } catch { /* no clipboard */ } }));

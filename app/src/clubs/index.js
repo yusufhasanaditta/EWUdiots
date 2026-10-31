@@ -115,7 +115,7 @@ export function install(ctx) {
   ctx.pages[PREFIX] = ctx.pages["club/home"]; // #/club → home
   // An admin can switch the whole club area off (Admin → Settings → Features).
   Object.keys(ctx.pages).filter(isClub).forEach((id) => { ctx.PAGE_FEATURE[id] = "clubs"; });
-  ctx.PAGES_SEARCH.push(["club/home", "EWUdiots Club: your clubs, events and tasks", "community"], ["club/explore", "Find a club (all EWU clubs)", "community"],
+  ctx.PAGES_SEARCH.push(["club/home", "Club Town Hall: your clubs, events and tasks", "community"], ["club/explore", "Find a club (all EWU clubs)", "community"],
     ["club/messages", "Club messages and chats", "chat"], ["club/store", "Club merchandise store", "bag"], ["club/events", "Club events and registrations", "calendar"]);
 
   /* ── Live notification count (bell) ── */
@@ -123,7 +123,9 @@ export function install(ctx) {
   let liveOff = null;
   function liveNotifications() {
     if (liveOff || !api || !me()) return;
-    liveOff = api.subscribeNotifications((n) => { store.refresh("me:unread", api.unreadCount); store.invalidate("me:notes"); if (isClub(ctx.route()) && !/chat/.test(ctx.route())) ctx.toast(n.title, "info", n.body || ""); });
+    liveOff = api.subscribeNotifications((n) => { store.refresh("me:unread", api.unreadCount); store.invalidate("me:notes"); if (isClub(ctx.route()) && !/chat/.test(ctx.route())) ctx.toast(n.title, "info", n.body || "");
+      // A phone notification too, unless you are looking at that very chat.
+      if (document.visibilityState !== "visible" || location.hash !== n.link) ctx.native.notifyNow(n.title, n.body || "", n.link || "#/club/notifications"); });
   }
 
   /* ── Club-mode chrome ── */
@@ -192,10 +194,10 @@ export function install(ctx) {
     claimedFor = u.id;
     try {
       const n = await api.claimInvites();
-      if (n > 0) { store.invalidate("me:", "club:"); ctx.toast(n === 1 ? "You've been added to a club" : `You've been added to ${n} clubs`, "success", "Open More → EWUdiots Club to see your workspace."); }
+      if (n > 0) { store.invalidate("me:", "club:"); ctx.toast(n === 1 ? "You've been added to a club" : `You've been added to ${n} clubs`, "success", "Open More → Club Town Hall to see your workspace."); }
     } catch { claimedFor = null; /* offline: try again next time */ }
   }
-  if (api) ctx.cloud.onAuth((u) => { if (u) claimInvites(u); else { claimedFor = null; liveOff?.(); liveOff = null; store.clear(); } });
+  if (api) ctx.cloud.onAuth((u) => { if (u) { claimInvites(u); setTimeout(liveNotifications, 2000); } else { claimedFor = null; liveOff?.(); liveOff = null; store.clear(); } });
 
   return { owns: isClub, renderNav, leave, claimInvites, kit };
 }

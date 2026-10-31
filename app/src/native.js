@@ -24,6 +24,24 @@ export async function notificationsAllowed() {
   if (isNative) return (await LocalNotifications.checkPermissions()).display === "granted";
   return "Notification" in window && Notification.permission === "granted";
 }
+/* Pop a notification right now (a new message, a club alert). Phone: a system notification on the alerts channel, which
+   also shows while the app is in the background; web: a browser notification when the tab isn't visible. Tapping it
+   opens `link` (a #/ route). */
+let lastPop = 0;
+export async function notifyNow(title, body = "", link = "") {
+  try {
+    if (!(await notificationsAllowed()) || Date.now() - lastPop < 1500) return;
+    lastPop = Date.now();
+    if (isNative) {
+      await LocalNotifications.schedule({ notifications: [{ id: Math.floor(Math.random() * 2e9), title: String(title).slice(0, 120), body: String(body).slice(0, 240), smallIcon: "ic_stat_notify", channelId: "class-alarms", extra: { link }, schedule: { at: new Date(Date.now() + 500), allowWhileIdle: true } }] });
+    } else if (document.visibilityState !== "visible") {
+      const n = new Notification(String(title).slice(0, 120), { body: String(body).slice(0, 240), icon: "/logo-mark.png", tag: link || undefined });
+      n.onclick = () => { window.focus(); if (link) location.hash = link; n.close(); };
+    }
+  } catch { /* notifications are best-effort */ }
+}
+/* Tapping a phone notification opens its page. */
+if (isNative) LocalNotifications.addListener("localNotificationActionPerformed", (a) => { const l = a.notification?.extra?.link; if (l && /^#\//.test(l)) location.hash = l; }).catch(() => {});
 export async function askNotifications() {
   if (isNative) return (await LocalNotifications.requestPermissions()).display === "granted";
   if (!("Notification" in window)) return false;

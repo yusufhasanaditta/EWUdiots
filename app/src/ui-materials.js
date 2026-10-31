@@ -24,7 +24,7 @@ export function install(ctx) {
     const [ic, tone] = TYPES[r.type] || TYPES.Other;
     return `<div class="lrow mat-row"><span class="itile ${tone}">${icon(ic)}</span><button class="body mat-open" data-mopen="${r.id}"><b>${esc(r.title)}</b>
       <span>${[r.type, r.topic, r.faculty && `${r.faculty}${r.section ? ` · Sec ${r.section}` : ""}`, r.semester, r.source === "classroom" ? "Google Classroom" : r.uploader_name && `by ${r.uploader_name}${r.uploader_role ? ` (${roleLbl[r.uploader_role] || r.uploader_role})` : ""}`, ago(r.created_at)].filter(Boolean).map(esc).join(" · ")}</span></button>
-      ${r.visibility === "private" ? `<span class="pill" title="Only you can see it">${icon("lock", "sm")} Only me</span>` : ""}${r.link ? icon("external", "sm") : icon("download", "sm")}${isMine(r) ? `<button class="btn sm ghost" data-mdel="${r.id}" aria-label="Delete">${icon("trash", "sm")}</button>` : me() ? `<button class="btn sm ghost" data-mrep="${r.id}" aria-label="Report this material" title="Report">${icon("flag", "sm")}</button>` : ""}</div>`;
+      ${r.verified ? `<span class="pill green" title="Checked by the EWUdiots team">${icon("checkc", "sm")} Verified</span>` : ""}${r.visibility === "private" ? `<span class="pill" title="Only you can see it">${icon("lock", "sm")} Only me</span>` : ""}${r.link ? icon("external", "sm") : icon("download", "sm")}${isMine(r) ? `<button class="btn sm ghost" data-mdel="${r.id}" aria-label="Delete">${icon("trash", "sm")}</button>` : me() ? `<button class="btn sm ghost" data-mrep="${r.id}" aria-label="Report this material" title="Report">${icon("flag", "sm")}</button>` : ""}</div>`;
   };
 
   /* The Materials tab of a course page. info: { faculty, sec, sem, title } from the student's routine. */
@@ -81,7 +81,7 @@ export function install(ctx) {
     const past = Object.entries(S().history || {}).sort((a, b) => ctx.semesterKey(b[0]) - ctx.semesterKey(a[0])).map(([sem, rows]) => [sem, rows.find((r) => r.code === code)]).find(([, r]) => r);
     return past ? { faculty: past[1].faculty || "", sec: past[1].sec || "", sem: past[0], how: `your ${past[0]} classes` } : { faculty: "", sec: "", sem: "", how: "" };
   }
-  /* Share a file or a link. With no course (Study Vault → Upload), the form starts with a course picker; the teacher and
+  /* Share a file or a link. With no course (Study Library → Upload), the form starts with a course picker; the teacher and
      section are filled in from the routine. The student chooses who sees it: everyone, or only themselves. */
   function share(code, info) {
     let mode = "file", vis = "everyone", course = code || "", tags = code ? { ...info, how: info.faculty ? "your routine" : "" } : detect("");

@@ -1,0 +1,66 @@
+/* v2.16: easier reading on phones (bigger text, more room between items), a top bar that never pushes the page wider
+   than the screen (so the bottom bar stays put), photo upload buttons, the member's own panel, users at a glance and
+   the 3D ticket. Tokens from styles.css. */
+
+/* ── Phones: calmer, more readable layout ── */
+@media (max-width: 760px) {
+  body { font-size: 16px; line-height: 1.6; }
+  .small { font-size: 14px; } .xs { font-size: 12.5px; line-height: 1.45; }
+  .card { padding: 18px 16px; border-radius: 20px; }
+  .card + .card, .card.mt, section.mt { margin-top: 16px; }
+  .lrow { gap: 14px; padding: 14px 0; min-height: 60px; }
+  .lrow .body b { font-size: 15.5px; } .lrow .body span { font-size: 13.5px; line-height: 1.45; }
+  h1 { font-size: clamp(24px, 7vw, 30px); line-height: 1.2; } h2 { font-size: 19px; line-height: 1.3; } h3 { font-size: 17px; }
+  .head p, .sub, .muted { line-height: 1.55; }
+  .btn { min-height: 46px; } .btn.sm { min-height: 40px; }
+  .grid { gap: 14px; }
+  .main { padding-left: 16px; padding-right: 16px; }
+  /* The page never gets wider than the screen: flex and grid children may shrink. */
+  .main, .main > * { min-width: 0; max-width: 100%; }
+  img, svg, video, canvas { max-width: 100%; }
+  /* The top bar shrinks instead of pushing the page sideways (the bottom bar then stays fixed under your thumb). */
+  .topbar { gap: 6px; min-width: 0; }
+  .topbar > * { min-width: 0; }
+  .topbar .mlogo { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+  .topbar .mlogo .word { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar .icon-btn { flex: none; }
+}
+@media (max-width: 360px) {
+  .topbar { padding-left: 12px; padding-right: 12px; }
+  .topbar .icon-btn { width: 40px; height: 40px; }
+  .topbar .mlogo .word { font-size: 21px; }
+}
+/* Large system text (Android font size): keep the bottom bar's labels on one line. */
+.bottom-nav span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+html, body { overflow-x: clip; } /* last-resort guard: a stray pixel can't make the whole app slide sideways */
+
+/* ── Upload photo buttons (admin) and banner pictures ── */
+.up-photo { margin-top: 8px; align-self: flex-start; }
+.bn-img { display: block; width: 100%; max-height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 10px; }
+.admin-banner.has-img { flex-wrap: wrap; } .admin-banner.has-img .bn-img { flex: 1 0 100%; }
+
+/* ── Club: my panel ── */
+.cl-mypanel { padding: 18px; border-radius: 22px; color: #fff; background: linear-gradient(135deg, #15122e, #3b2a9e 60%, #5b3df5); box-shadow: var(--sh-lg); }
+.cl-mypanel h2 { color: #fff; margin: 2px 0 4px; font-size: 22px; } .cl-mypanel .xs { color: rgba(255, 255, 255, .75); }
+.cl-duties { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+.cl-duties li { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; line-height: 1.45; } .cl-duties .icon { color: #c8f04a; flex: none; margin-top: 2px; }
+.cl-tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.cl-tool { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 18px; background: var(--surface); border: 1px solid var(--border); color: inherit; text-decoration: none; min-height: 118px; transition: transform .15s, border-color .15s; }
+.cl-tool:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); } .cl-tool b { font-size: 15px; }
+
+/* ── Admin: users at a glance ── */
+.u-bar { height: 10px; border-radius: 10px; background: var(--surface-3); overflow: hidden; margin-top: 4px; } .u-bar.big { height: 14px; }
+.u-bar i { display: block; height: 100%; border-radius: 10px; background: var(--viz1, #7c3aed); }
+
+/* ── 3D ticket ── */
+.tk3d { perspective: 1100px; position: relative; padding: 6px 0 22px; touch-action: pan-y; }
+.tk3d-card { position: relative; transform-style: preserve-3d; transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .5s cubic-bezier(.2, .8, .2, 1);
+  box-shadow: 0 1px 0 #d6d1f3, 0 2px 0 #cfc9ef, 0 3px 0 #c7c0ea, 0 4px 0 #bfb7e6, 0 5px 0 #b8afe2, 0 22px 40px rgba(21, 18, 46, .28); animation: tkFloat 6s ease-in-out infinite; }
+.tk3d.live .tk3d-card { transition: transform .08s linear; animation: none; }
+.tk3d-shine { position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit; mix-blend-mode: soft-light;
+  background: radial-gradient(circle at var(--mx, 30%) var(--my, 20%), rgba(255, 255, 255, .75), rgba(255, 255, 255, 0) 45%), linear-gradient(115deg, transparent 40%, rgba(200, 240, 74, .18) 50%, transparent 60%); }
+.tk3d-floor { position: absolute; left: 12%; right: 12%; bottom: 4px; height: 18px; border-radius: 50%; background: radial-gradient(rgba(21, 18, 46, .28), transparent 70%); filter: blur(4px); }
+@keyframes tkFloat { 0%, 100% { transform: rotateX(4deg) rotateY(-6deg) translateY(0); } 50% { transform: rotateX(-2deg) rotateY(6deg) translateY(-6px); } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tk3d-card { box-shadow: 0 1px 0 #2a2452, 0 2px 0 #26204a, 0 3px 0 #221c43, 0 4px 0 #1e183c, 0 5px 0 #1a1535, 0 22px 40px rgba(0, 0, 0, .55); } }
+:root[data-theme="dark"] .tk3d-card { box-shadow: 0 1px 0 #2a2452, 0 2px 0 #26204a, 0 3px 0 #221c43, 0 4px 0 #1e183c, 0 5px 0 #1a1535, 0 22px 40px rgba(0, 0, 0, .55); }
+@media (prefers-reduced-motion: reduce) { .tk3d-card { animation: none; transform: none; } .tk3d-shine { display: none; } }

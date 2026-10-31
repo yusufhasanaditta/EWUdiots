@@ -4,7 +4,22 @@ import { createPosts } from "./posts.js";
 import { parseQr } from "../checkin.js";
 import { CATEGORIES } from "../perms.js";
 
-const TABS = [["home", "Workspace", "grid"], ["posts", "Announcements", "megaphone"], ["calendar", "Calendar", "calendar"], ["attendance", "Attendance", "checkc"], ["polls", "Polls", "bars"], ["tasks", "Tasks", "clipboard"], ["docs", "Docs", "file"], ["members", "Members", "users"]];
+const TABS = [["home", "Workspace", "grid"], ["me", "My panel", "user"], ["posts", "Announcements", "megaphone"], ["calendar", "Calendar", "calendar"], ["attendance", "Attendance", "checkc"], ["polls", "Polls", "bars"], ["tasks", "Tasks", "clipboard"], ["docs", "Docs", "file"], ["members", "Members", "users"]];
+
+/* What each position is for (matched on the position's name); the last one is the default. */
+const DUTIES = [
+  [/advisor/i, ["Guide the committee and approve big decisions", "Sign off on budgets and elections", "Keep the club aligned with university rules"]],
+  [/club admin/i, ["Run the club's page, settings and features", "Give positions to the committee and members", "Hand over to the next committee each year"]],
+  [/^president/i, ["Lead the committee and chair meetings", "Approve events, posts and spending", "Represent the club to faculty, sponsors and other clubs"]],
+  [/vice/i, ["Stand in for the President", "Coordinate the wings and their projects", "Follow up on action items from meetings"]],
+  [/secretary/i, ["Write agendas and minutes for every meeting", "Keep members informed with announcements", "Look after documents and records"]],
+  [/treasurer|finance/i, ["Keep the finance book up to date", "Collect and record payments and receipts", "Report the balance at every meeting"]],
+  [/wing|head|executive/i, ["Lead your wing's projects and tasks", "Plan events with the committee", "Mentor new members in your wing"]],
+  [/moderator/i, ["Keep chats and comments friendly", "Review reported posts", "Help members find their way"]],
+  [/merch/i, ["Manage products, stock and orders", "Verify payments and pickups", "Plan new merch with the committee"]],
+  [/senior/i, ["Help with events and projects", "Mentor general members", "Vote in polls and elections"]],
+  [/./, ["Join events, meetings and projects", "Vote in polls and elections", "Share ideas with the committee"]]
+];
 
 /** @param {Record<string, any>} pages @param {any} kit */
 export function register(pages, kit) {
@@ -35,6 +50,30 @@ export function register(pages, kit) {
 
   /* ── Sections ── */
   const SECTIONS = {
+    /** My panel: the member's own position, what that position is for, and every tool their permissions open. */
+    me(club, m) {
+      const id = club.id, can = (p) => kit.can(id, p), M = (tab) => `#/club/manage?c=${id}&tab=${tab}`;
+      const TOOLS = [["posts.write", "megaphone", "pink", "Announcements", "Write news for members or everyone", M("posts")], ["events.manage", "calendar", "blue", "Events", "Create events, registrations and tickets", M("events")],
+        ["events.checkin", "scan", "teal", "Check-in", "Scan tickets at the door", `#/club/scan?c=${id}`], ["forms.create", "clipboard", "orange", "Forms", "Registration and recruitment forms", M("forms")],
+        ["recruitment.evaluate", "userpen", "purple", "Recruitment", "Review and score applicants", `#/club/recruit?c=${id}`], ["members.approve", "users", "green", "Members", "Requests, contact details, removals", M("members")],
+        ["members.invite", "mail", "blue", "Invites", "Invite people into the club", M("invites")], ["members.promote", "shield", "purple", "Positions", "Give positions, titles and wings", M("roles")],
+        ["meetings.manage", "clipboard", "teal", "Meetings", "Agendas, minutes, action items", `#/club/meetings?c=${id}`], ["projects.manage", "kanban", "orange", "Projects", "Boards and tasks for teams", `#/club/projects?c=${id}`],
+        ["polls.create", "bars", "green", "Polls", "Ask members to vote", `#/club/polls?c=${id}`], ["elections.manage", "ballot", "red", "Elections", "Committee elections", `#/club/elections?c=${id}`],
+        ["finance.view", "wallet", "green", "Finance", "Budgets, income and expenses", `#/club/finance?c=${id}`], ["store.manage", "bag", "pink", "Merch store", "Products and stock", M("products")],
+        ["orders.manage", "receipt", "orange", "Orders", "Payments, pickups and returns", `#/club/ordersadmin?c=${id}`], ["sponsors.manage", "handshake", "blue", "Sponsors", "Sponsor packages", `#/club/sponsors?c=${id}`],
+        ["analytics.view", "chart", "purple", "Analytics", "How the club is doing", `#/club/analytics?c=${id}`], ["settings.edit", "settings", "gray", "Club profile", "Logo, cover, about, committee history", M("settings")],
+        ["audit.view", "eye", "gray", "Audit log", "Who changed what", M("audit")]].filter(([p]) => can(p));
+      const name = String(m.title || m.role_name || "Member"), duty = DUTIES.find(([re]) => re.test(name))?.[1] || DUTIES[DUTIES.length - 1][1];
+      const te = store.use(`club:tasks:${id}`, () => api.tasks(id), { ttl: 30e3 }), mineT = (te.value || []).filter((x) => x.assignee === kit.me()?.id && x.status !== "done");
+      return `<section class="cl-mypanel"><div class="row nowrap" style="gap:14px">${ui.logo(club, "lg")}<div class="grow min0"><span class="xs">Your position in ${esc(club.short_name || club.name)}</span><h2>${esc(name)}</h2>
+          <p class="small">${ui.rolePill(m.rank, m.role_name)}${m.wing ? ` · ${esc(m.wing)} wing` : ""}</p></div></div>
+          <ul class="cl-duties">${duty.map((d) => `<li>${icon("checkc", "sm")}<span>${esc(d)}</span></li>`).join("")}</ul></section>
+        ${ui.sec(TOOLS.length ? `Your tools · ${TOOLS.length}` : "Your tools")}
+        ${TOOLS.length ? `<div class="cl-tools">${TOOLS.map(([, ic, tone, t, d, href]) => `<a class="cl-tool" href="${href}"><span class="itile ${tone}">${icon(ic)}</span><b>${t}</b><span class="xs">${d}</span></a>`).join("")}</div>`
+          : `<p class="small muted">As a ${esc(name)} you join events, polls, meetings and projects. Your committee can give you more responsibilities.</p>`}
+        ${ui.sec(`My open tasks · ${mineT.length}`)}
+        ${mineT.length ? `<div class="cl-list">${mineT.slice(0, 8).map((x) => `<a class="cl-li" href="#/club/space?c=${id}&tab=tasks"><span class="itile sm orange">${icon("clipboard")}</span><span class="body"><b>${esc(x.title)}</b><span>${x.due ? `Due ${new Date(x.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "No due date"}</span></span></a>`).join("")}</div>` : '<p class="small muted">Nothing assigned to you right now.</p>'}`;
+    },
     /** Workspace dashboard ("Workspace Dashboard" board): numbers, tools, what's next, my tasks, news and chats. */
     home(club, m) {
       const id = club.id, f = (k) => kit.feature(id, k), counts = store.use("clubs:counts", api.counts, { ttl: 60e3 }).value?.[id] || {};

@@ -5,6 +5,7 @@ import "./campus.css";
 import "./fx.css";
 import "./mobile.css";
 import "./v212.css";
+import "./v216.css";
 import { start as startDropdowns } from "./dropdown.js";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";
@@ -257,7 +258,7 @@ const NAV = [
   { id: "fees", label: "Fees", icon: "wallet", roles: "s" },
   { id: "scholarship", label: "Scholarships", icon: "trophy", roles: "s" },
   { id: "classroom", label: "Google Classroom", icon: "school", roles: "s" },
-  { id: "vault", label: "Study Vault", icon: "vault", roles: "sfa", feature: "vault" },
+  { id: "vault", label: "Study Library", icon: "vault", roles: "sfa", feature: "vault" },
   { id: "notices", label: "Notice Board", icon: "megaphone", roles: "sfa", feature: "notices" },
   { id: "news", label: "Campus News", icon: "globe", roles: "sfa", feature: "news" },
   { id: "alumni", label: "Alumni", icon: "community", roles: "sfa", feature: "alumni" },
@@ -273,7 +274,7 @@ const NAV = [
   { id: "rooms", label: "Free Rooms", icon: "door", roles: "sfa" },
   { id: "faculty", label: "Faculty", icon: "users", roles: "fa" },
   { id: "focus", label: "Focus", icon: "focus", roles: "sf", feature: "focus" },
-  { id: "me", label: "Achievements", icon: "award", roles: "sf" },
+  { id: "me", label: "Trophy Room", icon: "award", roles: "sf" },
   { id: "more", label: "More", icon: "more", roles: "sfa" }
 ];
 const roleKey = () => ({ faculty: "f", alumni: "a" }[S.role] || "s");
@@ -660,7 +661,9 @@ function onSignedIn(user) {
   return (signInDone = restoreOrBackup(user));
 }
 // Messages the team sent to everyone or to you (admin panel → Messages to users).
-async function loadMessages() { if (!C.user) return; try { C.messages = await cloud.fetchMessages(); C.courseNotes = await people.courseNotices().catch(() => []); if (["home", "notifications"].includes(currentRoute)) rerender(); } catch { /* offline */ } }
+async function loadMessages() { if (!C.user) return; try { const before = C.messages; C.messages = await cloud.fetchMessages();
+  // New team messages since the last check pop up on the phone (not on the first load).
+  if (before) { const seen = new Set(before.map((m) => m.id)); C.messages.filter((m) => !seen.has(m.id)).slice(0, 3).forEach((m) => native.notifyNow(m.title, m.body || "", m.link || "#/notifications")); } C.courseNotes = await people.courseNotices().catch(() => []); if (["home", "notifications"].includes(currentRoute)) rerender(); } catch { /* offline */ } }
 async function restoreOrBackup(user) {
   try {
     const remote = await cloud.pullData(user.id);
@@ -710,7 +713,10 @@ charts = installInsights(ctx);
 clubs = installClubs(ctx);
 content.onChange(() => { facCache = null; applyTheme(); rerender(); });
 content.refresh();
-setInterval(() => { if (document.visibilityState === "visible") { content.refresh(); loadMessages(); } }, 10 * 60e3);
+setInterval(() => { if (document.visibilityState === "visible") content.refresh(); }, 10 * 60e3);
+// Team messages: every 2 minutes (also in the background on phones while the app is alive) and when the app comes back.
+setInterval(loadMessages, 2 * 60e3);
+native.onResume(loadMessages);
 
 $("#top-search").addEventListener("click", palette);
 $("#top-search-field").addEventListener("click", palette);

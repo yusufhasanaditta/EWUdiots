@@ -19,7 +19,7 @@ const TIPS = [
   ["Active recall beats re-reading", "Close the slides and write what you remember. Then check."],
   ["Space it out", "Three 30-minute sessions on different days stick far better than one cram."],
   ["Start with the ugly one", "Do the task you're avoiding first. Momentum carries the rest of the day."],
-  ["Past papers are gold", "Exam patterns repeat more than you think. Check the Study Vault."],
+  ["Past papers are gold", "Exam patterns repeat more than you think. Check the Study Library."],
   ["Protect your gaps", "A 90-minute gap between classes is a full Pomodoro plus a break."],
   ["Phone in another room", "Even a face-down phone on the desk drains focus."]
 ];
@@ -569,7 +569,7 @@ export function install(ctx) {
       ${att !== null && att < 70 ? `<a class="alert red mt" href="#/course?c=${encodeURIComponent(code)}&tab=attendance"><span class="a-ic">${icon("alertc")}</span><div class="grow"><b>Your attendance is below 70%</b><p>You may not be eligible to sit for the final exam. Check your course outline.</p></div>${icon("chevR")}</a>` : ""}
       ${nxt ? `<section class="card mt row nowrap" style="border-left:4px solid var(--primary)"><span class="itile purple">${icon("calendar")}</span><div class="grow"><b>Next Class</b><p class="small">${nxt.k === 0 ? "Today" : nxt.k === 1 ? "Tomorrow" : ctx.DAY_NAMES[nxt.day]}, ${ctx.fmt12(nxt.s)} – ${ctx.fmt12(nxt.e)}</p><p class="xs">${icon("pin", "sm")} ${esc(nxt.room || "TBA")}${nxt.lab ? " · Lab" : ""}</p></div><span class="pill green">${ctx.fmtCountdown(Math.max(0, nxt.mins))} left</span></section>` : ""}
       <div class="section-h"><h2>Upcoming Deadlines</h2><a class="see" href="#/tasks">See All</a></div>${tasks.length ? tasks.slice(0, 3).map((t) => ctx.taskLine(t)).join("") : `<p class="small muted">Nothing due for this course.</p>`}
-      <div class="section-h"><h2>Quick Links</h2></div><div class="g2m">${[["file", "red", "Lecture Slides", "In the Study Vault", `#/vault?q=${encodeURIComponent(code)}`], ["notes", "blue", "Past Papers", "Shared by students", `#/vault?q=${encodeURIComponent(code)}`], ["clipboard", "purple", "Assignments", `${tasks.length} open`, "#/tasks"], ["link", "green", "Useful Links", `${links.length} resources`, `#/course?c=${encodeURIComponent(code)}&tab=materials`]]
+      <div class="section-h"><h2>Quick Links</h2></div><div class="g2m">${[["file", "red", "Lecture Slides", "In the Study Library", `#/vault?q=${encodeURIComponent(code)}`], ["notes", "blue", "Past Papers", "Shared by students", `#/vault?q=${encodeURIComponent(code)}`], ["clipboard", "purple", "Assignments", `${tasks.length} open`, "#/tasks"], ["link", "green", "Useful Links", `${links.length} resources`, `#/course?c=${encodeURIComponent(code)}&tab=materials`]]
         .map(([ic, tone, t, d, h]) => `<a class="dtile" href="${h}"><span class="itile ${tone}">${icon(ic)}</span><div><b>${t}</b><span>${d}</span></div></a>`).join("")}</div>
       <div class="row mt"><button class="btn primary grow" id="ch-focus">${icon("target")} Focus on ${esc(code)}</button><button class="btn outline grow" id="ch-cards">${icon("cards")} ${due ? `${due} cards due` : `${cardsN} flashcards`}</button></div>`;
     else if (chTab === "marks") body = `<div class="card-h"><h2>Marks Breakdown</h2><span class="small muted">${ms ? `Total: ${ms.total} Marks` : ""}</span></div>
@@ -583,7 +583,7 @@ export function install(ctx) {
       <h3 class="mat-h">Your own links</h3><section class="card stack">
       ${links.map((l, i) => `<div class="lrow"><span class="itile sm green">${icon("link")}</span><a class="body" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener noreferrer"><b>${esc(l.title)}</b><span>${esc(l.url)}</span></a><button class="btn sm icon-only ghost" data-ldel="${i}" aria-label="Remove link">${icon("trash")}</button></div>`).join("") || '<p class="small muted">Add Google Classroom, a Drive folder, the course outline, a YouTube playlist…</p>'}
       <form id="ch-link" class="grid g2"><input class="input" name="title" placeholder="Title" required maxlength="60" aria-label="Link title"><input class="input" name="url" type="url" placeholder="https://" required aria-label="Link URL"><button class="btn full-row">${icon("plus")} Add link</button></form>
-      <a class="btn outline" href="#/vault?q=${encodeURIComponent(code)}">${icon("vault")} Find ${esc(code)} notes in the Study Vault</a></section>`;
+      <a class="btn outline" href="#/vault?q=${encodeURIComponent(code)}">${icon("vault")} Find ${esc(code)} notes in the Study Library</a></section>`;
     return `${ctx.subHead(esc(code), esc(c.title || ""), "#/courses", f?.email ? `<a class="icon-btn" href="mailto:${esc(f.email)}?subject=${encodeURIComponent(code + " Section " + (c.sec || ""))}" aria-label="Email faculty">${icon("mail")}</a>` : "")}
       <div style="max-width:900px;margin:0 auto"><section class="course-hero"><h1>${esc(code)}</h1><p>${esc(c.title || "")}</p><div class="row">${c.sec ? `<span>${icon("users", "sm")} Section ${esc(c.sec)}</span>` : ""}<span>${icon("calendar", "sm")} ${esc(sem || "")}</span>${f ? `<a href="#/prof?i=${encodeURIComponent(f.init)}" style="color:#fff">${icon("user", "sm")} ${esc(f.name || f.init)}</a>` : ""}</div></section>
       <div class="mt">${ctx.seg([["overview", "Overview"], ["materials", "Materials"], ...(c.past ? [] : [["marks", "Marks"]]), ["attendance", "Attendance"], ["notes", "Notes"]], chTab, "data-cht")}</div><div class="mt">${body}</div></div>`;
@@ -606,7 +606,7 @@ export function install(ctx) {
     const L = levelInfo(), x = stats(), got = new Set(unlocked());
     const shownB = allBadges ? BADGES : BADGES.slice().sort((a, b) => got.has(b[0]) - got.has(a[0])).slice(0, 5);
     const S0 = S(), cg = x.cgpa;
-    return `${ctx.demoBanner()}${ctx.head("Achievements", "Study more. Do more. Be a better you.", "", ctx.art("mascot-thumbs", "Small steps<br>Big progress!"))}
+    return `${ctx.demoBanner()}${ctx.head("Trophy Room", "Study more. Do more. Be a better you.", "", ctx.art("mascot-thumbs", "Small steps<br>Big progress!"))}
       <div class="grid g2"><section class="level-card"><div class="row nowrap"><span class="hex">${icon("star")}</span><div><b style="font-size:24px">Level ${L.n}</b><p style="opacity:.85">${esc(L.name)}</p></div></div>
           <div class="row nowrap" style="margin-top:16px;max-width:70%"><div class="xp"><span style="width:${L.pct}%"></span></div><span class="small num" style="white-space:nowrap">${L.xp - L.lo} / ${L.hi - L.lo} XP</span></div>
           <span class="hex bighex" style="background:linear-gradient(135deg,#a78bfa,#6d28d9)" aria-hidden="true">${icon("crown", "lg")}</span></section>

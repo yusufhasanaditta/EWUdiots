@@ -31,6 +31,9 @@ export function moreApi(sb, me, ok, safeName) {
     addMemberNote: async (clubId, userId, body) => ok(await from("club_member_notes").insert({ club_id: clubId, user_id: userId, body, author: uid() }).select().single()),
     roleTemplate: async () => ok(await from("club_role_template").select("*").order("sort")),
     terms: async (clubId) => ok(await from("club_terms").select("*").eq("club_id", clubId).order("ended_on", { ascending: false })),
+    // Past committees, added or corrected by hand (settings.edit: Club Admin, or a platform club manager).
+    saveTerm: async (row) => ok(row.id ? await from("club_terms").update({ label: row.label, ended_on: row.ended_on, committee: row.committee }).eq("id", row.id).select().single() : await from("club_terms").insert(row).select().single()),
+    deleteTerm: async (id) => ok(await from("club_terms").delete().eq("id", id)),
     handovers: async (clubId) => ok(await from("club_handover").select("*").eq("club_id", clubId).order("created_at", { ascending: false })),
     saveHandover: async (row) => ok(row.id ? await from("club_handover").update({ ...row, updated_at: new Date().toISOString() }).eq("id", row.id).select().single() : await from("club_handover").insert({ ...row, created_by: uid() }).select().single()),
 

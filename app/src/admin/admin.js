@@ -5,6 +5,7 @@ import "../styles.css";
 import "../fx.css";
 import "../mobile.css";
 import "../v212.css";
+import "../v216.css";
 import { start as startDropdowns } from "../dropdown.js";
 import "./admin.css";
 import * as cloud from "../cloud.js";
@@ -27,7 +28,7 @@ const ALL_SECTIONS = [
   ["posts", "Posts & announcements", "megaphone", "Content", "posts.write"], ["feed", "News & notices feed", "globe", "Content", "news.edit"], ["website", "Website & theme", "layers", "Content", "site.edit"],
   ["media", "Media library", "image", "Content", "media.write"], ["messages", "Messages to users", "mail", "Content", "messages.send"], ["banner", "Home banner", "bell", "Content", "site.edit"], ["features", "Features & maintenance", "sliders", "Content", "features.edit"],
   ["users", "Users", "user", "People", "users.view"], ["alumni", "Alumni waiting", "community", "People", "alumni.review"], ["alumdb", "All alumni & import", "cap", "People", "alumni.review"], ["faculty", "Faculty listings", "users", "People", "faculty.edit"],
-  ["events", "Events", "calendar", "Community", "events.review"], ["clubs", "Clubs", "community", "Community", "clubs.verify"], ["feedback", "Feedback inbox", "help", "Community", "feedback.handle"], ["reports", "Reports", "flag", "Community", "reports.handle"], ["rooms", "Campus rooms", "map", "Campus", "rooms.edit"],
+  ["events", "Events", "calendar", "Community", "events.review"], ["clubs", "Clubs", "community", "Community", "clubs.verify"], ["feedback", "Feedback inbox", "help", "Community", "feedback.handle"], ["library", "Study Library", "books", "Community", "reports.handle"], ["reports", "Reports", "flag", "Community", "reports.handle"], ["rooms", "Campus rooms", "map", "Campus", "rooms.edit"],
   ["security", "Security centre", "lock", "System", "security.view"], ["jobs", "Scheduled jobs", "zap", "System", "jobs.run"], ["history", "Change history", "clock", "System"],
   ["roles", "Roles & permissions", "shield", "System"], ["admins", "Admins", "crown", "System"], ["activity", "Activity log", "list", "System"]
 ];
@@ -155,6 +156,23 @@ async function draw() {
 const redraw = () => { draw(); refreshBadges(); };
 
 /* ── sections ── */
+/* Users at a glance (Users section): sign-ups per week, who is active, roles and student verification. Plain SVG,
+   one series per chart, values on the bars, a table under each for exact numbers. */
+function userCharts(rows) {
+  const now = Date.now(), DAY = 864e5, W = innerWidth < 600 ? 360 : 620;
+  const weeks = [...Array(12)].map((_, i) => { const end = now - (11 - i) * 7 * DAY, start = end - 7 * DAY; return { k: new Date(end).toLocaleDateString("en-GB", { day: "numeric", month: "short" }), v: rows.filter((u) => { const t = new Date(u.created_at).getTime(); return t > start && t <= end; }).length }; });
+  const active = (d) => rows.filter((u) => u.last_sign_in_at && now - new Date(u.last_sign_in_at) < d * DAY).length;
+  const roles = ["student", "alumni", "faculty", "admin", ""].map((r) => ({ k: r || "no role", v: rows.filter((u) => (u.role || "") === r).length })).filter((x) => x.v);
+  const students = rows.filter((u) => u.role === "student"), verified = students.filter((u) => u.card_verified).length, vp = students.length ? Math.round((100 * verified) / students.length) : 0;
+  const max = Math.max(1, ...weeks.map((w) => w.v)), H = 160, B = 26, T = 16, bw = (W - 20) / weeks.length;
+  const bars = `<div class="viz"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="New accounts per week, last 12 weeks"><line class="base" x1="10" x2="${W - 10}" y1="${H - B}" y2="${H - B}"/>
+    ${weeks.map((w, i) => { const h = ((H - B - T) * w.v) / max, x = 10 + i * bw + bw * 0.2; return `<rect class="bar" x="${x}" y="${H - B - h}" width="${bw * 0.6}" height="${h}" rx="3"><title>${w.k}: ${w.v}</title></rect>${w.v ? `<text class="dl" x="${x + bw * 0.3}" y="${H - B - h - 4}" text-anchor="middle" style="font-size:11px">${w.v}</text>` : ""}${i % 2 === 1 ? `<text class="ax" x="${x + bw * 0.3}" y="${H - 8}" text-anchor="middle" style="font-size:10.5px">${w.k}</text>` : ""}`; }).join("")}</svg></div>`;
+  const rmax = Math.max(1, ...roles.map((r) => r.v));
+  return `<section class="u-insights mt"><div class="kpis">${[["users", "purple", rows.length, "Accounts"], ["zap", "green", active(7), "Active this week"], ["clock", "blue", active(30), "Active in 30 days"], ["checkc", vp >= 50 ? "green" : "orange", `${vp}%`, "Students verified"]].map(([i, t, v, l], k) => `<div class="kpi fx-rise" style="--i:${k}"><span class="itile ${t}">${icon(i)}</span><b>${v}</b><span>${l}</span></div>`).join("")}</div>
+    <div class="grid g2 mt"><section class="card"><h3>New accounts per week</h3>${bars}<details class="viz-table"><summary>Show as a table</summary><table><tbody>${weeks.map((w) => `<tr><td>Week to ${w.k}</td><td>${w.v}</td></tr>`).join("")}</tbody></table></details></section>
+      <section class="card"><h3>Accounts by role</h3><div class="stack mt-s" style="gap:10px">${roles.map((r) => `<div><div class="row between small"><b style="text-transform:capitalize">${esc(r.k)}</b><span class="num">${r.v}</span></div><div class="u-bar"><i style="width:${(100 * r.v) / rmax}%"></i></div></div>`).join("")}</div>
+        <h3 class="mt">Student verification</h3><div class="u-bar big"><i style="width:${vp}%"></i></div><p class="xs mt-s">${verified} of ${students.length} students verified with their ID card.</p></section></div></section>`;
+}
 const VIEWS = {
   async overview(el) {
     const [posts, pending, reports, hidden, rooms, admins, log] = await Promise.all([api.count("posts", { published: true }), api.count("alumni_profiles", { status: "pending" }), api.count("reports"), api.count("faculty_overrides", { hidden: true }), api.count("campus_rooms"), api.count("admins"), api.list("admin_log", { limit: 8 })]);
@@ -223,9 +241,10 @@ const VIEWS = {
         <div class="grid g2"><label class="field">Colour<select class="select" name="tone">${[["purple", "Purple (news)"], ["green", "Green (good news)"], ["amber", "Amber (heads-up)"], ["red", "Red (urgent)"]].map(([v, l]) => `<option value="${v}" ${b.tone === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
           <label class="field">Button text<input class="input" name="cta" maxlength="24" value="${esc(b.cta || "")}" placeholder="Open"></label></div>
         <label class="field">Button link (app page like #/news, or https://…)<input class="input" name="link" value="${esc(b.link || "")}" pattern="(#/.*|https://.+)?"></label>
+        <label class="field">Picture (optional, https)<input class="input" name="image" type="url" pattern="https://.+" value="${esc(b.image || "")}" placeholder="Upload a photo or paste a link"></label>
         <button class="btn primary">${icon("check")} Publish banner</button></form>
       <div><p class="small strong">Preview</p><div class="alert ${esc(b.tone || "purple")} mt-s" id="bn-prev"></div></div></div>`;
-    const form = $("#bn", el), prev = () => { const f = Object.fromEntries(new FormData(form)); const p = $("#bn-prev", el); p.className = `alert ${f.tone} mt-s`; p.innerHTML = `<span class="a-ic">${icon(f.tone === "red" ? "alert" : "megaphone")}</span><div class="grow"><b>${esc(f.title || "From the EWUdiots team")}</b><p>${esc(f.text || "Your message")}</p></div>${f.link ? `<span class="btn sm">${esc(f.cta || "Open")}</span>` : ""}`; };
+    const form = $("#bn", el), prev = () => { const f = Object.fromEntries(new FormData(form)); const p = $("#bn-prev", el); p.className = `alert ${f.tone} mt-s`; p.innerHTML = `${String(f.image || "").startsWith("https://") ? `<img class="bn-img" src="${esc(f.image)}" alt="">` : ""}<span class="a-ic">${icon(f.tone === "red" ? "alert" : "megaphone")}</span><div class="grow"><b>${esc(f.title || "From the EWUdiots team")}</b><p>${esc(f.text || "Your message")}</p></div>${f.link ? `<span class="btn sm">${esc(f.cta || "Open")}</span>` : ""}`; };
     form.addEventListener("input", prev); prev();
     form.addEventListener("submit", async (e) => { e.preventDefault(); const btn = form.querySelector("button.primary"); busy(btn, true);
       try { const f = Object.fromEntries(new FormData(form)); await act("Updated home banner", f.title || f.text, () => api.upsert("site_settings", { key: "banner", value: { ...f, on: $("#bn-on", el).checked }, updated_at: new Date().toISOString() })); toast("Banner published", "success", "Students see it on their next refresh."); }
@@ -300,6 +319,29 @@ const VIEWS = {
     }
   },
 
+  /* Study Library: everything students shared (files and links). Moderators verify good material (a badge everyone
+     sees), hide it, or remove it for good. */
+  async library(el) {
+    const rows = await api.list("resources", { limit: 400 }), f = el.dataset.f || "new";
+    const shown = rows.filter((r) => (f === "new" ? !r.verified && r.status === "published" : f === "verified" ? r.verified : f === "hidden" ? r.status === "hidden" : true));
+    const n = { new: rows.filter((r) => !r.verified && r.status === "published").length, verified: rows.filter((r) => r.verified).length, hidden: rows.filter((r) => r.status === "hidden").length };
+    el.innerHTML = `<div class="kpis">${[["books", "purple", rows.length, "Items shared"], ["clock", n.new ? "orange" : "green", n.new, "Waiting for review"], ["checkc", "green", n.verified, "Verified"], ["eye", "red", n.hidden, "Hidden"]].map(([i, t, v, l], k) => `<div class="kpi fx-rise" style="--i:${k}"><span class="itile ${t}">${icon(i)}</span><b>${v}</b><span>${l}</span></div>`).join("")}</div>
+      <div class="seg mt">${[["new", `To review (${n.new})`], ["verified", "Verified"], ["hidden", "Hidden"], ["all", "All"]].map(([v, l]) => `<button data-lf="${v}" aria-pressed="${f === v}">${l}</button>`).join("")}</div>
+      <input class="input mt" id="lq" type="search" placeholder="Search course, title or uploader">
+      <section class="card tight mt">${shown.length ? shown.map((r) => `<div class="lrow top" data-lrow="${esc(`${r.course} ${r.title} ${r.uploader_name || ""}`.toLowerCase())}"><span class="itile sm ${r.verified ? "green" : r.status === "hidden" ? "red" : "orange"}">${icon(r.link ? "link" : "file")}</span>
+        <span class="body"><b>${esc(r.course)} · ${esc(r.title)}${r.verified ? ` <span class="pill green">${icon("checkc", "sm")} Verified</span>` : ""}${r.visibility === "private" ? ' <span class="pill">Only uploader</span>' : ""}</b><span>${esc(r.type)}${r.faculty ? ` · ${esc(r.faculty)}` : ""}${r.uploader_name ? ` · by ${esc(r.uploader_name)}` : ""} · ${ago(r.created_at)}</span></span>
+        <span class="row" style="gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn sm ghost" data-lopen="${r.id}">${icon("external", "sm")} Open</button>
+          <button class="btn sm ${r.verified ? "neutral" : "primary"}" data-lver="${r.id}">${icon("checkc", "sm")} ${r.verified ? "Unverify" : "Verify"}</button>
+          <button class="btn sm ${r.status === "hidden" ? "" : "danger-soft"}" data-lhide="${r.id}">${r.status === "hidden" ? "Restore" : "Hide"}</button><button class="btn sm danger" data-lpurge="${r.id}" aria-label="Remove for good">${icon("trash", "sm")}</button></span></div>`).join("") : '<p class="small muted">Nothing here.</p>'}</section>`;
+    $$("[data-lf]", el).forEach((b) => b.addEventListener("click", () => { el.dataset.f = b.dataset.lf; VIEWS.library(el); }));
+    $("#lq", el).addEventListener("input", (e) => { const q = e.target.value.toLowerCase(); $$("[data-lrow]", el).forEach((r) => { r.hidden = q && !r.dataset.lrow.includes(q); }); });
+    const row = (id) => rows.find((r) => r.id === id), again = () => VIEWS.library(el);
+    const run = (attr, fn) => $$(`[data-${attr}]`, el).forEach((b) => b.addEventListener("click", async () => { try { await fn(row(b.dataset[attr])); again(); } catch (e) { toast(e.message, "error"); } }));
+    run("lver", (r) => act(r.verified ? "Unverified study material" : "Verified study material", `${r.course} ${r.title}`, () => api.update("resources", { id: r.id }, { verified: !r.verified })));
+    run("lhide", (r) => act(r.status === "hidden" ? "Restored study material" : "Hid study material", `${r.course} ${r.title}`, () => api.update("resources", { id: r.id }, { status: r.status === "hidden" ? "published" : "hidden" })));
+    run("lpurge", async (r) => { if (!confirm(`Remove "${r.title}" for good? It can't be restored.`)) return; await act("Removed study material", `${r.course} ${r.title}`, () => api.purgeResource(r.id)); });
+    $$("[data-lopen]", el).forEach((b) => b.addEventListener("click", async () => { const r = row(b.dataset.lopen); try { window.open(r.link || (await cloud.downloadUrl(r.file_path)), "_blank", "noopener"); } catch (e) { toast(e.message, "error"); } }));
+  },
   async reports(el) {
     const reps = await api.list("reports");
     const groups = new Map(); reps.forEach((r) => { const k = `${r.target_type}:${r.target_id}`; groups.set(k, [...(groups.get(k) || []), r]); });
@@ -364,6 +406,7 @@ const VIEWS = {
     const pick = (r) => (u) => r === "all" || (r === "suspended" ? u.suspended : r === "unverified" ? u.role === "student" && !u.card_verified : u.role === r);
     const shown = rows.filter(pick(role)), count = (r) => rows.filter(pick(r)).length;
     el.innerHTML = `<div class="row nowrap"><form class="searchbar grow" id="uq">${icon("search")}<input class="input" name="q" type="search" value="${esc(q)}" placeholder="Search email or name"></form><button class="btn outline" id="u-csv">${icon("download")} CSV</button></div>
+      ${!q ? userCharts(rows) : ""}
       <div class="seg mt-s">${[["all", "All"], ["student", "Students"], ["unverified", "Students not verified"], ["alumni", "Alumni"], ["faculty", "Faculty"], ["suspended", "Suspended"]].map(([v, l]) => `<button data-role="${v}" aria-selected="${role === v}">${l} (${count(v)})</button>`).join("")}</div>
       <section class="card mt tight">${shown.length ? shown.map((u) => `<div class="lrow"><span class="avatar sm">${esc((u.name || u.email).slice(0, 2).toUpperCase())}</span>
         <span class="body"><b>${esc(u.name || u.email)}</b><span>${esc(u.email)} · joined ${ago(u.created_at)} · ${u.last_sign_in_at ? `seen ${ago(u.last_sign_in_at)}` : "never signed in"}</span></span>
@@ -548,6 +591,30 @@ async function exportAll() {
 }
 
 startDropdowns();
+/* "Upload photo" next to every image field (banner, events, posts, alumni, …): pick a photo from the phone or computer,
+   it goes to the media library (public "media" bucket) and its address fills the field. */
+function photoButtons(scope = document) {
+  $$('input[name="image"], input[name="image_url"], input[name="photo"], input[name="photo_url"], input[name="cover"], input[name="cover_url"], input[data-photo]', scope).forEach((inp) => {
+    if (inp.dataset.up) return; inp.dataset.up = "1";
+    const b = document.createElement("button"); b.type = "button"; b.className = "btn outline up-photo"; b.innerHTML = `${icon("upload", "sm")} Upload photo`;
+    const file = Object.assign(document.createElement("input"), { type: "file", accept: "image/*", hidden: true });
+    const wrap = inp.closest("label") || inp; wrap.after(b, file);
+    b.addEventListener("click", () => file.click());
+    file.addEventListener("change", async () => {
+      const f = file.files[0]; if (!f) return;
+      if (!/^image\//.test(f.type)) return toast("Choose an image file", "error");
+      if (f.size > 8 * 1048576) return toast("That photo is over 8 MB", "error");
+      busy(b, true, "Uploading…");
+      try {
+        const url = await api.upload(`uploads/${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}-${f.name.replace(/[^\w.-]+/g, "_").slice(-60)}`, f);
+        inp.value = url; inp.dispatchEvent(new Event("input", { bubbles: true })); inp.dispatchEvent(new Event("change", { bubbles: true }));
+        toast("Photo uploaded", "success");
+      } catch (e) { toast("Upload failed", "error", e.message); }
+      busy(b, false); file.value = "";
+    });
+  });
+}
+new MutationObserver(() => photoButtons()).observe(document.body, { childList: true, subtree: true });
 /* ── boot ── */
 (async () => {
   // Demo sandbox for the end-to-end tests only (vite --mode test); production builds drop it.

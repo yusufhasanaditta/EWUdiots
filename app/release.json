@@ -1,11 +1,12 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Event tickets: get a free ticket or buy one (bKash, Nagad, Rocket or cash at the door) and show its QR code",
-    "My Tickets: all your event passes in one place, with the code and payment status",
-    "Ticket checking: clubs can name any member as a checker; a scan shows valid, used, unpaid or wrong event",
-    "EWUdiots Club redesigned: home, workspace, feed, events, members, messages, meetings, polls and more",
-    "Event pages with posters, seats left, ticket types and a smoother registration"
+    "Club Town Hall: every member gets their own panel for their position",
+    "Club admins and the app admin can add and edit past committees",
+    "Messages now pop up as phone notifications",
+    "Event tickets you can tilt like a real 3D card",
+    "Easier reading on phones, and a bottom bar that stays put",
+    "Study Library: shared notes get a Verified badge from the team"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

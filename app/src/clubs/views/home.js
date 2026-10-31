@@ -75,7 +75,7 @@ export function register(pages, kit) {
     const ce = store.use("clubs:all", api.listClubs, { ttl: 5 * 60e3 });
     const evE = store.use("club:upcoming", api.upcomingClubEvents, { ttl: 60e3 });
     const recruiting = (ce.value || []).filter((c) => c.recruiting && c.status === "active");
-    return `<section class="cl-banner"><span class="cl-eyebrow">${icon("sparkle", "sm")} EWUdiots Club</span><h2>Find Your Community At EWU</h2><p style="opacity:.9;max-width:420px">${ui.plural((ce.value || []).length || 23, "club")} at East West University. Follow them, register for events and apply to join, all in one place.</p>
+    return `<section class="cl-banner"><span class="cl-eyebrow">${icon("sparkle", "sm")} Club Town Hall</span><h2>Find Your Community At EWU</h2><p style="opacity:.9;max-width:420px">${ui.plural((ce.value || []).length || 23, "club")} at East West University. Follow them, register for events and apply to join, all in one place.</p>
         <a class="btn white" href="#/club/explore">Explore Clubs ${icon("arrow", "sm")}</a></section>
       ${!kit.me() ? `<div class="alert purple mt"><span class="a-ic">${icon("user")}</span><div class="grow"><b>Sign in to join clubs</b><p>Your club admin can then add you, and your workspace opens automatically.</p></div><a class="btn sm primary" href="#/login?from=profile">Sign in</a></div>` : ""}
       <div class="cl-tiles c6 mt">${[["community", "purple", "All Clubs", "#/club/explore"], ["cap", "blue", "Academic", "#/club/explore?cat=science"], ["star", "pink", "Cultural", "#/club/explore?cat=arts"],
