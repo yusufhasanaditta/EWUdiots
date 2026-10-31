@@ -1,14 +1,11 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "EWUdiots Club, redesigned: a club home with your clubs, schedule, tasks and messages",
-    "Club chat: channels for members, executives and teams, plus direct messages (live)",
-    "Meetings with agendas and minutes, project boards, a resource library, polls and full committee elections",
-    "Positions: club admins make members President, Secretary, Treasurer, Executive Member, Merch Manager…",
-    "Club merch store: order, pay the club by bKash/Nagad/Rocket or cash, collect with a QR code",
-    "Event pages with check-in scanner, recruitment scoring, finance & budgets, club analytics",
-    "Sponsors, club collaborations, notification centre, help centre and privacy controls",
-    "Club pages now show information from EWU's club site (about, faculty moderators, past news)"
+    "Event tickets: get a free ticket or buy one (bKash, Nagad, Rocket or cash at the door) and show its QR code",
+    "My Tickets: all your event passes in one place, with the code and payment status",
+    "Ticket checking: clubs can name any member as a checker; a scan shows valid, used, unpaid or wrong event",
+    "EWUdiots Club redesigned: home, workspace, feed, events, members, messages, meetings, polls and more",
+    "Event pages with posters, seats left, ticket types and a smoother registration"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

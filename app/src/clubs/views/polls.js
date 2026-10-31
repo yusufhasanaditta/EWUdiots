@@ -22,7 +22,7 @@ export function phase(e, now = Date.now()) {
 /** @param {Record<string, any>} pages @param {any} kit */
 export function register(pages, kit) {
   const { ui, icon, esc, api, store, ctx } = kit;
-  let tab = "active", cat = "", club = "";
+  let tab = "all", cat = "", club = "", oldest = false;
   const pollState = (p) => (p.closed || (p.closes_at && new Date(p.closes_at) < Date.now()) ? "closed" : p.starts_at && new Date(p.starts_at) > Date.now() ? "upcoming" : "active");
   const left = (d) => { const ms = new Date(d) - Date.now(), days = Math.ceil(ms / 864e5); return ms <= 0 ? "Ended" : days > 1 ? `${days} days` : `${Math.max(1, Math.ceil(ms / 36e5))} hours`; };
 
@@ -39,16 +39,18 @@ export function register(pages, kit) {
       ${ui.seg([["polls", "Polls"], ["elections", "Elections"]], "polls", (v) => (v === "elections" ? "#/club/elections" : "#/club/polls"), "sm")}
       ${ui.view(pe, (rows) => {
         const n = (s) => rows.filter((p) => pollState(p) === s).length;
-        const list = rows.filter((p) => pollState(p) === tab && (!cat || p.category === cat) && (!club || p.club_id === club));
+        const list = rows.filter((p) => (tab === "all" || pollState(p) === tab) && (!cat || p.category === cat) && (!club || p.club_id === club)).sort((a, b) => (oldest ? 1 : -1) * (new Date(a.created_at) - new Date(b.created_at)));
         const voted = new Set(ve.value || []);
-        return `<nav class="cl-seg">${[["active", "Active", n("active")], ["upcoming", "Upcoming", n("upcoming")], ["closed", "Closed", n("closed")]].map(([v, l, c]) => `<button data-tab="${v}" aria-pressed="${tab === v}">${l} <span class="n">${c}</span></button>`).join("")}</nav>
-          <div class="row" style="gap:8px;margin-bottom:12px">${ui.select("cat", [["", "All types"], ...Object.entries(CATS).map(([k, v]) => [k, v[0]])], cat, 'id="pl-cat" style="width:auto"')}
-            ${mine.length > 1 ? ui.select("club", [["", "All clubs"], ...mine.map((m) => [m.club_id, m.short_name || m.name])], club, 'id="pl-club" style="width:auto"') : ""}</div>
+        return `<nav class="cl-seg">${[["all", "All"], ["active", `Active (${n("active")})`], ["upcoming", `Upcoming (${n("upcoming")})`], ["closed", `Closed (${n("closed")})`]].map(([v, l]) => `<button data-tab="${v}" aria-pressed="${tab === v}">${l}</button>`).join("")}</nav>
+          <div class="cl-filters">${ui.select("cat", [["", "All Types"], ...Object.entries(CATS).map(([k, v]) => [k, v[0]])], cat, 'id="pl-cat" aria-label="Type"')}
+            ${ui.select("club", [["", "All Clubs"], ...mine.map((m) => [m.club_id, m.short_name || m.name])], club, 'id="pl-club" aria-label="Club"')}
+            <button class="btn outline sm push" id="pl-sort">${icon("sliders", "sm")} ${oldest ? "Oldest First" : "Latest First"}</button></div>
           ${list.length ? `<div class="cl-list">${list.map((p) => { const st = pollState(p), m = counts[p.club_id]?.members || 0, v = p._voters;
-            return `<a class="cl-li" href="#/club/poll?id=${p.id}"><span class="itile ${CATS[p.category]?.[1] || "blue"}">${icon(p.kind === "election" ? "ballot" : p.category === "event" ? "calendar" : p.category === "executive" ? "users" : "bars")}</span>
+            return `<a class="cl-li cl-pollrow" href="#/club/poll?id=${p.id}"><span class="itile ${CATS[p.category]?.[1] || "blue"}">${icon(p.kind === "election" ? "ballot" : p.category === "event" ? "calendar" : p.category === "executive" ? "users" : "bars")}</span>
               <span class="body"><span class="row" style="gap:6px">${ui.st(st === "active" ? ["Active", "green"] : st === "upcoming" ? ["Upcoming", "amber"] : ["Closed", "gray"])}${ui.st(CATS[p.category])}${voted.has(p.id) ? ui.st(["You voted", "purple"], "check") : ""}</span>
-                <b style="margin-top:4px">${esc(p.title)}</b><span>${esc(p.description || p.clubs?.short_name || "")}</span></span>
-              <span class="end">${st === "active" && p.closes_at ? `Ends in ${left(p.closes_at)}` : st === "upcoming" ? `Starts ${ui.dateShort(p.starts_at)}` : p.closes_at ? `Ended ${ui.dateShort(p.closes_at)}` : ""}${v != null && m ? `<br>${Math.round((v / m) * 100)}% voted` : ""}</span></a>`; }).join("")}</div>`
+                <b style="margin-top:4px">${esc(p.title)}</b><span class="clamp2">${esc(p.description || p.clubs?.short_name || "")}</span>
+                <span class="meta">${icon("bars", "sm")} ${ui.plural(v || 0, "vote")}${v != null && m ? ` · ${icon("users", "sm")} ${Math.min(100, Math.round((v / m) * 100))}% participation` : ""}</span></span>
+              <span class="when">${icon("clock", "sm")} ${st === "active" && p.closes_at ? `Ends in ${left(p.closes_at)}` : st === "upcoming" ? `Starts ${ui.dateShort(p.starts_at)}` : p.closes_at ? `Ended ${ui.dateShort(p.closes_at)}` : "Open"}</span>${icon("chevR", "sm")}</a>`; }).join("")}</div>`
             : ui.emptyBox("bars", "No polls here", creators.length ? "Ask your members something with Create Poll." : "Polls from your clubs appear here.")}`;
       }, { n: 4, h: 80 })}`;
   };
@@ -57,6 +59,7 @@ export function register(pages, kit) {
     kit.$$("[data-tab]", el).forEach((b) => b.addEventListener("click", () => { tab = b.dataset.tab; ctx.rerender(); }));
     kit.$("#pl-cat", el)?.addEventListener("change", (e) => { cat = e.target.value; ctx.rerender(); });
     kit.$("#pl-club", el)?.addEventListener("change", (e) => { club = e.target.value; ctx.rerender(); });
+    kit.$("#pl-sort", el)?.addEventListener("click", () => { oldest = !oldest; ctx.rerender(); });
     kit.$("#pl-new", el)?.addEventListener("click", () => newPoll(kit.param("c")));
     if (kit.param("new")) { const c = kit.param("c"); history.replaceState(null, "", "#/club/polls"); newPoll(c); }
   };

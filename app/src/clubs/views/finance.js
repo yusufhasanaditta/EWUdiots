@@ -21,7 +21,7 @@ export function register(pages, kit) {
     const old = (r) => new Date(r.on_date) < Date.now() - 30 * 864e5;
     return `${kit.back(`#/club/space?c=${c}`, kit.membership(c)?.short_name || "Club")}
       ${ui.ph("Finance & Budget", "Manage club finances, event budgets, expenses and sponsorships with transparency.", can ? `<button class="btn primary" id="fn-add">${icon("plus")} Add Record</button>` : "")}
-      <div class="cl-stats">${ui.stat("wallet", "green", ui.money(inc - exp), "Total balance")}${ui.stat("up", "blue", ui.money(inc), "Total income", { d: charts.delta(inc, sum("income", old)) })}
+      <div class="cl-stats v">${ui.stat("wallet", "green", ui.money(inc - exp), "Total balance")}${ui.stat("up", "blue", ui.money(inc), "Total income", { d: charts.delta(inc, sum("income", old)) })}
         ${ui.stat("download", "red", ui.money(exp), "Total expenses", { d: charts.delta(exp, sum("expense", old)) })}${ui.stat("chart", "purple", ui.money(Math.max(0, inc - exp)), "Available")}</div>
       ${ui.seg([["overview", "Overview"], ["transactions", "Transactions"], ["budgets", "Budgets"], ["sponsorships", "Sponsorships"], ["reports", "Reports"]], t, (v) => `#/club/finance?c=${c}&tab=${v}`)}
       ${fe.loading && !fe.value ? ui.skeleton(4, 70) : t === "transactions" ? txList(rows, can) : t === "budgets" ? budgets(c, rows, can) : t === "sponsorships" ? txList(rows.filter((r) => r.category === "Sponsorship"), can, "No sponsorship income yet. Confirmed sponsorships marked as received appear here.")
@@ -37,7 +37,7 @@ export function register(pages, kit) {
     return rows.length ? `<div class="cl-list">${rows.map((r) => `<div class="cl-li"><span class="itile ${r.kind === "income" ? "green" : "red"}">${icon(ICON[r.category] || "wallet")}</span>
       <span class="body"><b>${esc(r.note || r.category)}</b><span>${ui.dateLong(r.on_date)}</span></span>
       <span class="end"><b style="color:${r.kind === "income" ? "var(--success-t)" : "var(--error-t)"}">${r.kind === "income" ? "+" : "−"} ${ui.money(r.amount)}</b>${ui.st([r.category, r.kind === "income" ? "green" : "red"])}</span>
-      ${r.receipt_path ? `<button class="icon-btn" data-rc="${r.id}" aria-label="Receipt">${icon("receipt")}</button>` : ""}${can ? `<button class="icon-btn" data-del="${r.id}" aria-label="Delete">${icon("trash")}</button>` : ""}</div>`).join("")}</div>` : `<p class="small muted">${empty}</p>`;
+      ${r.receipt_path ? `<button class="cl-more" data-rc="${r.id}" aria-label="Receipt">${icon("receipt")}</button>` : ""}${can ? `<button class="cl-more" data-del="${r.id}" aria-label="Delete record">${icon("trash")}</button>` : ""}</div>`).join("")}</div>` : `<p class="small muted">${empty}</p>`;
   }
   function budgets(c, rows, can) {
     const be = store.use(`club:budgets:${c}`, () => api.budgets(c), { ttl: 60e3 });

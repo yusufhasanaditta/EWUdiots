@@ -38,12 +38,14 @@ supabase/migrations/0018_club_platform.sql    positions, features, chat, notific
 supabase/migrations/0019_club_store_partners.sql  merch store, orders, returns/refunds, sponsors, collaborations
 supabase/migrations/0020…0023                 fixes found by the checks (order status params, ticket quota,
                                               archived posts on unclaimed clubs, default rubric, event budgets)
+supabase/migrations/0024_club_tickets.sql      v2.15 event tickets: ticket types, payments, door scans, ticket checkers
 app/src/clubs/
   index.js        install(ctx): routes, club-mode header/nav, + menu, live notification count, invite claiming
   api.js          v2.13 calls · api-more.js the v2.14 calls (merged into one api object; views never call Supabase)
   store.js        cache: use(key, loader) → { loading | value | error }; invalidate(); refresh(key, loader)
   perms.js        permission keys, DEFAULT_ROLES, FEATURES, has/canManage/assignableRoles     ← unit-tested vs SQL
   orders.js       order statuses and allowed moves (= public.order_next_ok), stock keys       ← unit-tested
+  tickets.js      ticket QR text, scan results, holder status, organiser setup cleaning       ← unit-tested
   cart.js         device cart grouped by club                                                   ← unit-tested
   kanban.js       task board moves · ics.js calendar files · charts.js SVG charts               ← unit-tested
   scan.js         camera QR scanner (BarcodeDetector) for check-in and pickups
@@ -54,10 +56,12 @@ app/src/clubs/
                   (My clubs, Me), space (workspace), messages, notifications, members (+ committee/handover),
                   meetings, projects, resources, polls (+ elections), recruit, finance, analytics, shop (store,
                   cart, checkout, orders), merch (manager), sponsors, collab, help, privacy, more, platform (App
-                  Admin), manage (+ manage-content/forms/ops) — the club console
+                  Admin), tickets (My Tickets, ticket pass, Scan Tickets, the Get ticket sheet), manage (+
+                  manage-content/forms/ops) — the club console
 app/scripts/import-ewu-clubs.mjs    reads the EWU club site from the Internet Archive → public/data/clubs-ewu.json
 app/scripts/seed-ewu-clubs.mjs      puts that into the database (logos re-hosted, only empty fields filled)
 app/scripts/sql.mjs                 run SQL / --dry / --apply a migration on the live project
+app/scripts/club-shots.mjs          design check: throwaway club with sample data → phone screenshots in app/.shots/design
 ```
 
 Rule: **the database decides.** The app uses `perms.js` only to choose what to show. Every rule that matters is
@@ -95,6 +99,17 @@ archived pages.
   completed, and processing needs a verified payment unless the order is paid in cash. The pickup QR is
   `ewud:o:<random token>`, and scanning it completes the order. Returns are approved by order managers. Refunds
   need `refunds.approve` (Treasurer and above) and are booked as finance expenses.
+- **Event tickets:** an event either sells or gives out tickets itself (`events.ticketing`: up to 6 ticket types
+  with price and seats, payment methods, payment numbers, sales end, who scans, door cash), or takes registrations
+  through its form, which issue a ticket each (trigger `form_ticket_sync`). Every ticket is a `club_tickets` row with
+  an 8-character code and a 64-character random token; the QR is `ewud:t:<token>`. `get_ticket` checks seats under
+  an advisory lock, one ticket per person per event, and the TrxID (unique per club). Organisers (`events.manage` or
+  `payments.verify`) confirm payments; confirmed ticket money is booked as finance income. Who may scan: the door
+  team (`events.checkin`, `events.manage`, `attendance.take`), members an organiser names as ticket checkers
+  (`club_event_staff`), or every active member when the event says so. `scan_ticket` never raises for a bad
+  ticket: it answers admitted / valid / used / invalid / wrong_event / unpaid / cancelled / waitlisted, can take cash at
+  the door, and logs every scan in `club_ticket_scans` (400 scans per 10 minutes per person). Holders read their own
+  ticket rows (with the token); organisers and checkers only use RPCs that never return tokens.
 - **Sponsors:** sponsors that clubs add wait for team approval. A deal marked received becomes sponsorship income.
   Sponsor pages never show amounts.
 - **Notifications:** `club_notifications` is written by triggers and RPCs (posts, tasks, mentions, DMs, meetings,
@@ -113,8 +128,8 @@ archived pages.
 | Command | What it checks |
 |---|---|
 | `npm test` | unit tests: perms ↔ SQL template, order moves ↔ `order_next_ok`, cart, board, calendar file, charts, forms, check-in codes |
-| `npm run test:clubs-rls` | 106 security checks played as admin, President, Executive Member, Merch Manager, member and outsider (chat, DMs, features, positions, store, refunds, pickup, elections, sponsors, tickets), in one transaction that is **rolled back** |
-| `npm run test:clubs` | 84-step run in Chrome against the live backend, with throwaway accounts and a throwaway club, all deleted afterwards. It covers: invite → join; form → accept; attendance; poll; certificates; Treasurer position; live chat between two browsers; merch order → TrxID → verify → ready → QR pickup; a tour of every screen; App Admin; feature lock. Screenshots go to `app/.shots/clubs` |
+| `npm run test:clubs-rls` | 134 security checks played as admin, President, Executive Member, Merch Manager, member and outsider (chat, DMs, features, positions, store, refunds, pickup, elections, sponsors, support tickets, event tickets and door scans), in one transaction that is **rolled back** |
+| `npm run test:clubs` | 96-step run in Chrome against the live backend, with throwaway accounts and a throwaway club, all deleted afterwards. It covers: invite → join; form → accept; attendance; poll; certificates; Treasurer position; live chat between two browsers; merch order → TrxID → verify → ready → QR pickup; event ticket → ticket checker named → door scan (admitted, then "already used"); a tour of every screen; App Admin; feature lock. Screenshots go to `app/.shots/clubs` |
 | `npm run lint` | ESLint |
 
 ## Adding a feature

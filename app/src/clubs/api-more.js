@@ -139,6 +139,26 @@ export function moreApi(sb, me, ok, safeName) {
     eventCheckin: async (id, q) => ok(await rpc("event_checkin", { ev: id, q })),
     notifyRegistrants: async (id, title, body) => ok(await rpc("notify_registrants", { ev: id, t: title, b: body })),
 
+    /** Past events of the given clubs (Events → Completed). */
+    pastClubEvents: async (clubIds) => (clubIds.length ? ok(await from("events").select("*, clubs(slug, name, short_name, logo_url, color)").in("club_id", clubIds).eq("status", "approved").lt("starts_at", new Date().toISOString()).order("starts_at", { ascending: false }).limit(40)) : []),
+
+    /* ── Event tickets (0024) ── */
+    getTicket: async (eventId, tier, method = "", ref = "") => ok(await rpc("get_ticket", { ev: eventId, tier, method, ref })),
+    payTicket: async (id, method, ref) => ok(await rpc("pay_ticket", { t: id, method, ref })),
+    reviewTicketPayment: async (id, good, note = "") => ok(await rpc("review_ticket_payment", { t: id, ok: good, note })),
+    cancelTicket: async (id) => ok(await rpc("cancel_ticket", { t: id })),
+    scanTicket: async (eventId, q, admit = true, collect = false) => ok(await rpc("scan_ticket", { ev: eventId, q, admit, collect })),
+    ticketStats: async (eventId) => ok(await rpc("ticket_stats", { ev: eventId })),
+    eventTickets: async (eventId) => ok(await rpc("event_tickets", { ev: eventId })) || [],
+    recentCheckins: async (eventId) => ok(await rpc("event_recent_checkins", { ev: eventId })) || [],
+    ticketCheckers: async (eventId) => ok(await rpc("ticket_checkers", { ev: eventId })) || [],
+    setTicketChecker: async (eventId, userId, on) => ok(await rpc("set_ticket_checker", { ev: eventId, u: userId, enable: on })),
+    myScanEvents: async () => (uid() ? ok(await rpc("my_scan_events")) || [] : []),
+    myTickets: async () => (uid() ? ok(await rpc("my_tickets")) || [] : []),
+    myEventTicket: async (eventId) => (uid() ? ok(await from("club_tickets").select("id, status, payment, code, tier_name").eq("event_id", eventId).eq("user_id", uid()).neq("status", "cancelled").maybeSingle()) : null),
+    payNumbers: async (eventId) => ok(await rpc("event_pay_numbers", { ev: eventId })) || {},
+    ticketAvailability: async (eventId) => ok(await rpc("ticket_availability", { ev: eventId })),
+
     /* ── Finance extras: event budgets ── */
     budgets: async (clubId) => ok(await from("club_budgets").select("*, events(title, starts_at, venue, image)").eq("club_id", clubId).order("created_at", { ascending: false })),
     saveBudget: async (row) => ok(row.id ? await from("club_budgets").update(row).eq("id", row.id).select().single() : await from("club_budgets").insert({ ...row, created_by: uid() }).select().single()),

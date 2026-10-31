@@ -1,6 +1,8 @@
 /* Post card + reactions + comments, shared by the feed, club profiles and the members' space. */
 
-const KIND = { news: ["megaphone", "News"], announcement: ["bell", "Announcement"], achievement: ["trophy", "Achievement"], recruitment: ["userpen", "Recruiting"] };
+// Kind → [icon, label, tone]; the boards show the kind as a tinted pill at the top right of each post.
+const KIND = { news: ["megaphone", "News", "gray"], announcement: ["bell", "Announcement", "purple"], achievement: ["trophy", "Achievement", "amber"], recruitment: ["userpen", "Recruitment", "green"],
+  event: ["calendar", "Event", "blue"], project: ["kanban", "Project Update", "amber"], gallery: ["image", "Gallery", "pink"] };
 
 /** @param {any} kit */
 export function createPosts(kit) {
@@ -16,23 +18,23 @@ export function createPosts(kit) {
 
   /** @param {any} p a post (with p.clubs joined when shown outside its club) */
   function card(p, { r = {}, c = {} } = {}, { showClub = true } = {}) {
-    const club = p.clubs, [ic, label] = KIND[p.kind] || KIND.news, re = r[p.id] || { n: 0, mine: null };
+    const club = p.clubs, [ic, label, tone] = KIND[p.kind] || KIND.news, re = r[p.id] || { n: 0, mine: null };
     const long = p.body.length > 360;
     return `<article class="card cl-post" data-post="${p.id}">
       <header class="row nowrap" style="gap:10px">
         ${showClub && club ? `<a href="#/club/c?slug=${encodeURIComponent(club.slug)}" class="row nowrap min0" style="gap:10px">${ui.logo(club, "sm")}<span class="min0"><b class="ellipsis" style="display:block">${esc(club.name)}${ui.verified(club)}</b><span class="xs">${ui.ago(p.created_at)}</span></span></a>`
           : `<span class="itile sm purple">${icon(ic)}</span><span class="min0"><b style="display:block">${esc(p.author_name || "Club")}</b><span class="xs">${ui.ago(p.created_at)}</span></span>`}
-        <span class="push row nowrap" style="gap:6px">${p.pinned ? ui.pill(`${icon("pin", "sm")} Pinned`, "purple") : ""}${p.status === "draft" ? ui.pill("Draft", "amber") : ""}${ui.audiencePill(p.visibility, p.wing)}</span></header>
+        <span class="push row nowrap" style="gap:6px">${p.pinned ? ui.pill(`${icon("pin", "sm")} Pinned`, "purple") : ""}${p.status === "draft" ? ui.pill("Draft", "amber") : ""}${p.visibility !== "public" ? `<span class="cl-aud" title="${esc(p.visibility === "exec" ? "Executives only" : "Members only")}">${icon(p.visibility === "exec" ? "lock" : "users", "sm")}</span>` : ""}${ui.st([label, tone])}</span></header>
       <a class="cl-post-body" href="#/club/post?id=${p.id}">
-        <span class="pill cl-kind">${icon(ic, "sm")} ${label}</span>
         <h3>${esc(p.title)}</h3>
         ${p.body ? `<p class="${long ? "clamp" : ""}">${ui.rich(long ? p.body.slice(0, 360) + "…" : p.body)}</p>` : ""}
         ${p.images?.length ? `<div class="cl-imgs n${Math.min(p.images.length, 3)}">${p.images.slice(0, 3).map((u) => `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer">`).join("")}</div>` : ""}</a>
-      ${p.link ? `<a class="btn sm outline" href="${esc(p.link)}" ${p.link.startsWith("https://") ? 'target="_blank" rel="noopener noreferrer"' : ""}>${icon(p.link.startsWith("#/club/form") ? "edit" : "external", "sm")} ${p.link.startsWith("#/club/form") ? "Open the form" : "Open link"}</a>` : ""}
+      ${p.link && !p.event_id ? `<a class="btn sm outline" href="${esc(p.link)}" ${p.link.startsWith("https://") ? 'target="_blank" rel="noopener noreferrer"' : ""}>${icon(p.link.startsWith("#/club/form") ? "edit" : "external", "sm")} ${p.link.startsWith("#/club/form") ? "Open the form" : "Open link"}</a>` : ""}
       <footer class="cl-post-foot">
         <button class="cl-react ${re.mine ? "on" : ""}" data-react="${p.id}" aria-pressed="${!!re.mine}" ${kit.me() ? "" : "disabled"}>${icon("heart", "sm")} <span>${re.n || ""}</span><span class="sr-only">likes</span></button>
         <a class="cl-react" href="#/club/post?id=${p.id}">${icon("notes", "sm")} <span>${c[p.id] || ""}</span><span class="sr-only">comments</span></a>
-        <button class="cl-react push" data-share="${p.id}" aria-label="Share">${icon("share", "sm")}</button></footer></article>`;
+        <button class="cl-react" data-share="${p.id}" aria-label="Share">${icon("share", "sm")}</button>
+        ${p.event_id ? `<a class="btn sm outline push" href="#/club/event?id=${p.event_id}">Register Now</a>` : p.kind === "recruitment" || p.link?.startsWith("#/club/form") ? `<a class="btn sm outline push" href="${esc(p.link || `#/club/post?id=${p.id}`)}">View Details</a>` : `<a class="cl-react push" href="#/club/post?id=${p.id}" aria-label="Open">${icon("bookmark", "sm")}</a>`}</footer></article>`;
   }
 
   /** Wire up like and share buttons inside el. */

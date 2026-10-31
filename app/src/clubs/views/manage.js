@@ -127,7 +127,7 @@ export function register(pages, kit) {
           const count = (store.peek(`club:members:${club.id}`) || store.use(`club:members:${club.id}`, () => api.members(club.id), { ttl: 30e3 }).value || []).reduce((acc, x) => ((acc[x.role_id] = (acc[x.role_id] || 0) + 1), acc), {});
           return kit.head("Positions & permissions", "Give members positions such as President, General Secretary, Treasurer or Executive Member. Each position unlocks its tools. You can only change positions below yours, and only give permissions you have.",
               `<button class="btn primary sm" id="rl-new">${icon("plus", "sm")} Create position</button>`)
-            + ui.view(re, (rows) => `<div class="stack">${[...rows].sort((a, b) => a.rank - b.rank || a.sort - b.sort).map((r) => {
+            + ui.view(re, (rows) => `${hierarchy(rows, count)}${ui.sec("All Positions")}<div class="stack">${[...rows].sort((a, b) => a.rank - b.rank || a.sort - b.sort).map((r) => {
               const locked = r.perms.includes("*") || r.rank <= m.rank;
               return `<details class="card tight cl-rolecard"><summary class="row nowrap" style="gap:10px">${ui.rolePill(r.rank, r.name)}<span class="xs grow">${esc(r.description || "")}${r.description ? " · " : ""}${r.perms.includes("*") ? "Everything" : ui.plural(r.perms.length, "permission")} · ${ui.plural(count[r.id] || 0, "person", "people")}</span>${locked ? icon("lock", "sm") : icon("chevR", "sm")}</summary>
                 ${locked ? `<p class="small muted mt-s">${r.perms.includes("*") ? "This position can do everything in the club." : "You can't change your own position or ones above it."}</p>` : `<form class="stack mt-s" data-role="${r.id}">${ui.field("Name", ui.input("name", r.name, 'maxlength="40" required'))}${ui.field("Description", ui.input("description", r.description || "", 'maxlength="200"'))}
@@ -155,6 +155,15 @@ export function register(pages, kit) {
   }
 
   /** Positions this person may hand out, grouped by seniority (perms.assignableRoles; the database checks again). */
+  // "Roles and Permissions" board: people per level, then the hierarchy as a pyramid (top = most access).
+  function hierarchy(roles, count) {
+    const LEVELS = [[2, "crown", "Club Admin", "Full control over club settings and members", "amber"], [3, "crown", "Officers", "President, Vice President, General Secretary, Treasurer", "pink"],
+      [4, "users", "Executive", "Manage assigned modules and activities", "purple"], [5, "shield", "Moderator", "Moderate content, run the merch store", "blue"],
+      [6, "user", "Senior Member", "Access additional member features", "green"], [7, "users", "General Member", "Basic access to club features", "gray"]];
+    const n = (rank) => roles.filter((r) => r.rank === rank).reduce((s, r) => s + (count[r.id] || 0), 0);
+    return `<div class="cl-rolecounts">${LEVELS.map(([rank, ic, l, , tone]) => `<div class="t-${tone}">${icon(ic)}<span><b>${n(rank)}</b><span>${l}</span></span></div>`).join("")}</div>
+      ${ui.sec("Role Hierarchy")}<div class="cl-pyramid">${LEVELS.map(([rank, ic, l, d, tone], i) => `<div class="lv t-${tone}" style="--i:${i}"><span class="tri">${icon(ic)}</span><span class="lbl">${icon(ic, "sm")}<b>${l}</b><span>${esc(roles.filter((r) => r.rank === rank).map((r) => r.name).join(", ") || d)}</span></span></div>`).join("")}</div>`;
+  }
   function roleSelect(name, club, m, current) {
     const roles = store.use(`club:roles:${club.id}`, () => api.roles(club.id), { ttl: 60e3 }).value || [];
     const list = assignableRoles(m.rank === 1 || kit.isPlatform() ? { rank: 1, perms: ["*"] } : m, roles);

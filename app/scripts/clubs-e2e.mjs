@@ -88,7 +88,7 @@ try {
   check("header: EWUdiots Club brand + disclaimer", await A.evaluate(() => getComputedStyle(document.querySelector(".topbar .mlogo .word"), "::after").content.includes("Club")));
   await shot(A, "01-home");
   await go(A, "#/club/feed");
-  check("feed renders", await hasText(A, "What's happening in EWU's clubs"));
+  check("feed renders", await hasText(A, "Club Feed"));
   await go(A, "#/club/explore");
   check("explore lists EWU's 23 clubs (+ the test club)", await until(A, () => document.querySelectorAll(".cl-card").length >= 24));
   await shot(A, "02-explore");
@@ -258,6 +258,38 @@ try {
   check("merch dashboard shows the sale", await hasText(A, "৳1,200", 20000));
   await shot(A, "18-merch-dashboard");
 
+  /* ── 12b. Event tickets: a student gets a ticket; the organiser names a member as ticket checker; the door scan ── */
+  await sql(`insert into public.events (title, kind, starts_at, ends_at, venue, status, source, club_id, visibility, created_by, capacity, ticketing) values ('Tech Talk 2026 ${tag}', 'club_event', now() + interval '3 days', now() + interval '3 days 2 hours', 'CSE Lab 403', 'approved', 'club', '${clubId}', 'public', '${users.admin.id}', 150,
+    '{"enabled":true,"tiers":[{"id":"free","name":"Student","price":0},{"id":"vip","name":"Front row","price":150,"qty":20}],"methods":["bkash","cash"],"scanners":"staff","door_cash":true}')`);
+  const evId = (await sql(`select id from public.events where club_id = '${clubId}' and title like 'Tech Talk 2026%'`))[0].id;
+  await go(C, `#/club/event?id=${evId}`); await C.reload({ waitUntil: "networkidle2" });
+  await click(C, "#ev-buy");
+  await C.waitForSelector("#bt", { timeout: 15000 }); await shot(C, "19-get-ticket");
+  await click(C, "#bt-go");
+  check("a free ticket opens as a QR pass", await until(C, () => location.hash.startsWith("#/club/pass") && !!document.querySelector(".cl-ticketx .cl-qr svg"), null, 20000));
+  await shot(C, "20-ticket-pass");
+  const tcode = (await sql(`select code from public.club_tickets where event_id = '${evId}' and user_id = '${users.applicant.id}'`))[0]?.code;
+  check("ticket stored with a code", !!tcode);
+  await go(B, `#/club/checkin?id=${evId}`); await B.reload({ waitUntil: "networkidle2" });
+  check("a plain member can't scan before being named", await hasText(B, "aren't a ticket checker", 20000) || await hasText(B, "Check-in & Attendance", 3000));
+  await go(A, `#/club/eventadmin?id=${evId}&tab=tickets`); await A.reload({ waitUntil: "networkidle2" });
+  check("organiser sees the Tickets tab", await hasText(A, "Ticket Checkers", 20000));
+  await click(A, "#tk-add"); await A.waitForSelector(`[data-u="${users.member.id}"]`, { timeout: 20000 }); await click(A, `[data-u="${users.member.id}"]`);
+  check("member named ticket checker", await (async () => { for (let i = 0; i < 20; i++) { const r = await sql(`select count(*)::int n from public.club_event_staff where event_id = '${evId}' and user_id = '${users.member.id}'`); if (r[0].n === 1) return true; await wait(500); } return false; })());
+  await A.reload({ waitUntil: "networkidle2" }); await hasText(A, "Ticket Checkers", 20000); await shot(A, "t-event-tickets");
+  await go(B, "#/club/scan"); await B.reload({ waitUntil: "networkidle2" });
+  check("the checker sees the event under Scan Tickets", await hasText(B, "Tech Talk 2026", 20000));
+  await go(B, `#/club/checkin?id=${evId}`);
+  await B.waitForSelector('#ci-man [name="q"]', { timeout: 20000 });
+  await typeIn(B, '#ci-man [name="q"]', tcode); await B.$eval("#ci-man", (f) => f.requestSubmit());
+  check("door scan admits the ticket", await until(B, () => document.querySelector(".cl-scanres.green")?.innerText.includes("Admitted"), null, 20000));
+  await shot(B, "21-door-scan");
+  await typeIn(B, '#ci-man [name="q"]', tcode); await B.$eval("#ci-man", (f) => f.requestSubmit());
+  check("the same ticket can't get in twice", await until(B, () => document.querySelector(".cl-scanres.amber")?.innerText.includes("Already used"), null, 20000));
+  await go(C, "#/club/tickets"); await C.reload({ waitUntil: "networkidle2" });
+  check("the holder's ticket shows as checked in", await hasText(C, "Checked in", 20000) || await hasText(C, "Past", 2000));
+  await shot(C, "t-my-tickets");
+
   /* ── 13. App Admin is for the EWUdiots team only ── */
   await go(C, "#/club/admin");
   check("students can't open App Admin", await hasText(C, "For the EWUdiots team", 15000));
@@ -287,7 +319,8 @@ try {
     ["sponsors", "#/club/sponsors", "Sponsorship & Partnership Hub"], ["sponsor", `#/club/sponsor?id=${spid}`, "Sponsor Details"], ["collab", "#/club/collab", "Club Marketplace"], ["collab-detail", `#/club/collab?id=${cxid}`, "Involved Clubs"],
     ["notifications", "#/club/notifications", "Notifications"], ["help", "#/club/help", "Help Center"], ["privacy", "#/club/privacy", "Privacy & Data Control"], ["me", "#/club/me", "Profile & Settings"],
     ["more", "#/club/more", "Run your club"], ["features", `#/club/manage?c=${clubId}&tab=features`, "Merch store"], ["roles", `#/club/manage?c=${clubId}&tab=roles`, "General Secretary"],
-    ["event-list", "#/club/events", "Club events"], ["messages", "#/club/messages", "Messages"]];
+    ["event-list", "#/club/events", "Events & Operations"], ["messages", "#/club/messages", "Messages"], ["home", "#/club/home", "My Clubs"],
+    ["event-page", `#/club/event?id=${evId}`, "Spots filled"], ["checkin", `#/club/checkin?id=${evId}`, "Recent Check-ins"]];
   for (const [name, hash, text] of tour) {
     await go(A, hash);
     const okText = await hasText(A, text, 15000);

@@ -10,7 +10,8 @@ export function createUI(ctx) {
   const { icon, esc } = ctx;
 
   /* ── Formatting ── */
-  const when = (d, o) => new Date(d).toLocaleString("en-GB", { timeZone: TZ, ...o });
+  // Times read like the boards: "5:00 PM".
+  const when = (d, o) => new Date(d).toLocaleString("en-GB", { timeZone: TZ, ...(o.hour ? { hour12: true } : {}), ...o }).replace(/\b(am|pm)\b/, (x) => x.toUpperCase());
   const dateShort = (d) => when(d, { day: "numeric", month: "short" });
   const dateLong = (d) => when(d, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
   const dateTime = (d) => when(d, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
@@ -33,7 +34,8 @@ export function createUI(ctx) {
   const verified = (club) => (club?.verified ? `<span class="cl-verified" title="Verified by the EWUdiots team">${icon("checkc", "sm")}<span class="sr-only">Verified</span></span>` : "");
   const pill = (text, tone = "") => `<span class="pill ${tone}">${text}</span>`;
   const audiencePill = (v, wing = "") => (v === "public" ? "" : pill(`${icon(v === "exec" ? "lock" : "users", "sm")} ${esc(v === "wing" && wing ? `${wing} wing` : AUDIENCES[v] || v)}`, v === "exec" ? "amber" : "purple"));
-  const rolePill = (rank, name) => `<span class="cl-role t-${rankTone(rank)}">${esc(name)}</span>`;
+  // Position pill with the board's icon: a crown for officers, people for the committee, a person for members.
+  const rolePill = (rank, name) => `<span class="cl-role t-${rankTone(rank)}">${icon(rank <= 3 ? "crown" : rank <= 6 ? "users" : "user")}${esc(name)}</span>`;
   const person = (name, sub = "", right = "") => `<div class="lrow"><span class="avatar sm">${esc(initials(name))}</span><span class="body"><b>${esc(name || "Member")}</b>${sub ? `<span>${sub}</span>` : ""}</span>${right}</div>`;
 
   /** Directory card for a club. */
@@ -99,7 +101,7 @@ export function createUI(ctx) {
   /** Stat card. d = delta() from charts.js; spark = sparkline SVG. */
   const stat = (ic, tone, num, label, { d = null, spark = "", href = "", sub = "" } = {}) => {
     const tag = href ? "a" : "div";
-    return `<${tag} class="cl-stat t-${tone}" ${href ? `href="${href}"` : ""}><span class="top"><span class="itile sm ${tone}">${icon(ic)}</span><b class="num">${num}</b></span><span class="lbl">${label}</span>
+    return `<${tag} class="cl-stat t-${tone}" ${href ? `href="${href}"` : ""}><span class="itile sm ${tone}">${icon(ic)}</span><span class="txt"><b class="num">${num}</b><span class="lbl">${label}</span></span>
       ${d || spark || sub ? `<span class="foot">${d ? `<span class="d ${d.up ? "up" : "down"}">${d.text}</span>` : sub ? `<span class="xs">${sub}</span>` : "<span></span>"}${spark}</span>` : ""}</${tag}>`;
   };
   const tile = (ic, tone, label, href, badge = 0) => `<a class="cl-tile t-${tone}" href="${href}">${icon(ic)}<span>${label}</span>${badge ? `<span class="badge-n">${badge > 9 ? "9+" : badge}</span>` : ""}</a>`;
@@ -111,7 +113,8 @@ export function createUI(ctx) {
   const avaStack = (people, max = 4) => `<span class="cl-stack">${people.slice(0, max).map((p) => ava(p.display_name || p.name, p.photo_url, "sm")).join("")}${people.length > max ? `<span class="more">+${people.length - max}</span>` : ""}</span>`;
   const dchip = (d, cls = "") => `<span class="cl-dchip ${cls}"><b>${when(d, { day: "2-digit" })}</b><span>${when(d, { month: "short" })}</span></span>`;
   /** Cover art: the image, or the title in big letters on the brand gradient. */
-  const art = (img, text = "") => (img ? `<img src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span>${esc(String(text).slice(0, 28))}</span>`);
+  // Cover art: the photo, or a soft poster with the title's initials (boards show photos; we never invent one).
+  const art = (img, text = "") => (img ? `<img src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="cl-ph-art" aria-hidden="true"><b>${esc(initials(text))}</b></span>`);
   const money = (n) => `৳${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
   const time = (d) => when(d, { hour: "numeric", minute: "2-digit" });
   const sec = (title, link = "") => `<div class="cl-sec"><h2>${title}</h2>${link}</div>`;

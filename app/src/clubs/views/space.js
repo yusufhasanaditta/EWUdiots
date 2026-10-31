@@ -2,6 +2,7 @@
    Announcements · Calendar · Attendance · Polls & elections · Tasks · Docs · Members. */
 import { createPosts } from "./posts.js";
 import { parseQr } from "../checkin.js";
+import { CATEGORIES } from "../perms.js";
 
 const TABS = [["home", "Workspace", "grid"], ["posts", "Announcements", "megaphone"], ["calendar", "Calendar", "calendar"], ["attendance", "Attendance", "checkc"], ["polls", "Polls", "bars"], ["tasks", "Tasks", "clipboard"], ["docs", "Docs", "file"], ["members", "Members", "users"]];
 
@@ -22,9 +23,12 @@ export function register(pages, kit) {
       if (!club) return ui.emptyBox("search", "Club not found", "");
       if (!m) return ui.emptyBox("lock", "This space is for members", `Join ${esc(club.name)} to see its announcements, polls and tasks.`, `<a class="btn primary" href="#/club/c?slug=${encodeURIComponent(club.slug)}">View the club</a>`);
       const t = tab();
-      return `<section class="cl-space-head" style="--cc:${esc(club.color)}">${ui.logo(club)}<div class="grow min0"><span class="cl-eyebrow">Members' space</span><h1 class="ellipsis">${esc(club.name)}</h1><p class="xs">${ui.rolePill(m.rank, m.role_name)} ${m.title ? esc(m.title) : ""}${m.wing ? ` · ${esc(m.wing)} wing` : ""}</p></div>
-          <div class="row" style="gap:8px">${kit.canManage(id) ? `<a class="btn sm white" href="#/club/manage?c=${id}">${icon("settings", "sm")} Manage</a>` : ""}<a class="btn sm glass" href="#/club/c?slug=${encodeURIComponent(club.slug)}">Profile</a></div></section>
-        <nav class="cl-tabs scroll" role="tablist">${TABS.map(([v, l, ic]) => `<a role="tab" href="#/club/space?c=${id}&tab=${v}" aria-selected="${t === v}">${icon(ic, "sm")} ${l}</a>`).join("")}</nav>
+      // Header from the "Workspace Dashboard" board: cover, logo over its edge, name, tags, the Member menu, about.
+      return `<section class="cl-sphead" style="--cc:${esc(club.color)}"><div class="cover">${club.cover_url ? `<img src="${esc(club.cover_url)}" alt="">` : `<span class="tagline">${esc(club.tagline || "Learn · Build · Create · Together")}</span>`}</div>
+          <div class="id">${ui.logo(club, "xl")}<div class="grow min0"><h1>${esc(club.short_name || club.name)}${ui.verified(club)}</h1><p class="tags">${[CATEGORIES[club.category] || "Club", "Members' space", m.wing ? `${m.wing} wing` : ""].filter(Boolean).map(esc).join(" · ")}</p></div>
+            <button class="btn primary sm" id="sp-menu" aria-haspopup="dialog">${esc(m.title || m.role_name || "Member")} ${icon("chevD", "sm")}</button></div>
+          ${club.about || club.tagline ? `<p class="about clamp3">${esc(club.about || club.tagline)}</p>` : ""}</section>
+        <nav class="cl-seg sm" role="tablist">${TABS.map(([v, l]) => `<a role="tab" href="#/club/space?c=${id}&tab=${v}" aria-selected="${t === v}">${l}</a>`).join("")}</nav>
         <div class="mt">${SECTIONS[t](club, m)}</div>`;
     }, { n: 2, h: 120 });
   };
@@ -48,12 +52,12 @@ export function register(pages, kit) {
         f("chat") && ["chat", "blue", "Discussions", "#/club/messages"], ["calendar", "amber", "Events", `#/club/space?c=${id}&tab=calendar`], f("polls") && ["bars", "teal", "Polls", "#/club/polls"], f("elections") && ["ballot", "purple", "Elections", "#/club/elections"],
         ["award", "green", "Committee", `#/club/committee?c=${id}`], kit.can(id, "finance.view") && f("finance") && ["wallet", "amber", "Finance", `#/club/finance?c=${id}`], kit.can(id, "analytics.view") && ["chart", "blue", "Analytics", `#/club/analytics?c=${id}`],
         (kit.can(id, "store.manage") || kit.can(id, "orders.manage")) && ["bag", "orange", "Merch", `#/club/merch?c=${id}`], kit.can(id, "forms.view_responses") && ["userpen", "purple", "Recruitment", "#/club/recruit"]].filter(Boolean);
-      return `<div class="alert purple"><span class="a-ic">${icon("lock")}</span><div class="grow"><b>This is a private member workspace</b><p>Only ${esc(club.short_name || club.name)} members can see it.</p></div></div>
-        <div class="cl-stats mt">${ui.stat("users", "purple", counts.members || 0, "Members")}${f("projects") ? ui.stat("layers", "blue", pe.length, "Projects") : ""}${ui.stat("checksq", "green", tasks.filter((t) => t.status !== "done").length, "Ongoing tasks")}${ui.stat("calendar", "amber", ee.filter((e) => new Date(e.starts_at) > now).length, "Upcoming events")}</div>
+      return `<div class="alert pink"><span class="a-ic">${icon("megaphone")}</span><div class="grow"><b>This is a private member workspace</b><p>Only club members can access this content.</p></div></div>
+        <div class="cl-stats c4 mt">${ui.stat("users", "purple", counts.members || 0, "Members")}${f("projects") ? ui.stat("layers", "blue", pe.length, "Projects") : ""}${ui.stat("checksq", "green", tasks.filter((t) => t.status !== "done").length, "Ongoing tasks")}${ui.stat("calendar", "amber", ee.filter((e) => new Date(e.starts_at) > now).length, "Upcoming events")}</div>
         <div class="cl-tiles">${tiles.map((t) => ui.tile(...t)).join("")}</div>
-        ${ui.sec("Upcoming Activities", `<a href="#/club/space?c=${id}&tab=calendar">View all</a>`)}${upcoming.length ? `<div class="cl-row2">${upcoming.map((x) => `<a class="cl-sched" href="${x.href}">${ui.dchip(x.at, x.red ? "red" : "")}<span class="min0 grow"><b class="ellipsis">${esc(x.title)}</b><span class="xs">${icon("clock")} ${ui.time(x.at)}</span>${x.place ? `<span class="xs ellipsis">${icon("pin")} ${esc(x.place)}</span>` : ""}</span>${icon("chevR", "sm")}</a>`).join("")}</div>` : `<p class="small muted">Nothing scheduled.</p>`}
+        ${ui.sec("Upcoming Activities", `<a href="#/club/space?c=${id}&tab=calendar">View all</a>`)}${upcoming.length ? `<div class="cl-row2 keep">${upcoming.map((x) => `<a class="cl-sched" href="${x.href}">${ui.dchip(x.at, x.red ? "red" : "")}<span class="min0 grow"><b class="clamp2">${esc(x.title)}</b><span class="xs">${icon("clock")} ${ui.time(x.at)}</span>${x.place ? `<span class="xs ellipsis">${icon("pin")} ${esc(x.place)}</span>` : ""}</span>${icon("chevR", "sm")}</a>`).join("")}</div>` : `<p class="small muted">Nothing scheduled.</p>`}
         ${ui.sec("My Tasks", `<a href="#/club/space?c=${id}&tab=tasks">View all</a>`)}${mine.length ? `<div class="cl-list">${mine.map((t) => `<a class="cl-li" href="${t.project_id ? `#/club/project?id=${t.project_id}` : `#/club/space?c=${id}&tab=tasks`}"><span class="itile sm ${t.status === "doing" ? "blue" : "gray"}">${icon("checksq")}</span><span class="body"><b>${esc(t.title)}</b><span>${t.due ? `Due ${ui.dateShort(t.due)}` : "No due date"}</span></span>${ui.st({ high: ["High", "red"], medium: ["Medium", "amber"], low: ["Low", "gray"] }[t.priority] || ["Medium", "amber"])}</a>`).join("")}</div>` : `<p class="small muted">No tasks for you.</p>`}
-        <div class="cl-row2"><section>${ui.sec("Recent Announcements", `<a href="#/club/space?c=${id}&tab=posts">View all</a>`)}${pp.length ? `<div class="cl-list">${pp.slice(0, 3).map((p) => `<a class="cl-li" href="#/club/post?id=${p.id}"><span class="itile sm pink">${icon("megaphone")}</span><span class="body"><b class="ellipsis">${esc(p.title)}</b><span>${ui.ago(p.created_at)}</span></span>${icon("chevR", "sm")}</a>`).join("")}</div>` : `<p class="small muted">No announcements yet.</p>`}</section>
+        <div class="cl-row2 keep"><section>${ui.sec("Recent Announcements", `<a href="#/club/space?c=${id}&tab=posts">View all</a>`)}${pp.length ? `<div class="cl-list">${pp.slice(0, 3).map((p) => `<a class="cl-li" href="#/club/post?id=${p.id}"><span class="itile sm pink">${icon("megaphone")}</span><span class="body"><b class="ellipsis">${esc(p.title)}</b><span>${ui.ago(p.created_at)}</span></span>${icon("chevR", "sm")}</a>`).join("")}</div>` : `<p class="small muted">No announcements yet.</p>`}</section>
           ${f("chat") ? `<section>${ui.sec("Unread Messages", `<a href="#/club/messages">View all</a>`)}${ch.length ? `<div class="cl-list">${ch.slice(0, 3).map((c) => `<a class="cl-li" href="#/club/chat?id=${c.id}">${ui.ava(c.name)}<span class="body"><b class="ellipsis">${esc(c.name)}</b><span class="ellipsis">${esc(c.last_body || "No messages yet")}</span></span>${c.unread ? `<span class="badge-n">${c.unread}</span>` : ""}</a>`).join("")}</div>` : `<p class="small muted">No chats yet.</p>`}</section>` : ""}</div>
         ${m.rank <= 3 || kit.canManage(id) ? `<a class="btn outline mt" href="#/club/manage?c=${id}">${icon("settings")} Open the club console</a>` : ""}`;
     },
@@ -178,6 +182,8 @@ export function register(pages, kit) {
     const id = cid(), club = store.peek(`clubid:${id}`);
     posts.bind(el); kit.bindRetry(el); if (!club) return;
     kit.$("#sp-checkin", el)?.addEventListener("click", () => checkin(club));
+    kit.$("#sp-menu", el)?.addEventListener("click", () => { const m = kit.membership(id);
+      ui.sheet(club.name, `<p class="small muted">You are ${ui.rolePill(m?.rank, m?.role_name || "Member")}${m?.title ? ` · ${esc(m.title)}` : ""}</p><div class="stack mt" style="gap:0">${[["community", "Public club page", `#/club/c?slug=${encodeURIComponent(club.slug)}`], kit.canManage(id) && ["settings", "Club console", `#/club/manage?c=${id}`], ["user", "My club profile", "#/club/privacy"], ["ticket", "My tickets", "#/club/tickets"]].filter(Boolean).map(([ic, l, h]) => `<a class="lrow" href="${h}"><span class="itile purple">${icon(ic)}</span><span class="body"><b>${l}</b></span>${icon("chevR", "chev")}</a>`).join("")}</div>`); });
     kit.$$("[data-vote]", el).forEach((f) => f.addEventListener("submit", async (e) => {
       e.preventDefault(); const choices = kit.$$("input:checked", f).map((i) => Number(i.value));
       if (!choices.length) return kit.toast("Choose an option first", "warn");

@@ -19,13 +19,13 @@ export function register(pages, kit) {
     const day = (d) => { const a = new Date(d), now = new Date(), diff = Math.floor((new Date(now.toDateString()) - new Date(a.toDateString())) / 864e5); return diff <= 0 ? "Today" : diff === 1 ? "Yesterday" : diff < 7 ? "This Week" : "Earlier"; };
     const groups = list.reduce((m, n) => { (m[day(n.created_at)] ||= []).push(n); return m; }, {});
     return `${ui.ph("Notifications", "Stay updated with everything happening in your clubs", unread ? `<button class="btn ghost" id="nt-all">${icon("check")} Mark all as read</button>` : "")}
-      <nav class="cl-seg">${TABS.map(([v, l]) => `<button data-t="${v}" aria-pressed="${tab === v}">${l}${v === "unread" && unread ? ` <span class="n">${unread}</span>` : ""}</button>`).join("")}</nav>
+      <nav class="cl-seg grid4">${TABS.map(([v, l]) => `<button data-t="${v}" aria-pressed="${tab === v}">${l}${v === "unread" && unread ? ` <span class="n">${unread}</span>` : ""}</button>`).join("")}</nav>
       ${ne.loading && !ne.value ? ui.skeleton(5, 70) : !list.length ? ui.emptyBox("bell", tab === "unread" ? "You're all caught up" : "No notifications yet", "News from your clubs, tasks and orders appear here.")
         : ["Today", "Yesterday", "This Week", "Earlier"].filter((k) => groups[k]).map((k) => `<h2 class="cl-sec" style="margin-top:14px"><span style="font-size:17px">${k}</span></h2><div class="cl-list">${groups[k].map(row).join("")}</div>`).join("")}`;
   };
   const row = (n) => {
     const [, ic, tone] = KINDS[n.kind] || KINDS.other;
-    return `<button class="cl-li" data-n="${n.id}"><span class="itile ${tone}">${icon(ic)}</span><span class="body"><b>${esc(n.title)}</b><span>${esc(n.body)}</span></span>
+    return `<button class="cl-li cl-note" data-n="${n.id}"><span class="itile ${tone}">${icon(ic)}</span><span class="body"><b>${esc(n.title)}</b><span>${esc(n.body)}</span></span>
       <span class="end">${ui.ago(n.created_at).replace(" ago", "")}${!n.read_at ? `<span class="dot-unread" aria-label="Unread"></span>` : ""}</span></button>`;
   };
   pages["club/notifications"].mount = (el) => {

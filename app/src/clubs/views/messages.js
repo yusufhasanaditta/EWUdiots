@@ -17,7 +17,7 @@ export function register(pages, kit) {
   pages["club/messages"] = () => {
     const g = kit.gate("your messages"); if (g) return g;
     const mine = kit.myClubs();
-    const head = ui.ph("Messages", "Stay connected with your club members", mine.length ? `<button class="btn primary" id="ms-new" aria-label="New message">${icon("plus")} New</button>` : "");
+    const head = ui.ph("Messages", "Stay connected with your club members", mine.length ? `<button class="btn primary round" id="ms-new" aria-label="New message">${icon("plus")}</button>` : "");
     if (!mine.length && !kit.memberships().loading) return head + ui.emptyBox("chat", "Join a club to start chatting", "Club chats and direct messages open once you're a member.", `<a class="btn primary" href="#/club/explore">Find clubs</a>`);
     const ce = store.use("me:channels", api.channels, { ttl: 20e3 });
     return `${head}
@@ -29,13 +29,13 @@ export function register(pages, kit) {
           && (!words.length || words.every((w) => `${c.name} ${c.club_name} ${c.last_body || ""}`.toLowerCase().includes(w))));
         if (!list.length) return ui.emptyBox("chat", rows.length ? "Nothing matches" : "No conversations yet", rows.length ? "Try another filter." : "Your club channels appear here.");
         const pinned = list.filter((c) => c.kind === "announce"), rest = list.filter((c) => c.kind !== "announce");
-        return `${pinned.length ? `<p class="cl-side-h" style="margin-left:2px">${icon("pin", "sm")} Pinned</p><div class="cl-list cl-chlist">${pinned.map(row).join("")}</div>` : ""}
-          ${rest.length ? `<p class="cl-side-h" style="margin-left:2px">Chats</p><div class="cl-list cl-chlist">${rest.map(row).join("")}</div>` : ""}`;
+        return `${pinned.length ? `<h2 class="cl-gh">${icon("pushpin", "sm")} Pinned</h2><div class="cl-list cl-chlist">${pinned.map(row).join("")}</div>` : ""}
+          ${rest.length ? `<h2 class="cl-gh">Chats</h2><div class="cl-list cl-chlist">${rest.map(row).join("")}</div>` : ""}`;
       }, { n: 5, h: 64 })}`;
   };
   const row = (c) => `<a class="cl-li" href="#/club/chat?id=${c.id}">
       ${c.kind === "dm" ? ui.ava(c.other_name) : `<span class="itile ${KIND_TONE[c.kind] || "purple"}">${icon(KIND_IC[c.kind] || "chat")}</span>`}
-      <span class="body"><b class="ellipsis">${esc(c.name)}${c.kind === "announce" ? ` ${icon("pin", "sm")}` : ""}</b>
+      <span class="body"><b class="ellipsis">${esc(c.name)}${c.kind === "announce" ? ` ${icon("pushpin", "sm")}` : ""}</b>
         <span>${c.last_body ? `${c.last_author ? `<b style="display:inline;font-size:inherit">${esc(c.last_author.split(" ")[0])}:</b> ` : ""}${esc(c.last_body)}` : `<i>${esc(c.club_short || c.club_name)}</i>`}</span></span>
       <span class="end">${c.last_body ? ui.ago(c.last_message_at).replace(" ago", "") : ""}${c.unread ? `<span class="badge-n">${c.unread > 99 ? "99+" : c.unread}</span>` : ""}</span></a>`;
   pages["club/messages"].mount = (el) => {
@@ -124,7 +124,7 @@ export function register(pages, kit) {
       lastDay = day;
       return dayRow + message(ch, x, reacts[x.id] || {}, byId);
     }).join("");
-    return `${pinText ? `<div class="cl-pin">${icon("pin")}<div class="min0"><b style="display:block;font-size:12.5px">Pinned</b>${esc(pinText).slice(0, 300)}</div></div>` : ""}
+    return `${pinText ? `<div class="cl-pin">${icon("pushpin")}<div class="min0"><b style="display:block;font-size:12.5px">Pinned</b>${esc(pinText).slice(0, 300)}</div></div>` : ""}
       ${msgs.length >= limit ? `<button class="btn sm outline" id="ch-more" style="justify-self:center;display:flex;margin:0 auto 8px">Load earlier messages</button>` : ""}
       <div class="cl-thread" id="ch-thread" aria-live="polite">${mE.loading && !mE.value ? ui.skeleton(4, 54) : items || `<p class="small muted" style="text-align:center">No messages yet. Say hello 👋</p>`}</div>
       ${canPost ? `<div class="cl-composer-wrap">${replyTo && byId[replyTo] ? `<div class="cl-reply" style="margin:0 8px 6px">Replying to ${esc(byId[replyTo].author_name)}: ${esc(byId[replyTo].body.slice(0, 80))} <button class="btn sm ghost" id="ch-noreply">Cancel</button></div>` : ""}

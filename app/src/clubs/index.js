@@ -43,6 +43,7 @@ import { register as help } from "./views/help.js";
 import { register as privacy } from "./views/privacy.js";
 import { register as more } from "./views/more.js";
 import { register as platform } from "./views/platform.js";
+import { register as tickets } from "./views/tickets.js";
 import "./clubs.css";
 import "./clubs-v2.css";
 
@@ -52,7 +53,7 @@ const SIDE = [["club/home", "home", "Home"], ["club/feed", "megaphone", "Feed"],
   ["club/notifications", "bell", "Notifications"], ["club/polls", "bars", "Polls & elections"], ["club/store", "bag", "Merch store"], ["club/collab", "handshake", "Collaborate"], ["club/sponsors", "briefcase", "Sponsors"], ["club/help", "help", "Help"]];
 // Pages that light up a nav item.
 const ACTIVE = {
-  "club/c": "club/explore", "club/post": "club/feed", "club/form": "club/events", "club/event": "club/events", "club/eventadmin": "club/events", "club/checkin": "club/events",
+  "club/c": "club/explore", "club/post": "club/feed", "club/form": "club/events", "club/event": "club/events", "club/eventadmin": "club/events", "club/checkin": "club/events", "club/tickets": "club/events", "club/pass": "club/events", "club/scan": "club/events",
   "club/chat": "club/messages", "club/space": "club/home", "club/manage": "club/home", "club/members": "club/home", "club/member": "club/home", "club/committee": "club/home",
   "club/meetings": "club/home", "club/meeting": "club/home", "club/projects": "club/home", "club/project": "club/home", "club/resources": "club/home", "club/recruit": "club/home",
   "club/applicant": "club/home", "club/finance": "club/home", "club/analytics": "club/home", "club/poll": "club/polls", "club/elections": "club/polls", "club/election": "club/polls",
@@ -109,7 +110,7 @@ export function install(ctx) {
     bindRetry: (el) => { ctx.$$("[data-cl-retry]", el).forEach((b) => b.addEventListener("click", () => store.clear())); charts.bindTips(el); }
   };
 
-  const views = { home, feed, explore, profile, events, eventx, form, mine, space, manage, cert, messages, notifications, members, meetings, projects, resources, polls, recruit, finance, analytics, shop, merch, sponsors, collab, help, privacy, more, platform };
+  const views = { home, feed, explore, profile, events, eventx, form, mine, space, manage, cert, messages, notifications, members, meetings, projects, resources, polls, recruit, finance, analytics, shop, merch, sponsors, collab, help, privacy, more, platform, tickets };
   Object.values(views).forEach((register) => register(ctx.pages, kit));
   ctx.pages[PREFIX] = ctx.pages["club/home"]; // #/club → home
   // An admin can switch the whole club area off (Admin → Settings → Features).
@@ -131,6 +132,7 @@ export function install(ctx) {
   let lastHash = "";
   addEventListener("hashchange", () => { if (isClub(ctx.route()) && location.hash !== lastHash && ctx.modalOpen()) ctx.closeModal(); lastHash = location.hash; });
   function renderNav(route) {
+    if (me() && api && kit.myClubs().length) store.use("club:scanevents", api.myScanEvents, { ttl: 5 * 60e3 }); // for the + menu
     document.body.dataset.mode = "club";
     liveNotifications();
     const active = ACTIVE[route] || (route === PREFIX ? "club/home" : route);
@@ -173,6 +175,7 @@ export function install(ctx) {
       ["kanban", "orange", "New project", "Task board for a team", first("projects.manage") && `#/club/projects?c=${first("projects.manage")}&new=1`],
       ["bars", "green", "Start a poll", "Ask members to vote", first("polls.create") && `#/club/polls?c=${first("polls.create")}&new=1`],
       ["edit", "purple", "Recruitment form", "Applications with interviews", first("forms.create") && `#/club/manage?c=${first("forms.create")}&tab=forms&new=1`],
+      ["ticket", "green", "Scan tickets", "Check people in at an event", (store.peek("club:scanevents") || []).length && "#/club/scan"],
       ["qr", "amber", "Scan a pickup", "Hand over a merch order", first("orders.manage") && `#/club/ordersadmin?c=${first("orders.manage")}&scan=1`],
       ["help", "gray", "Get help", "Report a problem or ask", "#/club/help"]
     ];

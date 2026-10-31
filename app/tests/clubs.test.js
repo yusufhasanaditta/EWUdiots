@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { CLUB_PERMS, DEFAULT_ROLES, has, canManage, assignableRanks, assignableRoles } from "../src/clubs/perms.js";
 import { template, cleanFields, validate, normPhone, openState, summarize, toCSV, newField, FIELD_TYPES } from "../src/clubs/forms.js";
 import { codeFor, windowOf, qrText, parseQr, secondsLeft } from "../src/clubs/checkin.js";
+import { normaliseScan, ticketQR, ticketState, showsQR, tierLeft, priceLabel, cleanTicketing, SCAN_RESULTS } from "../src/clubs/tickets.js";
 
 const MIG = (f) => readFileSync(new URL(`../../supabase/migrations/${f}`, import.meta.url), "utf8");
 const SQL = MIG("0016_clubs.sql"), SQL18 = MIG("0018_club_platform.sql");
@@ -166,4 +167,37 @@ test("charts: nice axis, escaped labels, empty state", () => {
   assert.match(line({ title: "t", labels: ["a"], series: [{ name: "x", values: [0] }] }), /No data/);
   assert.match(donut({ title: "d", items: [1, 2, 3, 4, 5, 6].map((v) => ({ label: `c${v}`, value: v })) }), /Other/);
   assert.equal(delta(110, 100).text, "↑ 10%"); assert.equal(delta(5, 0), null);
+});
+
+test("tickets: what the scanner sends matches what scan_ticket reads", () => {
+  const tok = "a".repeat(64), SQL24 = MIG("0024_club_tickets.sql");
+  assert.equal(normaliseScan(ticketQR(tok)), `ewud:t:${tok}`);
+  assert.equal(normaliseScan("EWUD:T:" + tok.toUpperCase()), `ewud:t:${tok}`, "QR case doesn't matter");
+  assert.equal(normaliseScan(" 7f3a-9c21 "), "7F3A9C21", "typed codes lose spaces and dashes");
+  const old = "EWUDCLUB:123e4567-e89b-12d3-a456-426614174000:7F3A9C21";
+  assert.equal(normaliseScan(old), old, "v2.13 form tickets still scan");
+  for (const r of ["admitted", "valid", "used", "invalid", "wrong_event", "unpaid", "cancelled", "waitlisted"]) {
+    assert.ok(SCAN_RESULTS[r], r); assert.ok(SQL24.includes(`'${r}'`), `${r} in the SQL`);
+  }
+});
+test("tickets: holder status, QR and seats left", () => {
+  const soon = new Date(Date.now() + 864e5).toISOString();
+  assert.deepEqual(ticketState({ status: "active", payment: "free", starts_at: soon }), ["Valid", "green"]);
+  assert.deepEqual(ticketState({ status: "active", payment: "submitted", starts_at: soon }), ["Payment being checked", "amber"]);
+  assert.deepEqual(ticketState({ status: "active", payment: "unpaid", pay_method: "cash", starts_at: soon }), ["Pay at the door", "amber"]);
+  assert.deepEqual(ticketState({ status: "used", payment: "free" }), ["Checked in", "green"]);
+  assert.ok(showsQR({ status: "active", payment: "verified" }) && showsQR({ status: "active", payment: "unpaid" }));
+  assert.ok(!showsQR({ status: "active", payment: "submitted" }) && !showsQR({ status: "used", payment: "free" }) && !showsQR({ status: "cancelled", payment: "free" }));
+  assert.equal(tierLeft({ qty: 50 }, 48), 2); assert.equal(tierLeft({ qty: 50 }, 60), 0); assert.equal(tierLeft({}, 5), null);
+  assert.equal(priceLabel(0), "Free"); assert.equal(priceLabel(1500), "৳1,500");
+});
+test("tickets: the organiser's setup is cleaned before saving", () => {
+  assert.match(cleanTicketing({ enabled: true, tiers: [] }).error, /at least one/);
+  assert.match(cleanTicketing({ enabled: true, tiers: [{ name: "VIP", price: 300 }] }).error, /how people can pay/);
+  assert.match(cleanTicketing({ enabled: true, tiers: [{ name: "A", price: 0 }], numbers: { bkash: "12345" } }).error, /Bangladeshi/);
+  assert.match(cleanTicketing({ enabled: true, tiers: [{ id: "x", name: "A" }, { id: "x", name: "B" }] }).error, /same id/);
+  const { value } = cleanTicketing({ enabled: true, methods: ["bkash", "paypal"], numbers: { bkash: "017 1234 5678", nagad: "" }, scanners: "members",
+    tiers: [{ name: " Student ", price: "150", qty: "100" }, { name: "Free entry", price: 0, qty: "" }, { name: "" }] });
+  assert.deepEqual(value.tiers, [{ id: "t1", name: "Student", price: 150, qty: 100 }, { id: "t2", name: "Free entry", price: 0 }]);
+  assert.deepEqual(value.methods, ["bkash"]); assert.deepEqual(value.numbers, { bkash: "01712345678" }); assert.equal(value.scanners, "members"); assert.equal(value.door_cash, true);
 });

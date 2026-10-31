@@ -14,7 +14,7 @@ export function register(pages, kit) {
   const clubE = (id) => store.use(`clubid:${id}`, () => api.clubById(id), { ttl: 2 * 60e3 });
   const membersE = (id) => store.use(`club:members:${id}`, () => api.members(id), { ttl: 45e3 });
   const rolesE = (id) => store.use(`club:roles:${id}`, () => api.roles(id), { ttl: 5 * 60e3 });
-  let q = "", grp = "all", dept = "", batch = "", status = "active";
+  let q = "", grp = "all", dept = "", batch = "", role = "", status = "active";
 
   /* ═════════ Directory ═════════ */
   pages["club/members"] = () => {
@@ -22,22 +22,24 @@ export function register(pages, kit) {
     const club = clubE(id).value, me = membersE(id);
     const total = (me.value || []).filter((r) => r.status === "active").length;
     return `${kit.back(`#/club/space?c=${id}`, club?.short_name || club?.name || "Club")}
-      ${ui.ph("Club Members", "", `<span class="cl-disclaimer">${icon("users", "sm")} ${ui.plural(total, "Member")}</span>${kit.can(id, "members.invite") ? `<a class="btn primary" href="#/club/manage?c=${id}&tab=invites">${icon("plus")} Invite</a>` : ""}`)}
-      <div class="searchbar cl-search">${icon("search")}<input class="input" id="mb-q" type="search" placeholder="Search members by name, department, batch…" value="${esc(q)}" autocomplete="off"></div>
+      ${ui.ph("Club Members", "", `<span class="cl-disclaimer">${icon("users", "sm")} ${ui.plural(total, "Member")}</span>`)}
+      <div class="row nowrap" style="gap:8px"><div class="searchbar cl-search grow">${icon("search")}<input class="input" id="mb-q" type="search" placeholder="Search members by name, department, batch…" value="${esc(q)}" autocomplete="off"></div>${kit.can(id, "members.invite") ? `<a class="cl-sqbtn" href="#/club/manage?c=${id}&tab=invites" aria-label="Invite members" title="Invite members">${icon("userpen")}</a>` : ""}</div>
       <nav class="cl-seg mt-s">${[["all", "All Members"], ["exec", "Executives"], ["senior", "Senior Members"], ["general", "General Members"]].map(([v, l]) => `<button data-g="${v}" aria-pressed="${grp === v}">${l}</button>`).join("")}</nav>
       ${ui.view(me, (rows) => {
         const depts = [...new Set(rows.map((r) => r.department).filter(Boolean))].sort(), batches = [...new Set(rows.map((r) => r.batch).filter(Boolean))].sort();
         const words = q.toLowerCase().split(/\s+/).filter(Boolean);
         const list = rows.filter((r) => (status === "all" || r.status === status) && (grp === "all" || (grp === "exec" ? r.rank <= 4 : grp === "senior" ? r.rank === 6 : r.rank >= 5 && r.rank !== 6))
-          && (!dept || r.department === dept) && (!batch || r.batch === batch)
+          && (!dept || r.department === dept) && (!batch || r.batch === batch) && (!role || r.role_name === role)
           && (!words.length || words.every((w) => `${r.display_name} ${r.department} ${r.batch} ${r.role_name} ${r.title} ${r.wing}`.toLowerCase().includes(w))));
-        return `<div class="row" style="gap:8px;margin-bottom:12px;flex-wrap:wrap">
-            ${ui.select("dept", [["", "Department"], ...depts.map((d) => [d, d])], dept, 'id="mb-dept" style="width:auto"')}
-            ${ui.select("batch", [["", "Batch"], ...batches.map((b) => [b, `Batch ${b}`])], batch, 'id="mb-batch" style="width:auto"')}
-            ${ui.select("status", [["active", "Active"], ["alumni", "Club alumni"], ["all", "Everyone"]], status, 'id="mb-status" style="width:auto"')}</div>
+        const roles = [...new Set(rows.map((r) => r.role_name).filter(Boolean))];
+        return `<div class="cl-filters">
+            ${ui.select("dept", [["", "Department"], ...depts.map((d) => [d, d])], dept, 'id="mb-dept" aria-label="Department"')}
+            ${ui.select("batch", [["", "Batch"], ...batches.map((b) => [b, `Batch ${b}`])], batch, 'id="mb-batch" aria-label="Batch"')}
+            ${ui.select("role", [["", "Role"], ...roles.map((x) => [x, x])], role, 'id="mb-role" aria-label="Role"')}
+            ${ui.select("status", [["active", "Status"], ["alumni", "Club alumni"], ["all", "Everyone"]], status, 'id="mb-status" aria-label="Status"')}</div>
           ${list.length ? `<div class="cl-list">${list.map((r) => `<a class="cl-li" href="#/club/member?c=${id}&u=${r.user_id}">${ui.ava(r.display_name, r.photo_url)}
             <span class="body"><b>${esc(r.display_name || "Member")}</b><span>${esc([r.department, r.batch && `Batch ${r.batch}`, r.wing && `${r.wing} wing`].filter(Boolean).join(" · ") || "Member")}</span></span>
-            <span class="end">${ui.rolePill(r.rank, r.title || r.role_name)}</span></a>`).join("")}</div>` : ui.emptyBox("users", "No one matches", "Try other filters.")}`;
+            <span class="end">${ui.rolePill(r.rank, r.title || r.role_name)}</span><span class="cl-more" aria-hidden="true">${icon("more")}</span></a>`).join("")}</div>` : ui.emptyBox("users", "No one matches", "Try other filters.")}`;
       }, { n: 6, h: 64 })}`;
   };
   pages["club/members"].mount = (el) => {
@@ -47,6 +49,7 @@ export function register(pages, kit) {
     kit.$$("[data-g]", el).forEach((b) => b.addEventListener("click", () => { grp = b.dataset.g; ctx.rerender(); }));
     kit.$("#mb-dept", el)?.addEventListener("change", (e) => { dept = e.target.value; ctx.rerender(); });
     kit.$("#mb-batch", el)?.addEventListener("change", (e) => { batch = e.target.value; ctx.rerender(); });
+    kit.$("#mb-role", el)?.addEventListener("change", (e) => { role = e.target.value; ctx.rerender(); });
     kit.$("#mb-status", el)?.addEventListener("change", (e) => { status = e.target.value; ctx.rerender(); });
   };
 
@@ -65,13 +68,13 @@ export function register(pages, kit) {
             <p class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><span class="cl-role t-${rankTone(m.rank)}" style="background:rgba(255,255,255,.2);color:#fff">${esc(m.title || m.role_name)}</span><span class="st green">${icon("checkc")} ${m.status === "active" ? "Active member" : "Club alumni"}</span></p>
             <p style="margin-top:8px">${esc([m.department, m.student_id && m.student_id.slice(0, 4) && `Batch ${m.student_id.slice(0, 4)}`].filter(Boolean).join(" · "))}</p>
             ${m.email ? `<p style="margin-top:4px">${icon("mail", "sm")} ${esc(m.email)}</p>` : ""}</div></section>
-        <div class="cl-stats">${ui.stat("calendar", "purple", m.events || 0, "Events joined")}${ui.stat("layers", "blue", m.projects || 0, "Projects")}${ui.stat("award", "amber", Math.max(0, new Date().getFullYear() - new Date(m.joined_at).getFullYear()) || "<1", "Years in club")}${ui.stat("checkc", "green", m.attendance_pct == null ? "–" : `${m.attendance_pct}%`, "Attendance")}</div>
+        <div class="cl-stats c4">${ui.stat("calendar", "purple", m.events || 0, "Events joined")}${ui.stat("layers", "blue", m.projects || 0, "Projects")}${ui.stat("award", "amber", Math.max(0, new Date().getFullYear() - new Date(m.joined_at).getFullYear()) || "<1", "Years in club")}${ui.stat("checkc", "green", m.attendance_pct == null ? "–" : `${m.attendance_pct}%`, "Attendance")}</div>
         <nav class="cl-seg">${tabs.map(([v, l]) => `<button data-mt="${v}" aria-pressed="${mtab === v}">${l}</button>`).join("")}</nav>
         ${mtab === "activity" ? activity(m) : mtab === "notes" && canNotes ? notes(id, u) : overview(m, soc, self)}
-        <div class="row mt" style="gap:8px;flex-wrap:wrap">
+        <div class="cl-actions3">
           ${!self ? `<button class="btn outline" id="mb-dm">${icon("chat")} Message</button>` : `<button class="btn outline" id="mb-edit">${icon("edit")} Edit my club profile</button>`}
           ${!self && kit.can(id, "members.promote") ? `<button class="btn outline" id="mb-role">${icon("userpen")} Assign Role</button>` : ""}
-          ${!self && kit.can(id, "members.remove") ? `<button class="btn danger-outline" id="mb-remove" style="color:var(--error)">${icon("trash")} Remove</button>` : ""}</div>`;
+          ${!self && kit.can(id, "members.remove") ? `<button class="btn outline danger-line" id="mb-remove">${icon("trash")} Remove</button>` : ""}</div>`;
     }, { n: 3, h: 110 });
   };
   const overview = (m, soc, self) => `<section class="card"><div class="card-h"><h2>About</h2>${self ? `<button class="btn sm ghost" id="mb-edit2">${icon("edit", "sm")} Edit</button>` : ""}</div>
