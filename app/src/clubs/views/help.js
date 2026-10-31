@@ -3,9 +3,11 @@
    EWUdiots team (support_tickets / support_messages; the team answers from App Admin → Support). */
 
 const TOPICS = [["user", "green", "Account & Login", "account"], ["users", "pink", "Club Membership", "membership"], ["calendar", "blue", "Events & Registration", "events"], ["file", "purple", "Recruitment", "recruitment"],
-  ["chat", "blue", "Messaging & Chat", "messaging"], ["bars", "pink", "Polls & Voting", "polls"], ["folder", "amber", "Resources & Files", "resources"], ["bag", "teal", "Merch & Orders", "store"], ["zap", "blue", "Technical Issues", "technical"]];
+  ["chat", "blue", "Messaging & Chat", "messaging"], ["bars", "pink", "Polls & Voting", "polls"], ["folder", "amber", "Resources & Files", "resources"], ["bag", "teal", "Merch & Orders", "store"], ["heart", "pink", "Health & Wellness", "health"], ["zap", "blue", "Technical Issues", "technical"]];
 // Short guides. Kept in the app so they work offline and always match this version.
 const GUIDES = [
+  ["health", "Where is the EWU Medical Center and how to get help?", "The Medical Center is located on Level 1 of Block D (Building D, Floor 1). It provides free first aid, consultation with campus doctors, essential medicines, and emergency medical support for all registered EWU students during campus hours."],
+  ["health", "How can clubs get medical or first-aid support for events?", "If your club is organizing a tournament, marathon, cultural fest, or large gathering, you can request first-aid standby kits and emergency support by submitting an Event Health Support ticket or visiting the Medical Center with your event approval."],
   ["membership", "How to join a club?", "Open Clubs, choose a club and tap Join (open clubs) or Apply (clubs that review members). If the club invites you, you become a member automatically the next time you sign in — nothing else to do."],
   ["recruitment", "How to apply for club recruitment?", "Recruitment forms appear on the club's page and in your feed. Fill in the form; your name, student ID and email come from your account. You'll get a notification when you're shortlisted, invited to an interview or selected."],
   ["events", "How to register for an event?", "Open the event and tap Get Ticket (or Register, when the club uses a form). Your QR ticket appears on the event and in More → My Tickets. Show it at the door; the organisers scan it to check you in."],
