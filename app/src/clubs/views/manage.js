@@ -51,42 +51,86 @@ export function register(pages, kit) {
   function overview() {
     return { overview: { label: "Overview", icon: "grid", group: "Club", perm: null,
       render(club, m) {
+        // Club Admin Control Center (the "Club Admin Dashboard" boards): numbers, growth and departments, join requests
+        // with Approve / Reject, upcoming events, active projects and quick actions. Each block needs its own permission.
         const counts = store.use("clubs:counts", api.counts, { ttl: 30e3 }).value?.[club.id] || { members: 0, followers: 0 };
         const reqs = has(m, "members.approve") ? store.use(`club:requests:${club.id}`, () => api.requests(club.id), { ttl: 30e3 }).value || [] : [];
         const forms = has(m, "forms.create") || has(m, "forms.view_responses") ? store.use(`club:forms:${club.id}`, () => api.forms(club.id), { ttl: 30e3 }).value || [] : [];
         const evs = store.use(`club:events:${club.id}`, () => api.clubEvents(club.id), { ttl: 60e3 }).value || [];
-        const upcoming = evs.filter((e) => new Date(e.starts_at) > Date.now()).length;
-        const k = (ic, tone, n, l, href) => `<a class="cl-kpi" href="${href}"><span class="itile ${tone}">${icon(ic)}</span><b class="num">${n}</b><span>${l}</span></a>`;
-        // A short setup checklist for a club that's new on EWUdiots.
-        const steps = [[!!club.about, "Write the club's introduction", "settings"], [!!club.logo_url, "Add a logo", "settings"], [counts.members > 1, "Invite your committee and members", "invites"], [forms.length > 0, "Open a registration form", "forms"], [evs.length > 0, "Announce an event", "events"]];
+        const execs = store.use(`club:committee:${club.id}`, () => api.committee(club.id)).value || [];
+        const projects = has(m, "projects.manage") || kit.feature(club.id, "projects") ? store.use(`club:projects:${club.id}`, () => api.projects(club.id), { ttl: 60e3 }).value || [] : [];
+        const ptc = projects.length ? store.use(`club:ptc:${club.id}`, () => api.projectTaskCounts(club.id), { ttl: 45e3 }).value || {} : {};
+        const an = has(m, "analytics.view") ? store.use(`club:analytics:${club.id}`, () => api.analytics(club.id), { ttl: 120e3 }).value : null;
+        const regs = Object.fromEntries((an?.top_events || []).map((e) => [e.id, e.participants]));
+        const upcoming = evs.filter((e) => new Date(e.starts_at) > Date.now()).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+        const active = projects.filter((p) => ["in_progress", "planning"].includes(p.status));
+        const href = (tab) => `#/club/manage?c=${club.id}&tab=${tab}`;
+        const year = new Date().getMonth() >= 6 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+        const kpi = (ic, tone, n, l, sub, link) => `<a class="ca-kpi" href="${link}"><span class="itile ${tone}">${icon(ic)}</span><b>${n}</b><span>${l}</span><i>${sub}</i></a>`;
+        const steps = [[!!club.about, "Write the club's introduction", "settings"], [!!club.logo_url, "Add a logo", "settings"], [counts.members > 1, "Invite your committee and members", "invites"], [forms.length > 0, "Open a registration form", "forms"], [evs.length > 0, "Create your first event", "events"]];
         const todo = steps.filter(([done]) => !done);
-        return `${kit.head("Overview", `Signed in as ${esc(m.title || m.role_name)}.`)}
-          <div class="cl-kpis">${k("users", "purple", counts.members, "Members", `#/club/manage?c=${club.id}&tab=members`)}${k("bell", "blue", counts.followers, "Followers", `#/club/c?slug=${encodeURIComponent(club.slug)}`)}
-            ${has(m, "members.approve") ? k("userpen", reqs.length ? "orange" : "green", reqs.length, "Join requests", `#/club/manage?c=${club.id}&tab=invites`) : ""}${k("edit", "teal", forms.filter((f) => f.status === "open").length, "Open forms", `#/club/manage?c=${club.id}&tab=forms`)}${k("calendar", "pink", upcoming, "Upcoming events", `#/club/manage?c=${club.id}&tab=events`)}</div>
-          ${todo.length && m.rank <= 3 ? `<section class="card mt"><div class="card-h"><h2>${icon("listcheck", "sm")} Get your club ready</h2><span class="pill">${steps.length - todo.length} of ${steps.length}</span></div>${steps.map(([done, label, tab]) => `<a class="lrow" href="#/club/manage?c=${club.id}&tab=${tab}"><span class="itile sm ${done ? "green" : "gray"}">${icon(done ? "checkc" : "clock")}</span><span class="body"><b>${label}</b></span>${done ? "" : icon("chevR", "chev")}</a>`).join("")}</section>` : ""}
-          <section class="card mt"><h2>Quick actions</h2><div class="cl-quick mt-s">${[["posts.write", "posts&new=1", "megaphone", "Post news"], ["events.manage", "events&new=1", "calendar", "New event"], ["forms.create", "forms&new=1", "edit", "New form"], ["members.invite", "invites", "userpen", "Invite members"], ["attendance.take", "attendance", "checkc", "Take attendance"], ["polls.create", "polls", "bars", "Start a poll"]]
-            .filter(([p]) => has(m, p)).map(([, tab, ic, l]) => `<a class="cl-quick-btn" href="#/club/manage?c=${club.id}&tab=${tab}">${icon(ic)}<span>${l}</span></a>`).join("")}</div></section>`;
+        const QUICK = [["members.approve", "invites", "userpen", "Approve Members"], ["members.promote", "roles", "shield", "Manage Roles"], ["posts.write", "posts&new=1", "megaphone", "Post Announcement"], ["comments.moderate", "posts", "file", "Content Moderation"],
+          ["settings.edit", "settings", "settings", "Club Settings"], ["analytics.view", null, "bars", "View Reports"], ["audit.view", "audit", "reset", "Activity Logs"], ["forms.export", "members", "cloud", "Backup Data"]];
+        const g = an?.growth?.slice(-6) || [];
+        return `<header class="ca-head"><div class="min0"><h1>Club Admin Control Center</h1><p>Manage members, content, permissions and club operations</p></div>${has(m, "settings.edit") ? `<a class="btn outline sm" href="${href("settings")}">${icon("settings", "sm")} Club Settings</a>` : ""}</header>
+          <div class="ca-kpis">${kpi("users", "purple", counts.members, "Total Members", an?.new_30d ? `<span class="rp-up">↑ +${an.new_30d} this month</span>` : `${counts.followers} followers`, href("members"))}
+            ${kpi("clock", "red", reqs.length, "Pending Approvals", reqs.length ? `Review now ${icon("arrow", "sm")}` : "All caught up", href("invites"))}
+            ${kpi("crown", "orange", execs.length, "Active Executives", `${year} - ${year + 1}`, `#/club/committee?c=${club.id}`)}
+            ${kpi("folder", "blue", active.length, "Ongoing Projects", `View all ${icon("arrow", "sm")}`, `#/club/projects?c=${club.id}`)}</div>
+          ${todo.length && m.rank <= 3 ? `<section class="card mt ca-setup"><div class="card-h"><h2>${icon("listcheck", "sm")} Get your club ready</h2><span class="pill">${steps.length - todo.length} of ${steps.length}</span></div>${todo.map(([, label, tab]) => `<a class="lrow" href="${href(tab)}"><span class="itile sm orange">${icon("clock")}</span><span class="body"><b>${label}</b></span>${icon("chevR", "chev")}</a>`).join("")}</section>` : ""}
+          ${an ? `<div class="ca-row mt"><section class="card rp-card"><div class="rp-ch"><h3>Member Growth</h3><a class="rp-more" href="#/club/analytics?c=${club.id}">View Analytics ${icon("chevR", "sm")}</a></div>${kit.charts.bars({ title: "Members per month", labels: g.map((x) => kit.charts.monthLabel(x.m)), series: [{ name: "Members", values: g.map((x) => x.total) }] })}</section>
+            <section class="card rp-card"><div class="rp-ch"><h3>Member Distribution</h3></div>${Object.keys(an.by_department).length ? kit.charts.donut({ title: "Members by department", items: Object.entries(an.by_department).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([label, value]) => ({ label, value })), center: String(an.members), sub: "Members" }) : `<p class="small muted">No members yet.</p>`}</section></div>` : ""}
+          ${has(m, "members.approve") ? `<section class="card rp-card mt"><div class="rp-ch"><h3>Recent Join Requests</h3><a class="rp-more" href="${href("invites")}">View All ${icon("chevR", "sm")}</a></div>
+            ${reqs.length ? `<div class="ca-reqs">${reqs.slice(0, 5).map((r) => `<div class="ca-req">${ui.ava(r.name || "?", "", "md")}<span class="min0"><b>${esc(r.name || "Student")}</b><span>${esc([r.department, r.student_id && `Batch ${r.student_id.slice(0, 4)}`].filter(Boolean).join(" · "))}</span></span>
+              <span class="ca-ago">${icon("clock", "sm")} ${ui.ago(r.created_at)}</span><button class="btn sm ca-ok" data-rq="${r.id}" data-ok="1">Approve</button><button class="btn sm ca-no" data-rq="${r.id}" data-ok="0">Reject</button></div>`).join("")}</div>`
+              : `<p class="small muted">No pending requests.</p>`}</section>` : ""}
+          <div class="ca-row mt"><section class="card rp-card"><div class="rp-ch"><h3>Upcoming Events</h3><a class="rp-more" href="${href("events")}">View All ${icon("chevR", "sm")}</a></div>
+              ${upcoming.length ? upcoming.slice(0, 4).map((e) => `<a class="ca-ev" href="#/club/event?id=${e.id}"><span class="cx-dbox"><b>${ui.when(e.starts_at, { day: "2-digit" })}</b>${ui.when(e.starts_at, { month: "short" })}</span><span class="min0"><b>${esc(e.title)}</b><span>${ui.time(e.starts_at)}${e.venue ? ` · ${esc(e.venue)}` : ""}</span></span>${regs[e.id] != null ? `<span class="ca-pill">${regs[e.id]} Registered</span>` : ""}</a>`).join("") : `<p class="small muted">No upcoming events.</p>`}</section>
+            ${projects.length ? `<section class="card rp-card"><div class="rp-ch"><h3>Active Projects</h3><a class="rp-more" href="#/club/projects?c=${club.id}">View All ${icon("chevR", "sm")}</a></div>
+              ${active.slice(0, 4).map((p, i) => { const k = ptc[p.id] || { total: 0, done: 0 }, pct = k.total ? Math.round((100 * k.done) / k.total) : 0; return `<a class="ca-pj" href="#/club/project?id=${p.id}"><span class="itile sm ${["purple", "blue", "orange", "pink"][i % 4]}">${icon(["calendar", "users", "image", "briefcase"][i % 4])}</span><span class="min0 grow"><b>${esc(p.title)}</b><span class="ca-bar"><i style="width:${pct}%;background:var(--viz-${(i % 5) + 1})"></i></span></span><b class="ca-pct">${pct}%</b></a>`; }).join("") || `<p class="small muted">No active projects.</p>`}</section>` : ""}</div>
+          <section class="mt"><div class="cp-sh"><h2 style="color:#1b1464">Quick Actions</h2></div><div class="ca-quick">${QUICK.filter(([p]) => has(m, p)).map(([, tab, ic, l]) => `<a href="${tab ? href(tab) : `#/club/analytics?c=${club.id}`}">${icon(ic, "solid")}<span>${l}</span></a>`).join("")}</div></section>`;
+      },
+      mount(el, club) {
+        kit.$$("[data-rq]", el).forEach((b) => b.addEventListener("click", async () => {
+          const ok = b.dataset.ok === "1"; kit.ctx.busy(b, true, ok ? "Approving…" : "Rejecting…");
+          try { await api.reviewRequest(b.dataset.rq, ok); store.invalidate(`club:requests:${club.id}`, "clubs:counts", `club:members:${club.id}`); kit.toast(ok ? "Member approved" : "Request declined", "success"); } catch (err) { kit.ctx.busy(b, false); kit.toast(err.message, "error"); }
+        }));
       } } };
   }
 
   /* ═════════ People: members, join requests + invites, roles ═════════ */
   function people() {
-    let q = "";
+    let q = "", mf = "all", mp = 1;
     return {
       members: { label: "Members", icon: "users", group: "People", perm: "members.approve",
         render(club, m) {
+          // Manage Members, from the "Club Admin Dashboard" boards: counters, filter chips and a member table.
           const me = store.use(`club:members:${club.id}`, () => api.members(club.id), { ttl: 30e3 });
-          return kit.head("Members", "Change roles, titles and wings. You can't change anyone at or above your own role.", has(m, "forms.export") ? `<button class="btn outline sm" id="mb-csv">${icon("download", "sm")} CSV</button>` : "")
-            + `<div class="searchbar">${icon("search")}<input class="input" id="mb-q" type="search" placeholder="Search by name, ID, wing…" value="${esc(q)}"></div>`
+          const reqN = (store.peek(`club:requests:${club.id}`) || []).length;
+          return `<header class="ca-head"><div class="min0"><h1>Manage Members</h1><p>Approve, manage roles, and oversee club members</p></div>${has(m, "members.invite") ? `<a class="btn primary sm" href="#/club/manage?c=${club.id}&tab=invites">${icon("plus", "sm")} Add Member</a>` : ""}</header>
+            <nav class="rp-tabs" role="tablist"><a role="tab" aria-selected="true" href="#/club/manage?c=${club.id}&tab=members">All Members</a><a role="tab" aria-selected="false" href="#/club/manage?c=${club.id}&tab=invites">Join Requests${reqN ? ` <span class="ca-n">${reqN}</span>` : ""}</a><a role="tab" aria-selected="false" href="#/club/committee?c=${club.id}">Executives</a>${has(m, "members.promote") ? `<a role="tab" aria-selected="false" href="#/club/manage?c=${club.id}&tab=roles">Roles</a>` : ""}</nav>`
             + ui.view(me, (rows) => {
-              const list = rows.filter((r) => !q || `${r.display_name} ${r.student_id} ${r.wing} ${r.title} ${r.role_name}`.toLowerCase().includes(q.toLowerCase()));
-              return `<p class="xs mt-s">${ui.plural(list.length, "person", "people")}</p><section class="card tight mt-s">${list.map((r) => `<div class="lrow"><span class="avatar sm">${esc(ui.initials(r.display_name))}</span>
-                <span class="body"><b>${esc(r.display_name)}${r.status === "alumni" ? " · alumni" : ""}</b><span>${[r.title, r.wing && `${r.wing} wing`, r.student_id, r.department].filter(Boolean).map(esc).join(" · ")}</span></span>
-                ${ui.rolePill(r.rank, r.role_name)}${r.user_id !== kit.me()?.id && (r.rank > m.rank || m.rank === 1) ? `<button class="btn sm ghost icon-only" data-mb="${r.user_id}" aria-label="Edit ${esc(r.display_name)}">${icon("edit", "sm")}</button>` : ""}</div>`).join("") || `<p class="small muted">Nobody matches.</p>`}</section>`;
+              const isExec = (r) => r.rank <= 4, n = (f) => rows.filter(f).length;
+              const filt = { all: () => true, exec: isExec, general: (r) => r.rank > 4 && r.status === "active", alumni: (r) => r.status !== "active" }[mf] || (() => true);
+              const list = rows.filter((r) => filt(r) && (!q || `${r.display_name} ${r.student_id} ${r.wing} ${r.title} ${r.role_name} ${r.department}`.toLowerCase().includes(q.toLowerCase())));
+              const pages_ = Math.max(1, Math.ceil(list.length / 15)); mp = Math.min(mp, pages_);
+              const shown = list.slice((mp - 1) * 15, mp * 15);
+              return `<div class="rv-kpis c4">${[["users", "purple", rows.length, "Total Members"], ["clock", "orange", reqN, "Pending"], ["crown", "green", n(isExec), "Executives"], ["users", "blue", n((r) => r.rank > 4 && r.status === "active"), "General Members"]].map(([ic, t, v, l]) => `<div class="rv-kpi"><span class="itile ${t}">${icon(ic)}</span><span class="min0"><b>${v}</b><span>${l}</span></span></div>`).join("")}</div>
+                <div class="rv-search"><div class="searchbar cl-search">${icon("search")}<input class="input" id="mb-q" type="search" placeholder="Search members by name, department or ID…" value="${esc(q)}"></div>${has(m, "forms.export") ? `<button class="btn outline" id="mb-csv">${icon("download", "sm")} Export</button>` : ""}</div>
+                <div class="rv-chips">${[["all", `All (${rows.length})`, ""], ["exec", `Executives (${n(isExec)})`, "crown"], ["general", `General (${n((r) => r.rank > 4 && r.status === "active")})`, "users"], ["alumni", `Alumni (${n((r) => r.status !== "active")})`, "cap"]].map(([v, l, ic]) => `<button data-mf="${v}" aria-pressed="${mf === v}">${ic ? icon(ic, "sm") : ""}${l}</button>`).join("")}</div>
+                ${shown.length ? `<div class="mm-table"><div class="mm-h" aria-hidden="true"><span>Member</span><span>Dept.</span><span>Batch</span><span>Role</span><span>Status</span><span></span></div>
+                  ${shown.map((r) => `<div class="mm-r">${ui.ava(r.display_name, r.photo_url, "md")}<span class="mm-name min0"><b>${esc(r.display_name)}</b><span>${esc(r.student_id ? `ID: ${r.student_id}` : r.email || "")}</span></span>
+                    <span class="mm-c">${esc(r.department || "—")}</span><span class="mm-c">${esc(r.student_id ? r.student_id.slice(0, 4) : "—")}</span><span class="mm-role">${ui.rolePill(r.rank, r.title || r.role_name)}</span>
+                    <span class="mm-st">${r.status === "active" ? `<span class="st green">${icon("checkc")} Active</span>` : `<span class="st gray">${icon("cap")} Alumni</span>`}</span>
+                    ${r.user_id !== kit.me()?.id && (r.rank > m.rank || m.rank === 1) ? `<button class="btn sm ghost icon-only" data-mb="${r.user_id}" aria-label="Edit ${esc(r.display_name)}">${icon("morev")}</button>` : "<span></span>"}</div>`).join("")}</div>
+                  <div class="mm-foot"><span class="xs">Showing ${(mp - 1) * 15 + 1}–${(mp - 1) * 15 + shown.length} of ${list.length} members</span>${ui.pager(mp, pages_)}</div>`
+                  : ui.emptyBox("users", "Nobody matches", "Try another filter.")}`;
             });
         },
         mount(el, club, m) {
-          const input = kit.$("#mb-q", el); input?.addEventListener("input", () => { q = input.value; kit.ctx.rerender(); const i = kit.$("#mb-q"); i?.focus(); i?.setSelectionRange(q.length, q.length); });
+          kit.$$("[data-mf]", el).forEach((b) => b.addEventListener("click", () => { mf = b.dataset.mf; mp = 1; kit.ctx.rerender(); }));
+          kit.$$("[data-pg]", el).forEach((b) => b.addEventListener("click", () => { mp = Number(b.dataset.pg); kit.ctx.rerender(); }));
+          const input = kit.$("#mb-q", el); input?.addEventListener("input", () => { q = input.value; mp = 1; kit.ctx.rerender(); const i = kit.$("#mb-q"); i?.focus(); i?.setSelectionRange(q.length, q.length); });
           kit.$("#mb-csv", el)?.addEventListener("click", async () => {
             const rows = store.peek(`club:members:${club.id}`) || [];
             const csv = "﻿" + [["Name", "Student ID", "Email", "Role", "Title", "Wing", "Department", "Status", "Joined"], ...rows.map((r) => [r.display_name, r.student_id, r.email, r.role_name, r.title, r.wing, r.department, r.status, r.joined_at.slice(0, 10)])].map((l) => l.map((x) => `"${String(x ?? "").replace(/^([=+\-@])/, "'$1").replace(/"/g, '""')}"`).join(",")).join("\r\n");

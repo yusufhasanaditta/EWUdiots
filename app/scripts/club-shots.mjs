@@ -79,7 +79,7 @@ try {
     project: `#/club/project?id=${ids.pr}&tab=tasks`, resources: `#/club/resources?c=${clubId}`, polls: "#/club/polls", poll: `#/club/poll?id=${ids.pl}`, elections: "#/club/elections", recruit: "#/club/recruit", finance: `#/club/finance?c=${clubId}`,
     analytics: `#/club/analytics?c=${clubId}`, reports: `#/club/reports?c=${clubId}`, reportsx: `#/club/reports?c=${clubId}&tab=export`, store: "#/club/store", product: `#/club/product?id=${ids.pd}`, merch: `#/club/merch?c=${clubId}`, orders: `#/club/ordersadmin?c=${clubId}`,
     sponsors: "#/club/sponsors", collab: "#/club/collab", help: "#/club/help", privacy: "#/club/privacy", me: "#/club/me", more: "#/club/more", roles: `#/club/manage?c=${clubId}&tab=roles`,
-    committee: `#/club/committee?c=${clubId}`, mytickets: "#/club/tickets", scan: "#/club/scan"
+    committee: `#/club/committee?c=${clubId}`, console: `#/club/manage?c=${clubId}`, mmembers: `#/club/manage?c=${clubId}&tab=members`, platform: "#/club/admin", platclubs: "#/club/admin?tab=clubs", mytickets: "#/club/tickets", scan: "#/club/scan"
   };
   const want = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SCREENS);
   await build({ root: resolve("."), logLevel: "silent" });

@@ -138,13 +138,23 @@ try {
   check("non-member can't see the members' space", await hasText(C, "This space is for members"));
   await go(C, `#/club/form?id=${formId}`);
   await C.waitForSelector("#fm-form");
-  await click(C, "#fm-form button.primary");
+  // Step 1 (Your Information): department and phone are checked before moving on.
+  await C.$eval('#fm-form [name="_dept"]', (i) => { i.value = ""; });
+  await click(C, "#fm-form #fm-next");
   check("required answers are checked before sending", await hasText(C, "Please check the highlighted answers."));
-  const firstLong = await C.$eval("#fm-form textarea", (t) => t.name);
-  await typeIn(C, `#fm-form [name="${firstLong}"]`, "I build line-following robots and want to learn more.");
+  await typeIn(C, '#fm-form [name="_dept"]', "CSE");
   await typeIn(C, '#fm-form [name="_phone"]', "01712345678");
+  await click(C, "#fm-form #fm-next");
+  // Step 2 (Additional Details): the answers and the guidelines tick.
+  await C.waitForSelector('#fm-form [data-step="2"]:not([hidden]) textarea');
+  const firstLong = await C.$eval('#fm-form [data-step="2"] textarea', (t) => t.name);
+  await typeIn(C, `#fm-form [name="${firstLong}"]`, "I build line-following robots and want to learn more.");
+  await C.$eval('#fm-form [name="_agree"]', (c) => { c.checked = true; });
   await shot(C, "07-form-fill");
-  await click(C, "#fm-form button.primary");
+  await click(C, "#fm-form #fm-next");
+  // Step 3 (Review & Submit).
+  await C.waitForSelector('#fm-form [data-step="3"]:not([hidden])');
+  await click(C, "#fm-form #fm-next");
   check("application sent", await hasText(C, "The club will review it", 20000));
 
   /* ── 6. Admin reviews: sees the phone number, accepts ── */

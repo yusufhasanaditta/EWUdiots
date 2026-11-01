@@ -65,19 +65,30 @@ export function register(pages, kit) {
     }
   }
 
+  /* Three steps as on the "AI Event Registration" board: Your Information → Additional Details → Review & Submit.
+     All steps live in one <form>; Next checks the visible step, the last step sends. */
+  const STEPS = ["Your Information", "Additional Details", "Review & Submit"];
   function fill(form, prev) {
-    const s = form.settings || {}, p = kit.ctx.S.profile || {}, a = prev?.answers || {};
+    const s = form.settings || {}, p = kit.ctx.S.profile || {}, a = prev?.answers || {}, me = kit.me();
     const fields = form.fields.map((x) => (x.type === "note"
       ? `<div class="cl-note">${ui.rich(x.label)}</div>`
       : `<div class="field" data-f="${x.id}"><span>${esc(x.label)}${x.required ? ' <i class="cl-req" aria-label="required">*</i>' : ""}</span>${x.help ? `<span class="hint">${esc(x.help)}</span>` : ""}${control(x, a[x.id])}<span class="err" hidden></span></div>`)).join("");
-    return `<form id="fm-form" class="card mt stack" novalidate>
-      <div class="cl-from"><span class="avatar sm">${esc(ui.initials(p.name || kit.me()?.email))}</span><div class="min0"><b>${esc(p.name || kit.me()?.user_metadata?.name || "You")}</b><span class="xs ellipsis">${esc(kit.me()?.email || "")}</span></div><span class="xs push">${icon("shield", "sm")} Sent from your account</span></div>
-      ${ui.field("Department", ui.input("_dept", prev?.department || p.department || "", 'maxlength="60" placeholder="e.g. CSE"'))}
-      ${s.collectPhone ? `<div class="field" data-f="_phone"><span>Mobile number <i class="cl-req">*</i></span>${ui.input("_phone", prev?.phone || "", 'type="tel" inputmode="tel" autocomplete="tel" placeholder="01712345678"')}<span class="hint">Only the club's organisers see it.</span><span class="err" hidden></span></div>` : ""}
-      ${fields}
-      ${s.fee ? `<div class="alert purple"><span class="a-ic">${icon("wallet")}</span><div><b>Fee: ৳${Number(s.fee).toLocaleString("en-US")}</b><p>${esc(s.feeNote || "Pay the club by bKash or Nagad, then enter the transaction ID.")}</p></div></div>${ui.field("Transaction ID", ui.input("_pay", prev?.payment_ref || "", 'maxlength="40" placeholder="e.g. 9BX7K2LQ1T"'))}` : ""}
-      <div id="cl-err"></div><button class="btn primary lg block">${icon("arrow")} ${prev ? "Save changes" : "Send"}</button>
-      <p class="xs" style="text-align:center">The club sees your name, student ID, email${s.collectPhone ? ", phone" : ""} and answers.</p></form>`;
+    const ro = (label, v) => `<label class="field"><span>${label} <i class="cl-req">*</i></span><input class="input" value="${esc(v || "")}" readonly aria-readonly="true"></label>`;
+    return `<form id="fm-form" class="card mt fm-wiz" novalidate data-at="1">
+      <ol class="fm-steps">${STEPS.map((t, i) => `<li data-s="${i + 1}"><span>${i + 1}</span><b>${t}</b></li>`).join("")}</ol>
+      <section data-step="1"><h2 class="fm-h">Personal Information</h2><div class="fm-grid">
+          ${ro("Full Name", p.name || me?.user_metadata?.name || "")}${ro("Student ID", p.id || "")}
+          <div class="field fm-wide" data-f="_dept"><span>Department <i class="cl-req">*</i></span>${ui.input("_dept", prev?.department || p.department || p.program || "", 'maxlength="60" placeholder="e.g. Computer Science and Engineering (CSE)"')}<span class="err" hidden></span></div>
+          ${s.collectPhone ? `<div class="field" data-f="_phone"><span>Contact Number <i class="cl-req">*</i></span>${ui.input("_phone", prev?.phone || "", 'type="tel" inputmode="tel" autocomplete="tel" placeholder="01XXXXXXXXX"')}<span class="err" hidden></span></div>` : ""}
+          ${ro("Email Address", me?.email || "")}</div>
+        <p class="xs mt-s">${icon("shield", "sm")} Name, ID and email come from your account, so the club knows it's really you.</p></section>
+      <section data-step="2" hidden><h2 class="fm-h">Additional Information</h2><div class="stack">${fields || `<p class="small muted">No extra questions.</p>`}
+        ${s.fee ? `<div class="alert purple"><span class="a-ic">${icon("wallet")}</span><div><b>Fee: ৳${Number(s.fee).toLocaleString("en-US")}</b><p>${esc(s.feeNote || "Pay the club by bKash or Nagad, then enter the transaction ID.")}</p></div></div>${ui.field("Transaction ID", ui.input("_pay", prev?.payment_ref || "", 'maxlength="40" placeholder="e.g. 9JX2K4L7QP"'))}` : ""}
+        <label class="fm-agree" data-f="_agree"><input type="checkbox" name="_agree" ${prev ? "checked" : ""}><span>I agree to the ${esc(FORM_KINDS[form.kind]?.toLowerCase() || "club")} guidelines and understand that my registration is subject to approval by the club organizers.</span><span class="err" hidden></span></label></div></section>
+      <section data-step="3" hidden><h2 class="fm-h">Review &amp; Submit</h2><div id="fm-review" class="fm-review"></div>
+        <p class="xs" style="text-align:center">The club sees your name, student ID, email${s.collectPhone ? ", phone" : ""} and answers.</p></section>
+      <div id="cl-err"></div>
+      <div class="fm-nav"><button type="button" class="btn neutral lg" id="fm-back" disabled>Back</button><button class="btn primary lg" id="fm-next">Next</button></div></form>`;
   }
 
   function collect(form, root) {
@@ -99,14 +110,50 @@ export function register(pages, kit) {
       await api.withdraw(rid); store.invalidate(`form:mine:${form.id}`, `form:count:${form.id}`, "me:responses"); kit.toast("Withdrawn", "success");
     }, true); });
     const f = kit.$("#fm-form", el); if (!f) return;
+    // The steps: Next checks the visible step; on the last step the button sends.
+    const go = (n) => {
+      f.dataset.at = String(n); const err = kit.$("#cl-err", f); if (err) err.innerHTML = "";
+      kit.$$("[data-step]", f).forEach((x) => { x.hidden = x.dataset.step !== String(n); });
+      kit.$$(".fm-steps li", f).forEach((li) => { li.classList.toggle("on", Number(li.dataset.s) === n); li.classList.toggle("done", Number(li.dataset.s) < n); });
+      kit.$("#fm-back", f).disabled = n === 1;
+      kit.$("#fm-next", f).innerHTML = n === 3 ? `${icon("send", "sm")} ${editing ? "Save changes" : "Submit"}` : "Next";
+      if (n === 3) {
+        const ans = collect(form, f), show = (v) => (Array.isArray(v) ? v.join(", ") : v) || "—";
+        kit.$("#fm-review", f).innerHTML = [["Department", f.elements._dept?.value], ...(f.elements._phone ? [["Contact Number", f.elements._phone.value]] : []),
+          ...form.fields.filter((x) => x.type !== "note").map((x) => [x.label, show(ans[x.id])]), ...(f.elements._pay ? [["Transaction ID", f.elements._pay.value]] : [])]
+          .map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(show(v))}</b></div>`).join("");
+      }
+      f.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    const mark = (k, msg) => { const box = kit.$(`[data-f="${k}"]`, f), er = box?.querySelector(".err"); if (er) { er.hidden = false; er.textContent = msg; } box?.querySelector("input, textarea, select")?.setAttribute("aria-invalid", "true"); };
+    const stepOk = (n) => {
+      kit.$$(".err", f).forEach((x) => { x.hidden = true; }); kit.$$("[aria-invalid]", f).forEach((x) => x.removeAttribute("aria-invalid"));
+      if (n === 1) {
+        let ok = true;
+        if (!f.elements._dept.value.trim()) { mark("_dept", "Add your department."); ok = false; }
+        if (f.elements._phone && !normPhone(f.elements._phone.value)) { mark("_phone", "Enter a Bangladeshi mobile number, like 01712345678."); ok = false; }
+        return ok;
+      }
+      if (n === 2) {
+        const { ok, errors } = validate(form.fields, collect(form, f), form.settings, f.elements._phone?.value || "");
+        Object.entries(errors).filter(([k]) => k !== "_phone").forEach(([k, msg]) => mark(k, msg));
+        if (!f.elements._agree.checked) { mark("_agree", "Please agree to the guidelines to continue."); return false; }
+        return ok || Object.keys(errors).every((k) => k === "_phone");
+      }
+      return true;
+    };
+    kit.$("#fm-back", f).addEventListener("click", () => go(Math.max(1, Number(f.dataset.at) - 1)));
+    go(1);
     f.addEventListener("input", (e) => { const box = e.target.closest("[data-f]"); if (!box) return; const er = box.querySelector(".err"); if (er) er.hidden = true; box.querySelector("[aria-invalid]")?.removeAttribute("aria-invalid"); });
     f.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const at = Number(f.dataset.at);
+      if (at < 3) { if (stepOk(at)) go(at + 1); else ui.fail(f, "Please check the highlighted answers."); return; }
       kit.$$(".err", f).forEach((x) => { x.hidden = true; }); kit.$$("[aria-invalid]", f).forEach((x) => x.removeAttribute("aria-invalid"));
       const answers = collect(form, f), phone = f.elements._phone?.value || "", { ok, errors } = validate(form.fields, answers, form.settings, phone);
       if (!ok) {
         for (const [k, msg] of Object.entries(errors)) { const box = kit.$(`[data-f="${k}"]`, f); const er = box?.querySelector(".err"); if (er) { er.hidden = false; er.textContent = msg; } box?.querySelector("input, textarea, select")?.setAttribute("aria-invalid", "true"); }
-        kit.$(`[data-f="${Object.keys(errors)[0]}"]`, f)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        go(errors._phone ? 1 : 2); for (const [k, msg] of Object.entries(errors)) mark(k, msg);
         return ui.fail(f, "Please check the highlighted answers.");
       }
       const btn = f.querySelector("button.primary"); kit.ctx.busy(btn, true, "Sending…");

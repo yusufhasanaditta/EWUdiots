@@ -137,7 +137,7 @@ export function moreApi(sb, me, ok, safeName) {
     clubResponses: async (clubId) => ok(await from("form_responses").select("id, form_id, status, score_total, created_at, department, checked_in_at").eq("club_id", clubId).limit(5000)),
 
     /* ── Events ── */
-    event: async (id) => ok(await from("events").select("*, clubs(id, slug, name, short_name, logo_url, color, verified)").eq("id", id).maybeSingle()),
+    event: async (id) => ok(await from("events").select("*, clubs(id, slug, name, short_name, logo_url, color, verified, tagline)").eq("id", id).maybeSingle()),
     eventStats: async (id) => ok(await rpc("event_stats", { ev: id })),
     eventCheckin: async (id, q) => ok(await rpc("event_checkin", { ev: id, q })),
     notifyRegistrants: async (id, title, body) => ok(await rpc("notify_registrants", { ev: id, t: title, b: body })),

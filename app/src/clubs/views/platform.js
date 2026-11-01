@@ -22,7 +22,7 @@ export function register(pages, kit) {
     return `${ui.ph(t === "clubs" ? "Club Management" : t === "roles" ? "Roles & Permissions" : t === "queue" ? "Pending Approvals" : "App Admin<br><span style=\"font-size:.7em\">Platform Control Center</span>",
         t === "clubs" ? "View, verify, and manage all registered clubs on the platform." : t === "roles" ? "Manage the positions and permissions every club starts with." : "Manage clubs, users, content, and platform activities.",
         `<span class="cl-disclaimer">${icon("info", "sm")} Unofficial · not affiliated with EWU</span>${t === "clubs" ? `<button class="btn primary" id="pa-new">${icon("plus")} Register Club</button>` : ""}`)}
-      ${ui.seg([["home", "Overview"], ["clubs", "Clubs"], ["roles", "Roles & Permissions"], ["queue", "Approvals"]], t, (v) => `#/club/admin?tab=${v}`)}
+      <nav class="rp-tabs" role="tablist">${[["home", "Overview"], ["clubs", "Clubs"], ["queue", "Club Requests"], ["roles", "Roles & Permissions"]].map(([v, l]) => `<a role="tab" href="#/club/admin?tab=${v}" aria-selected="${t === v}">${l}</a>`).join("")}</nav>
       ${t === "clubs" ? clubs() : t === "roles" ? roles() : t === "queue" ? queue() : home()}`;
   };
 
@@ -32,12 +32,19 @@ export function register(pages, kit) {
     return ui.view(se, (s) => `<div class="cl-stats">${ui.stat("users", "purple", s.users.toLocaleString(), "Total users", { d: charts.delta(s.users, s.users_prev), spark: charts.spark(s.growth.map((x) => x.total)) })}${ui.stat("community", "blue", s.clubs, "Registered clubs", { d: charts.delta(s.clubs, s.clubs_prev) })}
         ${ui.stat("calendar", "amber", s.events, "Club events", { d: charts.delta(s.events, s.events_prev) })}${ui.stat("file", "purple", s.posts, "Club posts", { d: charts.delta(s.posts, s.posts_prev) })}</div>
       <div class="cl-row2"><section class="card cl-chart"><h3>User Growth <span class="xs">Last 6 months</span></h3>${charts.line({ title: "Users per month", labels: s.growth.map((x) => charts.monthLabel(x.m)), series: [{ name: "Total users", values: s.growth.map((x) => x.total), area: true }, { name: "Active (signed in)", values: s.growth.map((x) => x.active) }], fmt: charts.compact })}</section>
-        <section class="card cl-chart"><h3>Club Distribution</h3>${charts.donut({ title: "Clubs by category", items: Object.entries(s.by_category).map(([k, v]) => ({ label: CATEGORIES[k] || k, value: v })), sub: "Clubs" })}</section></div>
+        ${topClubs()}<section class="card cl-chart"><h3>Club Distribution</h3>${charts.donut({ title: "Clubs by category", items: Object.entries(s.by_category).map(([k, v]) => ({ label: CATEGORIES[k] || k, value: v })), sub: "Clubs" })}</section></div>
       <div class="cl-tiles mt" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${[["community", "purple", "Club Management", "#/club/admin?tab=clubs"], ["users", "blue", "User Management", "/admin.html#users"], ["shield", "red", "Content Moderation", "/admin.html#clubs"],
         ["calendar", "orange", "Event Oversight", "/admin.html#events"], ["megaphone", "pink", "Announcements", "/admin.html#messages"], ["chart", "blue", "Reports & Analytics", "#/club/admin?tab=home"], ["settings", "purple", "System Settings", "/admin.html#settings"],
         ["lock", "green", "Access Control", "#/club/admin?tab=roles"], ["help", "purple", "Feedback & Support", "#/club/admin?tab=queue"]].map((x) => ui.tile(...x)).join("")}</div>
       <div class="cl-row2 mt"><section class="card"><div class="card-h"><h2>Recent Activities</h2></div>${s.recent.map((a) => `<div class="cl-li" style="padding:8px 0"><span class="itile sm purple">${icon("clock")}</span><span class="body"><b>${esc(a.action.replace(/[._]/g, " "))}</b><span>${esc(a.club)} · ${esc(a.actor_name || "System")}</span></span><span class="end">${ui.ago(a.at)}</span></div>`).join("") || `<p class="small muted">Nothing yet.</p>`}</section>
         <section class="card"><div class="card-h"><h2>Pending Approvals</h2><a class="small" href="#/club/admin?tab=queue">See all</a></div>${[["Club Verification", "community", s.pending.claims], ["Event Approval", "calendar", s.pending.events], ["Content Reports", "shield", s.pending.reports], ["Support Tickets", "help", s.pending.tickets]].map(([l, ic, n]) => `<a class="cl-li" style="padding:8px 0" href="#/club/admin?tab=queue">${icon(ic)}<span class="body"><b>${l}</b></span><span class="badge-n">${n}</span>${icon("chevR", "sm")}</a>`).join("")}</section></div>`, { n: 4, h: 140 });
+  }
+
+  /* Top Active Clubs: most members (live clubs only). */
+  function topClubs() {
+    const all = store.use("clubs:all", api.listClubs, { ttl: 5 * 60e3 }).value || [], counts = store.use("clubs:counts", api.counts, { ttl: 60e3 }).value || {};
+    const top = all.filter((c) => c.status === "active").sort((a, b) => (counts[b.id]?.members || 0) - (counts[a.id]?.members || 0)).slice(0, 5);
+    return top.length ? `<section class="card rp-card"><div class="rp-ch"><h3>Top Active Clubs</h3><a class="rp-more" href="#/club/admin?tab=clubs">View All ${icon("chevR", "sm")}</a></div><div class="rp-top">${top.map((c, i) => `<a href="#/club/c?slug=${encodeURIComponent(c.slug)}">${ui.logo(c, "sm")}<span class="min0"><b>${esc(c.name)}</b><i>${ui.plural(counts[c.id]?.members || 0, "member")}</i></span>${i === 0 ? `<span class="rp-hot">${icon("flame", "sm")}</span>` : ""}</a>`).join("")}</div></section>` : "";
   }
 
   /* ── Club management ── */
@@ -53,10 +60,10 @@ export function register(pages, kit) {
       return `<nav class="cl-seg">${[["all", "All Clubs"], ["pending", "Pending Verification"], ["active", "Verified"], ["suspended", "Suspended"], ["archived", "Archived"]].map(([v, l]) => `<button data-ct="${v}" aria-pressed="${ctab === v}">${l} <span class="n">${groups[v].length}</span></button>`).join("")}</nav>
         <div class="row nowrap" style="gap:8px"><div class="searchbar cl-search grow">${icon("search")}<input class="input" id="pa-q" type="search" placeholder="Search clubs by name, category, or keywords…" value="${esc(q)}" autocomplete="off"></div></div>
         <div class="row mt-s" style="gap:8px;flex-wrap:wrap">${ui.select("cat", [["", "All Categories"], ...Object.entries(CATEGORIES)], fcat, 'id="pa-cat" style="width:auto" aria-label="Category"')}${ui.select("sort", [["new", "Newest First"], ["name", "Name"], ["members", "Most members"]], sort, 'id="pa-sort" style="width:auto" aria-label="Sort"')}</div>
-        <section class="card mt-s" style="padding:0;overflow:auto"><table class="cl-dtable"><thead><tr><th class="hide-s">#</th><th>Club Name</th><th class="hide-s">Category</th><th>Members</th><th class="hide-s">Source</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead>
-          <tbody>${list.slice((page - 1) * PAGE, page * PAGE).map((c, i) => `<tr><td class="hide-s">${(page - 1) * PAGE + i + 1}</td><td><a class="row nowrap" style="gap:8px;color:inherit;text-decoration:none" href="#/club/admin?tab=clubs&club=${c.id}">${ui.logo(c, "xs")}<b>${esc(c.name)}</b></a></td>
-            <td class="hide-s">${ui.st([CATEGORIES[c.category], "blue"])}</td><td>${counts[c.id]?.members || 0}</td><td class="hide-s">${c.source === "ewubd" ? "EWU site" : "EWUdiots"}</td><td>${ui.st(STATUS[c.status])}</td>
-            <td><button class="icon-btn" data-club="${c.id}" aria-label="Actions for ${esc(c.name)}">${icon("more")}</button></td></tr>`).join("")}</tbody></table></section>
+        <div class="pc-list mt-s">${list.slice((page - 1) * PAGE, page * PAGE).map((c, i) => `<article class="pc-card">${ui.logo(c, "lg")}<div class="min0 grow"><a class="pc-name" href="#/club/admin?tab=clubs&club=${c.id}">${esc(c.name)}</a>
+            <p>${esc(c.tagline || c.short_name || "")}</p><div class="pc-tags"><span class="cb-tag t${i % 5}">${esc(CATEGORIES[c.category] || "Club")}</span>${c.source === "ewubd" ? '<span class="cb-tag t4">EWU site</span>' : ""}</div>
+            <p class="pc-meta">${icon("users", "sm")} ${ui.plural(counts[c.id]?.members || 0, "member")} · ${icon("bell", "sm")} ${counts[c.id]?.followers || 0} followers</p></div>
+          <div class="pc-side">${ui.st(STATUS[c.status])}<a class="btn sm pc-view" href="#/club/admin?tab=clubs&club=${c.id}">View</a>${["pending", "unclaimed"].includes(c.status) ? `<a class="btn sm ca-ok" href="#/club/admin?tab=queue">Approve</a>` : ""}<button class="icon-btn" data-club="${c.id}" aria-label="Actions for ${esc(c.name)}">${icon("morev")}</button></div></article>`).join("") || '<p class="small muted">No clubs match.</p>'}</div>
         ${ui.pager(page, pages_)}
         ${sel ? clubCard(sel, counts[sel.id] || {}) : ""}`;
     }, { n: 5, h: 54 });

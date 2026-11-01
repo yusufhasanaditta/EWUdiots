@@ -10,6 +10,7 @@ import "./v217.css";
 import "./v218.css";
 import "./v219.css";
 import "./v220.css";
+import "./v221.css";
 import { start as startDropdowns } from "./dropdown.js";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";
@@ -36,6 +37,7 @@ import { install as installMaterials } from "./ui-materials.js";
 import { install as installClassroom } from "./ui-classroom.js";
 import { install as installInsights } from "./ui-insights.js";
 import { install as installAttendance } from "./ui-attendance.js";
+import { install as installSecurity } from "./ui-security.js";
 import { install as installClubs } from "./clubs/index.js";
 import { createContent, FEATURES } from "./content.js";
 import { applyBrand } from "./theme.js";
@@ -208,7 +210,8 @@ function openModal(html, onMount, { center = false } = {}) {
   first && first.focus({ preventScroll: true });
   onMount && onMount(m);
 }
-function closeModal() { if (C.update?.required && native.isNative && $("#modal .upd-sheet")) return; // a required update stays on screen
+function closeModal(force = false) { if (C.update?.required && native.isNative && $("#modal .upd-sheet")) return; // a required update stays on screen
+  if (!force && $("#modal [data-locked]")) return; // e.g. the two-step code at sign-in: answer it or sign out
   $("#scrim").classList.remove("open"); $("#modal").innerHTML = ""; lastFocus && lastFocus.focus && lastFocus.focus({ preventScroll: true }); }
 const modalOpen = () => $("#scrim").classList.contains("open");
 $("#scrim").addEventListener("click", (e) => { if (e.target.id === "scrim" || e.target.closest("[data-close]")) closeModal(); });
@@ -357,7 +360,7 @@ function inbox() {
 }
 
 /* ───────────── Command palette (Ctrl+K / search) ───────────── */
-const PAGES_SEARCH = [["ask", "Ask EWUdiots (assistant)", "sparkle"], ["blog", "Blog: tips and stories", "notes"], ["write", "Write a blog post", "edit"], ["calendar", "Academic calendar: holidays, payment deadlines, final exams", "calcheck"], ["insights", "Analytics: CGPA trend, credits, grades, study time", "chart"], ["scholarship", "Scholarships: how to get one, what CGPA you need", "trophy"], ["classroom", "Google Classroom: import materials and assignments", "school"], ["events", "Campus events: workshops, concerts, club recruitment", "calendar"], ["jobs", "Jobs & internships", "briefcase"], ["mentors", "Alumni mentors", "heart"], ["office", "Teachers' office hours & consultations", "clock"], ["teach", "Teaching hub (teachers)", "briefcase"], ["alumhub", "Alumni hub", "cap"], ["home", "Home", "home"], ["routine", "My routine", "calendar"], ["alarms", "Class alarms (remind me before class)", "bell"], ["planner", "Advising planner", "calcheck"], ["courses", "My courses", "book"], ["grades", "CGPA", "bars"], ["degree", "Degree progress", "cap"],
+const PAGES_SEARCH = [["security", "Security: password, two-step verification, devices", "shield"], ["ask", "Ask EWUdiots (assistant)", "sparkle"], ["blog", "Blog: tips and stories", "notes"], ["write", "Write a blog post", "edit"], ["calendar", "Academic calendar: holidays, payment deadlines, final exams", "calcheck"], ["insights", "Analytics: CGPA trend, credits, grades, study time", "chart"], ["scholarship", "Scholarships: how to get one, what CGPA you need", "trophy"], ["classroom", "Google Classroom: import materials and assignments", "school"], ["events", "Campus events: workshops, concerts, club recruitment", "calendar"], ["jobs", "Jobs & internships", "briefcase"], ["mentors", "Alumni mentors", "heart"], ["office", "Teachers' office hours & consultations", "clock"], ["teach", "Teaching hub (teachers)", "briefcase"], ["alumhub", "Alumni hub", "cap"], ["home", "Home", "home"], ["routine", "My routine", "calendar"], ["alarms", "Class alarms (remind me before class)", "bell"], ["planner", "Advising planner", "calcheck"], ["courses", "My courses", "book"], ["grades", "CGPA", "bars"], ["degree", "Degree progress", "cap"],
   ["whatif", "What-if calculator", "calc"], ["marks", "Marks & attendance estimator", "percent"], ["tasks", "Deadlines", "clipboard"], ["exams", "Exam planner", "exam"], ["fees", "Fees & payments", "wallet"], ["vault", "Study vault", "vault"],
   ["rooms", "Free rooms", "door"], ["map", "Campus map & directions", "map"], ["notices", "EWU notice board", "megaphone"], ["news", "Campus news", "globe"], ["alumni", "Alumni: where are they now", "community"], ["idcard", "My ID card", "user"], ["faculty", "Faculty & reviews", "users"], ["focus", "Focus timer", "focus"], ["cards", "Flashcards", "cards"], ["me", "Achievements", "award"], ["cover", "Cover page", "file"],
   ["sync", "Sync portal", "sync"], ["notifications", "Notifications", "bell"], ["profile", "Profile & settings", "settings"]];
@@ -723,6 +726,7 @@ events = installEvents(ctx);
 acal = installCalendar(ctx);
 startDropdowns();
 attendanceUi = installAttendance(ctx);
+installSecurity(ctx);
 installScholar(ctx);
 installClassroom(ctx);
 charts = installInsights(ctx);

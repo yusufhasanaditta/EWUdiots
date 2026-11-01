@@ -51,19 +51,20 @@ export function register(pages, kit) {
         ${form || tk ? `<div class="cl-evkpis">${cap ? `<div><span class="itile sm purple">${icon("users")}</span><span><b>${filled ?? "–"} / ${cap}</b><span>Spots filled</span><span class="cl-bar"><i style="width:${Math.min(100, Math.round(((filled || 0) / cap) * 100))}%"></i></span></span></div>` : ""}
           <div><span class="itile sm blue">${icon("community")}</span><span><span>Open for</span><b>${e.visibility === "members" ? "Club members" : "All EWU students"}</b></span></div>
           <div><span class="itile sm green">${icon("ticket")}</span><span><b>${tk ? (cheapest > 0 ? `From ${priceLabel(cheapest)}` : tiers.some((x) => Number(x.price) > 0) ? "Free & paid" : "Free") : form?.settings?.fee ? priceLabel(form.settings.fee) : "Free"}</b><span>${tk ? "Tickets" : "Registration"}</span></span></div></div>` : ""}
-        ${e.perks?.length ? `<div class="cl-evperks">${e.perks.map((p, i) => `<div>${icon(["users", "handshake", "award"][i % 3])}<span>${esc(p)}</span></div>`).join("")}</div>` : ""}
+        ${e.perks?.length ? `<div class="ev-chips">${e.perks.map((p) => `<span>${icon("checkc", "solid")}${esc(p)}</span>`).join("")}</div>` : ""}
         ${tabs.length > 1 ? `<nav class="cl-seg fill mt">${tabs.map(([v, l]) => `<button data-tab="${v}" aria-pressed="${tab === v}">${l}</button>`).join("")}</nav>` : ""}
         ${tab === "speakers" ? `<div class="cl-pcards">${(e.speakers || []).map((s) => `<div class="cl-pcard"><span class="photo">${s.photo ? `<img src="${esc(s.photo)}" alt="">` : esc(ui.initials(s.name))}</span><b>${esc(s.name)}</b><span class="xs">${esc(s.role || "")}</span></div>`).join("")}</div>`
           : tab === "schedule" ? `<section class="card"><div class="cl-vtl">${(e.agenda || []).map((a) => `<div><span class="dot now"></span><span><b>${esc(a.title)}</b><span class="xs">${esc(a.at || "")}</span></span><span></span></div>`).join("")}</div></section>`
           : tab === "faqs" ? `<div class="stack">${(e.faqs || []).map((f) => `<details class="card"><summary><b>${esc(f.q)}</b></summary><p class="mt-s" style="color:var(--text-2)">${ui.rich(f.a)}</p></details>`).join("")}</div>`
-          : `<section class="card"><h2>Event Description</h2><p style="color:var(--text-2);line-height:1.6">${ui.rich(e.description || "Details coming soon.")}</p></section>`}
+          : `<section class="ev-sec"><h2>About This Event</h2><p style="color:var(--text-2);line-height:1.65;margin:0">${ui.rich(e.description || "Details coming soon.")}</p></section>${speakerCards(e)}${organiser(e)}`}
         ${form || tk ? `<div class="cl-evstats mt"><div>${icon("users")}<span><span>Total Seats</span><b>${cap ?? "Open"}</b></span></div><div class="t-green">${icon("users")}<span><span>Registered</span><b>${filled ?? "–"}</b></span></div>
           ${left != null ? `<div class="t-amber">${icon("clock")}<span><span>Seats Left</span><b>${left}</b></span></div>` : ""}${deadline ? `<div>${icon("calendar")}<span><span>${tk ? "Sales close" : "Registration Deadline"}</span><b>${ui.dateTime(deadline)}</b></span></div>` : ""}</div>` : ""}
         <div class="stack mt">
           ${myT ? `<div class="alert green"><span class="a-ic">${icon("ticket")}</span><div class="grow"><b>You have a ticket</b><p>${esc(myT.tier_name)} · ${esc(myT.code)}</p></div><a class="btn sm primary" href="#/club/pass?id=${myT.id}">${icon("qr", "sm")} View ticket</a></div>`
             : tk && open && !past ? `<button class="btn primary block lg" id="ev-buy">${icon("ticket")} ${cheapest > 0 ? `Get Ticket · ${priceLabel(cheapest)}${tiers.length > 1 ? "+" : ""}` : tiers.some((x) => Number(x.price) > 0) ? "Get Ticket" : "Get Free Ticket"}</button>`
             : mine ? `<div class="alert green"><span class="a-ic">${icon("ticket")}</span><div class="grow"><b>You're registered</b><p>${esc(STATUSES[mine.status]?.[0] || mine.status)}${mine.ticket ? ` · Ticket ${esc(mine.ticket)}` : ""}</p></div><a class="btn sm outline" href="#/club/form?id=${e.form_id}">View ticket</a></div>`
-            : open && !past ? `<a class="btn primary block lg" href="#/club/form?id=${e.form_id}">Register for This Event ${icon("arrow", "sm")}</a>` : ""}
+            : open && !past ? `<div class="ev-cta"><a class="btn primary lg" href="#/club/form?id=${e.form_id}">Register Now</a>${saveBtn(e)}</div>` : ""}
+          ${!(open && !past && !tk && !mine && !myT) ? `<div class="ev-cta">${saveBtn(e)}</div>` : ""}
           <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn outline" id="ev-ics">${icon("calendar")} Add to Calendar</button><button class="btn outline" id="ev-share">${icon("share")} Share</button>
             ${manage ? `<a class="btn outline" href="#/club/eventadmin?id=${e.id}">${icon("settings")} Manage event</a>` : ""}
             ${!manage && (store.peek("club:scanevents") || []).some((x) => x.id === e.id) ? `<a class="btn outline" href="#/club/checkin?id=${e.id}">${icon("qr")} Scan tickets</a>` : ""}</div></div>
@@ -71,6 +72,18 @@ export function register(pages, kit) {
         ${past && kit.me() && e.club_id ? `<section class="card mt"><h2>How was it?</h2><p class="small muted">Your feedback helps the club plan better events.</p><button class="btn outline mt-s" id="ev-fb">${icon("star")} Rate this event</button></section>` : ""}`;
     }, { n: 3, h: 140 });
   };
+  /* Saved events: a per-device list (Save Event on the board). */
+  const SAVED = "ewud:saved-events";
+  const saved = () => { try { return JSON.parse(localStorage.getItem(SAVED) || "[]"); } catch { return []; } };
+  const saveBtn = (e) => { const on = saved().includes(e.id); return `<button class="btn outline lg" id="ev-save" aria-pressed="${on}">${icon("bookmark", on ? "solid" : "")} ${on ? "Saved" : "Save Event"}</button>`; };
+  const speakerCards = (e) => (e.speakers?.length ? `<section class="ev-sec"><div class="cp-sh"><h2>Speakers</h2></div><div class="ev-spk">${e.speakers.map((p) => `<div>${ui.ava(p.name, p.photo || "", "lg")}<span class="min0"><b>${esc(p.name)}</b><span>${esc(p.role || "")}</span></span></div>`).join("")}</div></section>` : "");
+  const organiser = (e) => {
+    if (!e.clubs) return "";
+    const following = kit.me() ? (store.use("me:follows", api.follows).value || []).includes(e.club_id) : false;
+    return `<section class="ev-sec"><div class="cp-sh"><h2>Organized By</h2></div><div class="ev-org"><a class="row nowrap min0" style="gap:12px;color:inherit;text-decoration:none" href="#/club/c?slug=${encodeURIComponent(e.clubs.slug || "")}">${ui.logo(e.clubs, "md")}<span class="min0"><b>${esc(e.clubs.name)}</b><span>${esc(e.clubs.tagline || "")}</span></span></a>
+      ${kit.me() ? `<button class="btn sm outline" id="ev-follow" aria-pressed="${following}">${following ? "Following" : "Follow"}</button>` : ""}</div></section>`;
+  };
+
   pages["club/event"].mount = (el) => {
     kit.bindRetry(el);
     const e = store.peek(`club:event:${kit.param("id")}`); if (!e) return;
@@ -80,6 +93,15 @@ export function register(pages, kit) {
     kit.$("#ev-share", el)?.addEventListener("click", async () => { try { if (navigator.share) await navigator.share({ title: e.title, url }); else { await navigator.clipboard.writeText(url); kit.toast("Link copied", "success"); } } catch { /* cancelled */ } });
     kit.$("#ev-fb", el)?.addEventListener("click", () => feedback(e));
     kit.$("#ev-buy", el)?.addEventListener("click", () => buyTicket(kit, e));
+    kit.$$("#ev-save", el).forEach((b) => b.addEventListener("click", () => {
+      const list = saved(), on = list.includes(e.id), next = on ? list.filter((x) => x !== e.id) : [e.id, ...list].slice(0, 100);
+      try { localStorage.setItem(SAVED, JSON.stringify(next)); } catch { /* private mode */ }
+      kit.toast(on ? "Removed from saved" : "Event saved", "success"); ctx.rerender();
+    }));
+    kit.$("#ev-follow", el)?.addEventListener("click", async (ev) => {
+      const on = ev.currentTarget.getAttribute("aria-pressed") === "true";
+      try { await (on ? api.unfollow(e.club_id) : api.follow(e.club_id)); store.invalidate("me:follows", "clubs:counts"); } catch (err) { kit.toast(err.message, "error"); }
+    });
     if (kit.me() && e.club_id && kit.membership(e.club_id)) store.use("club:scanevents", api.myScanEvents, { ttl: 60e3 });
   };
   function feedback(e) {

@@ -15,6 +15,14 @@ export function install(ctx) {
     ["txt", "paste", "green", "Paste Data", "Copy and paste directly from the portal."],
     ["ext", "chrome", "blue", "Use Chrome Extension", "Sync with one click using our browser extension."]
   ];
+  /* iPhone (app or Safari) and other phones without the Android sign-in: Photo Sync first, no extension option. */
+  const isIOS = () => ctx.native.platform === "ios" || /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isPhone = () => ctx.native.isNative || matchMedia("(pointer: coarse)").matches;
+  const methods = () => {
+    if (ctx.native.canPortalSync()) return METHODS;
+    const photo = ["img", "image", "purple", isIOS() ? "Photo Sync for iPhone" : "Photo Sync", "Screenshot your portal pages (routine, grades, profile) and pick them all at once. They're read on this device."];
+    return [photo, ...METHODS.filter(([k]) => k === "txt" || (k === "ext" && !isPhone()))];
+  };
   const brandHead = (back) => ctx.subHead("Sync portal", "Unofficial · not affiliated with EWU", back);
   const TIPS = [["reset", "Turn your phone sideways", "or tap Desktop site in your browser so the whole table fits."], ["search", "One table per screenshot", "Zoom until the text is sharp. Several screenshots are fine."], ["shield", "Crop out private info", "We skip NID, phone and address anyway."]];
 
@@ -39,7 +47,8 @@ export function install(ctx) {
     return `${brandHead(S().onboarded ? "#/home" : "#/welcome")}<div style="max-width:640px;margin:0 auto">
       <h1 style="font-size:30px;margin-top:8px">Sync your data<br>from the <span class="hl">EWU portal</span></h1>
       <p class="muted" style="margin:8px 0 18px">Choose a method to import your routine, courses, marks and more.</p>
-      ${METHODS.map(([k, ic, tone, t, d]) => `<button class="method" data-m="${k}" aria-pressed="${method === k}"><span class="itile ${tone}">${icon(ic)}</span><span class="grow"><b>${t}</b><span>${d}</span></span>${icon("chevR")}</button>`).join("")}
+      ${!ctx.native.canPortalSync() && isPhone() ? `<div class="alert purple" style="margin-bottom:12px"><span class="a-ic">${icon("image")}</span><div class="grow"><b>How Photo Sync works</b><p>1. Open the portal in ${isIOS() ? "Safari" : "your browser"} and sign in. 2. Screenshot Class Schedule, Grade Report and Profile, one table per screenshot. 3. Come back and pick all the screenshots. They're read here; nothing is uploaded.</p><a class="btn sm outline mt-s" href="https://portal.ewubd.edu" target="_blank" rel="noopener">${icon("external", "sm")} Open the EWU portal</a></div></div>` : ""}
+      ${methods().map(([k, ic, tone, t, d]) => `<button class="method" data-m="${k}" aria-pressed="${method === k}"><span class="itile ${tone}">${icon(ic)}</span><span class="grow"><b>${t}</b><span>${d}</span></span>${icon("chevR")}</button>`).join("")}
       <input type="file" id="file-in" accept="image/*" multiple class="sr-only">
       <details class="card soft mt shot-tips"><summary><span class="itile sm yellow">${icon("bulb")}</span><b>Tips for screenshots that read well</b></summary>
         <div class="stack mt-s">${TIPS.map(([ic, t, d]) => `<div class="row nowrap top"><span class="itile sm purple">${icon(ic)}</span><div><b class="small">${t}</b><p class="xs">${d}</p></div></div>`).join("")}</div></details>
@@ -248,7 +257,7 @@ export function install(ctx) {
   const portal = { st: null, steps: {}, error: "", opening: false, id: "", saved: null };
   function portalView() {
     const id = portal.id || portal.saved?.id || S().profile?.id || (ctx.C.user?.email || "").split("@")[0].replace(/[^\d-]/g, "");
-    if (!ctx.native.canPortalSync()) return `${brandHead("#/sync")}<div style="max-width:560px;margin:0 auto"><div class="card">${ctx.empty("icon:lock", "Portal sign-in works in the Android app", "Browsers don't let one website sign in to another for you. On a computer, the Chrome extension does the same in one click.", `<a class="btn primary" href="${ctx.native.isNative ? ctx.SITE : ""}/#download">${icon("download")} Get the Android app</a><button class="btn" id="ps-ext">${icon("chrome")} Use the extension</button>`)}</div><button class="btn ghost block mt" id="sy-back">Back</button></div>`;
+    if (!ctx.native.canPortalSync()) return `${brandHead("#/sync")}<div style="max-width:560px;margin:0 auto"><div class="card">${ctx.empty("icon:lock", isIOS() ? "On iPhone, use Photo Sync" : "Portal sign-in works in the Android app", "Browsers don't let one website sign in to another for you. On a computer, the Chrome extension does the same in one click.", `<button class="btn primary" id="ps-photo">${icon("image")} Use Photo Sync instead</button>${isPhone() ? "" : `<button class="btn" id="ps-ext">${icon("chrome")} Use the extension</button>`}`)}</div><button class="btn ghost block mt" id="sy-back">Back</button></div>`;
     const st = portal.st, steps = Object.entries(portal.steps), ready = Boolean(st && (st.first || st.login === false));
     const remembered = Boolean(portal.saved?.saved && portal.saved.id === id);
     return `${brandHead("#/sync")}<div style="max-width:560px;margin:0 auto">
@@ -271,6 +280,7 @@ export function install(ctx) {
     const P = ctx.native.PortalSync;
     $("#sy-back", el)?.addEventListener("click", () => { stage = "pick"; Object.assign(portal, { st: null, steps: {}, error: "" }); if (ctx.native.canPortalSync()) P.close().catch(() => {}); ctx.rerender(); });
     $("#ps-ext", el)?.addEventListener("click", () => { stage = "ext"; ctx.rerender(); });
+    $("#ps-photo", el)?.addEventListener("click", () => { stage = "pick"; method = "img"; ctx.rerender(); setTimeout(() => $("#file-in")?.click(), 60); });
     $("#ps-retry", el)?.addEventListener("click", () => { portal.error = ""; ctx.rerender(); });
     $$("[data-eye]", el).forEach((b) => b.addEventListener("click", () => { const i = b.previousElementSibling; i.type = i.type === "password" ? "text" : "password"; }));
     if (!ctx.native.canPortalSync()) return;
