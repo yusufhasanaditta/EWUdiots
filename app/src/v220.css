@@ -1,0 +1,96 @@
+/* v2.20: Phosphor icons (line by default, solid inside coloured tiles as on the club boards) and a premium motion layer:
+   press feedback on every control, a springy switch, lifting cards, staggered list entrances and a sliding tab pill.
+   All motion is transform/opacity only and switches off with "reduce motion". */
+:root { --spring: cubic-bezier(.34, 1.56, .64, 1); --ease-out: cubic-bezier(.2, .8, .2, 1); --t-fast: .16s; --t-mid: .28s; }
+
+/* ── Icons ── */
+.icon.ph { fill: currentColor; stroke: none; }
+.icon.ph .ph-s { display: none; }
+/* Solid icons in tiles, stat cards, settings rows and anywhere marked .solid. */
+.itile .icon.ph .ph-l, .icon.ph.solid .ph-l, .cl-stat .ico .icon.ph .ph-l, .rp-kpi .itile .icon.ph .ph-l, .cl-quick-btn .icon.ph .ph-l, .kpi .itile .icon.ph .ph-l { display: none; }
+.itile .icon.ph .ph-s, .icon.ph.solid .ph-s, .cl-stat .ico .icon.ph .ph-s, .cl-quick-btn .icon.ph .ph-s, .kpi .itile .icon.ph .ph-s { display: inline; }
+/* Active bottom-bar / sidebar item turns solid, like iOS tab bars. */
+.bottom-nav a[aria-current="page"] .icon.ph .ph-l, .sidebar a[aria-current="page"] .icon.ph .ph-l, #side-nav a[aria-current="page"] .icon.ph .ph-l { display: none; }
+.bottom-nav a[aria-current="page"] .icon.ph .ph-s, .sidebar a[aria-current="page"] .icon.ph .ph-s, #side-nav a[aria-current="page"] .icon.ph .ph-s { display: inline; }
+.icon.ph { width: 21px; height: 21px; } .icon.ph.sm { width: 17px; height: 17px; } .icon.ph.lg { width: 28px; height: 28px; }
+/* Tiles: a soft gradient and an inner highlight so solid icons sit in "glass" like the boards. */
+.itile { background-image: linear-gradient(145deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0) 60%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6); }
+.itile .icon.ph { width: 23px; height: 23px; filter: drop-shadow(0 2px 3px color-mix(in srgb, currentColor 28%, transparent)); }
+.itile.sm .icon.ph { width: 19px; height: 19px; } .itile.lg .icon.ph { width: 30px; height: 30px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .itile { background-image: none; box-shadow: none; } }
+:root[data-theme="dark"] .itile { background-image: none; box-shadow: none; }
+
+/* ── Press feedback: every tappable thing squishes a little and springs back ── */
+.btn, .icon-btn, .chip, .qtile, .mtile, .dtile, .lrow, .cl-li, .cl-setrow, .cp-exec, .cx-ev, .cx-resrow, .cb-club, .cb-ev, .cb-opp, .rv-row, .rp-tabs a, .rp-tabs button,
+.cx-tabs a, .cp-tabs a, .rv-chips button, .cl-seg button, .cl-seg a, .seg button, .arc, .sp-pro, .cl-tool, .ap-quick button, .bottom-nav a, .stat-tile, .rp-kpi, .cp-stat {
+  transition: transform var(--t-mid) var(--spring), box-shadow var(--t-mid) var(--ease-out), background-color .2s, color .2s, border-color .2s; -webkit-tap-highlight-color: transparent; }
+.btn:active, .icon-btn:active, .chip:active, .rp-tabs a:active, .rp-tabs button:active, .cx-tabs a:active, .rv-chips button:active, .cl-seg button:active, .seg button:active, .ap-quick button:active { transform: scale(.95); transition-duration: var(--t-fast); }
+.qtile:active, .mtile:active, .dtile:active, .lrow:active, .cl-li:active, .cl-setrow:active, .cp-exec:active, .cx-ev:active, .cx-resrow:active, .cb-club:active, .cb-ev:active, .cb-opp:active, .rv-row:active, .arc:active, .sp-pro:active, .cl-tool:active, .stat-tile:active { transform: scale(.98); transition-duration: var(--t-fast); }
+.bottom-nav a:active .icon { transform: scale(.85); }
+.bottom-nav a .icon { transition: transform var(--t-mid) var(--spring); }
+.bottom-nav a[aria-current="page"] .icon { animation: navPop .45s var(--spring); }
+@keyframes navPop { 0% { transform: scale(.7); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+/* Hover lift (mouse and trackpad only). */
+@media (hover: hover) and (pointer: fine) {
+  .card, .qtile, .mtile, .dtile, .cp-exec, .cb-club, .cb-ev, .rv-row, .arc, .sp-pro, .cl-tool, .stat-tile, .rp-kpi, .cp-stat, .cx-resrow, .rp-card { transition: transform var(--t-mid) var(--ease-out), box-shadow var(--t-mid) var(--ease-out), border-color .2s; }
+  .qtile:hover, .mtile:hover, .dtile:hover, .cp-exec:hover, .cb-club:hover, .cb-ev:hover, .arc:hover, .sp-pro:hover, .cl-tool:hover, .stat-tile:hover, .rp-kpi:hover, .cp-stat:hover, .cx-resrow:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(45, 30, 140, .14); }
+  .btn.primary:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(91, 61, 245, .35); }
+  .btn:hover .icon, .icon-btn:hover .icon { transform: translateX(0) scale(1.08); }
+  .btn .icon, .icon-btn .icon { transition: transform var(--t-mid) var(--spring); }
+  a:hover > .icon:last-child[class*="chev"], .lrow:hover .chev, .cl-setrow:hover > .icon:last-child { transform: translateX(3px); }
+}
+
+/* Primary buttons: a light sweep on hover/focus and a soft glow. */
+.btn.primary { position: relative; overflow: hidden; isolation: isolate; }
+.btn.primary::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .28) 50%, transparent 70%); transform: translateX(-110%); transition: transform .7s var(--ease-out); pointer-events: none; }
+.btn.primary:hover::after, .btn.primary:focus-visible::after { transform: translateX(110%); }
+
+/* Tap ripple (added by fx-ripple in main.js). */
+.fx-ripple { position: absolute; border-radius: 50%; pointer-events: none; background: currentColor; opacity: .18; transform: scale(0); animation: rip .55s var(--ease-out) forwards; }
+@keyframes rip { to { transform: scale(1); opacity: 0; } }
+
+/* ── Switch: pill with a springy knob, like the Account Settings board ── */
+.switch { width: 52px; height: 30px; }
+.switch input { border-radius: 999px; transition: background .25s var(--ease-out), box-shadow .25s; }
+.switch input:checked { background: linear-gradient(135deg, #4b2bf0, #6a4bff); box-shadow: 0 4px 12px rgba(91, 61, 245, .35); }
+.switch input::after { top: 3px; left: 3px; width: 24px; height: 24px; transition: transform .38s var(--spring), width .2s var(--ease-out); box-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
+.switch input:checked::after { transform: translateX(22px); }
+.switch input:active::after { width: 30px; } .switch input:checked:active::after { transform: translateX(16px); }
+.switch input:focus-visible { outline: 3px solid color-mix(in srgb, var(--uv, #5b3df5) 40%, transparent); outline-offset: 2px; }
+
+/* ── Staggered entrances for lists and grids on each page ── */
+@keyframes riseIn { from { opacity: 0; transform: translateY(10px); } }
+.page-in .qgrid > *, .page-in .mtiles > *, .page-in .dtiles > *, .page-in .rp-kpis > *, .page-in .cx-stats > *, .page-in .rv-kpis > *, .page-in .arcade > *, .page-in .cl-stats > *, .page-in .cb-clubs > *, .page-in .cx-team > *, .page-in .settings-list > *, .page-in .cl-list > * {
+  animation: riseIn .42s var(--ease-out) both; }
+.page-in :is(.qgrid, .mtiles, .dtiles, .rp-kpis, .cx-stats, .rv-kpis, .arcade, .cl-stats, .cb-clubs, .cx-team, .settings-list, .cl-list) > :nth-child(2) { animation-delay: .04s; }
+.page-in :is(.qgrid, .mtiles, .dtiles, .rp-kpis, .cx-stats, .rv-kpis, .arcade, .cl-stats, .cb-clubs, .cx-team, .settings-list, .cl-list) > :nth-child(3) { animation-delay: .08s; }
+.page-in :is(.qgrid, .mtiles, .dtiles, .rp-kpis, .cx-stats, .rv-kpis, .arcade, .cl-stats, .cb-clubs, .cx-team, .settings-list, .cl-list) > :nth-child(4) { animation-delay: .12s; }
+.page-in :is(.qgrid, .mtiles, .dtiles, .rp-kpis, .cx-stats, .rv-kpis, .arcade, .cl-stats, .cb-clubs, .cx-team, .settings-list, .cl-list) > :nth-child(5) { animation-delay: .16s; }
+.page-in :is(.qgrid, .mtiles, .dtiles, .rp-kpis, .cx-stats, .rv-kpis, .arcade, .cl-stats, .cb-clubs, .cx-team, .settings-list, .cl-list) > :nth-child(6) { animation-delay: .2s; }
+.page-in :is(.qgrid, .mtiles, .dtiles, .rp-kpis, .cx-stats, .rv-kpis, .arcade, .cl-stats, .cb-clubs, .cx-team, .settings-list, .cl-list) > :nth-child(n+7) { animation-delay: .24s; }
+
+/* ── Tabs: the selected pill slides between options (anchor-free: a scale-in on the newly selected tab) ── */
+.rp-tabs [aria-selected="true"], .cx-tabs [aria-selected="true"], .cp-tabs [aria-selected="true"], .rv-chips [aria-pressed="true"], .cl-seg [aria-pressed="true"], .cl-seg [aria-selected="true"] { animation: tabIn .35s var(--spring); }
+@keyframes tabIn { from { transform: scale(.9); } }
+
+/* ── Counters and progress fill in ── */
+.u-bar i, .xp-bar i, .sp-fit i, .cl-prog i, .rp-step { transform-origin: left; animation: growX .8s var(--ease-out) both; }
+@keyframes growX { from { transform: scaleX(0); } }
+
+/* ── Desktop polish: wider content, cards in columns, comfortable reading ── */
+@media (min-width: 1100px) {
+  .main { max-width: 1240px; }
+  .cl-list, .settings-list { border-radius: 20px; }
+  .cx-panel { margin-left: 32px; margin-right: 32px; }
+  .rp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rp-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .cb-clubs, .cx-team { flex-wrap: wrap; overflow: visible; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-delay: 0s !important; transition-duration: .001ms !important; }
+}
+@media (min-width: 961px) { .topbar .logo.mlogo { display: none; } } /* the sidebar has the logo on desktop */
+/* Phosphor icons are solid shapes: undo the old faux two-tone fades (fill-opacity .14-.25) used for line drawings. */
+.icon.ph:not(#_) { fill: currentColor; fill-opacity: 1; stroke: none; }

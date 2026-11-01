@@ -1,7 +1,7 @@
 {
   "name": "ewudiots",
   "private": true,
-  "version": "2.19.0",
+  "version": "2.20.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -38,6 +38,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.5.2",
     "@eslint/js": "^9.39.5",
+    "@phosphor-icons/core": "^2.1.1",
     "@tesseract.js-data/eng": "^1.0.0",
     "eslint": "^9.39.5",
     "globals": "^15.15.0",

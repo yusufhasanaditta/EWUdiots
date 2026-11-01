@@ -9,6 +9,7 @@ import "./v216.css";
 import "./v217.css";
 import "./v218.css";
 import "./v219.css";
+import "./v220.css";
 import { start as startDropdowns } from "./dropdown.js";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";
@@ -861,3 +862,13 @@ setInterval(() => { if (document.visibilityState === "visible") pullNow(); }, 60
 native.onPause(() => { save({ silent: true }); if (C.user && S.updatedAt > (S.syncedAt || 0)) pushNow(); });
 addEventListener("online", () => pullNow());
 if ("serviceWorker" in navigator && !native.isNative && import.meta.env.PROD) navigator.serviceWorker.register("/sw.js").catch(() => {});
+
+/* Tap ripple on buttons (v220.css .fx-ripple): starts where the finger lands. Skipped with "reduce motion". */
+document.addEventListener("pointerdown", (e) => {
+  const b = e.target.closest?.(".btn, .icon-btn, .qtile, .mtile, .ap-quick button");
+  if (!b || b.disabled || prefersReduced()) return;
+  const r = b.getBoundingClientRect(), d = Math.max(r.width, r.height) * 2.2, s = document.createElement("span");
+  s.className = "fx-ripple"; Object.assign(s.style, { width: `${d}px`, height: `${d}px`, left: `${e.clientX - r.left - d / 2}px`, top: `${e.clientY - r.top - d / 2}px` });
+  if (getComputedStyle(b).position === "static") b.style.position = "relative";
+  b.style.overflow = "hidden"; b.appendChild(s); setTimeout(() => s.remove(), 600);
+}, { passive: true });

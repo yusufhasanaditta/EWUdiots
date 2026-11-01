@@ -1,12 +1,12 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
+    "New professional icons across the whole app (Phosphor): solid icons in coloured tiles",
+    "Smoother, more premium feel: press feedback, ripples, springy switches and lifting cards",
+    "Lists and tiles slide in gently when a page opens",
+    "Desktop: cleaner header and wider dashboards",
     "New club page look: dark photo cover, round logo, team photo cards and event cards",
-    "Club Team tab: executive team, members, committees; new Resources tab",
-    "Recruitment review redesigned: counters, status chips, scores and quick actions",
-    "Collaboration marketplace and hub redesigned to match the club boards",
-    "Club Analytics & Insights: growth, departments, participation, engagement, recruitment funnel",
-    "Club Reports & Performance: key insights, retention, activity heatmap and categories"
+    "Club Team tab: executive team, members, committees; new Resources tab"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

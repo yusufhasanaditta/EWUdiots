@@ -1,4 +1,6 @@
-/* Line icons (Lucide-style, 24px grid, 2px stroke), one visual family as on the design board. */
+import { PH } from "./icons-ph.js";
+
+/* Fallback line icons (24px grid, 2px stroke) for anything Phosphor doesn't have. */
 export const IC = {
   home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
   calendar: '<rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>',
@@ -132,4 +134,8 @@ export const IC = {
   mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
   video: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3"/>'
 };
-export const icon = (n, cls = "") => `<svg class="icon ${cls}" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ""}</svg>`;
+/* Phosphor Icons (MIT): a line shape and a solid shape per icon. CSS shows the line one by default and the solid one
+   inside coloured tiles (.itile, .solid), as on the design boards. Icons without a Phosphor match keep the line drawing above. */
+export const icon = (n, cls = "") => (PH[n]
+  ? `<svg class="icon ph ${cls}" viewBox="0 0 256 256" aria-hidden="true"><g class="ph-l">${PH[n][0]}</g><g class="ph-s">${PH[n][1]}</g></svg>`
+  : `<svg class="icon ${cls}" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ""}</svg>`);
