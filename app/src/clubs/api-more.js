@@ -169,6 +169,7 @@ export function moreApi(sb, me, ok, safeName) {
 
     /* ── Feedback, analytics ── */
     analytics: async (clubId) => ok(await rpc("club_analytics", { c: clubId })),
+    analyticsExtra: async (clubId) => ok(await rpc("club_analytics_extra", { c: clubId })),
     remindInactive: async (clubId, msg = "") => ok(await rpc("remind_inactive", { c: clubId, msg })),
     giveFeedback: async (row) => ok(await from("club_feedback").insert({ ...row, user_id: uid() })),
 

@@ -2,9 +2,12 @@
    boards. One call (public.club_analytics) returns every aggregate; this file only shapes it into charts.
    analytics.view (President, VP, Secretary, Treasurer, Club Admin by default). */
 
+import { createReports } from "./reports.js";
+
 /** @param {Record<string, any>} pages @param {any} kit */
 export function register(pages, kit) {
   const { ui, icon, esc, api, store, charts } = kit;
+  const R = createReports(kit);
   const TABS = [["overview", "Overview"], ["members", "Members"], ["events", "Events"], ["engagement", "Engagement"], ["recruitment", "Recruitment"], ["attendance", "Attendance"], ["finance", "Finance"]];
 
   pages["club/analytics"] = () => {
@@ -14,12 +17,15 @@ export function register(pages, kit) {
     const ae = store.use(`club:analytics:${c}`, () => api.analytics(c), { ttl: 120e3 });
     const clubs = kit.clubsWith("analytics.view");
     return `${kit.back(`#/club/space?c=${c}`, kit.membership(c)?.short_name || "Club")}
-      ${ui.ph("Club Analytics", "Track your club's growth, engagement, and performance with detailed insights.", clubs.length > 1 ? ui.select("c", clubs.map((m) => [m.club_id, m.short_name || m.name]), c, 'id="an-club" style="width:auto" aria-label="Club"') : "")}
-      ${ui.seg(TABS, t, (v) => `#/club/analytics?c=${c}&tab=${v}`)}
+      <header class="rp-head"><div class="min0"><h1>Club Analytics &amp; Insights</h1><p>Understand your club's growth, engagement and impact</p></div>${R.periodSelect(c, "analytics", t)}</header>
+      <div class="rp-tools">${clubs.length > 1 ? ui.select("c", clubs.map((m) => [m.club_id, m.short_name || m.name]), c, 'id="an-club" aria-label="Club"') : ""}<a class="btn sm outline" href="#/club/reports?c=${c}">${icon("file", "sm")} Reports &amp; export</a></div>
+      <nav class="rp-tabs" role="tablist">${TABS.map(([v, l]) => `<a role="tab" href="#/club/analytics?c=${c}&tab=${v}&p=${kit.param("p") || 6}" aria-selected="${v === t}">${l}</a>`).join("")}</nav>
       ${ui.view(ae, (a) => (SECTION[t] || SECTION.overview)(a, c), { n: 4, h: 160 })}`;
   };
+  pages["club/reports"] = () => R.reportsPage();
+  pages["club/reports"].mount = (el) => R.mount(el);
   pages["club/analytics"].mount = (el) => {
-    kit.bindRetry(el);
+    R.mount(el);
     kit.$("#an-club", el)?.addEventListener("change", (e) => kit.go(`#/club/analytics?c=${e.target.value}&tab=${kit.param("tab") || "overview"}`));
     kit.$("#an-remind", el)?.addEventListener("click", () => {
       const c = kit.param("c");
@@ -34,17 +40,7 @@ export function register(pages, kit) {
   const engagement = (a) => pctOf(a.growth.at(-1)?.active || 0, a.members);
 
   const SECTION = {
-    overview(a) {
-      const g = a.growth, total = g.map((x) => x.total);
-      return `<div class="cl-stats">${ui.stat("users", "purple", a.members, "Total members", { d: charts.delta(a.members, a.members_prev), spark: charts.spark(total.slice(-6)) })}
-          ${ui.stat("calendar", "blue", a.events, "Total events", { d: charts.delta(a.events, a.events_prev) })}${ui.stat("file", "red", a.posts, "Total posts", { d: charts.delta(a.posts, a.posts_prev) })}
-          ${ui.stat("star", "amber", a.feedback.avg ?? "–", "Event rating", { sub: `${a.feedback.count} reviews` })}</div>
-        ${card("Membership Growth", charts.line({ title: "Members per month", labels: months(a), series: [{ name: "Total members", values: total, area: true }, { name: "Active members", values: g.map((x) => x.active) }] }), ' <span class="xs">Last 12 months</span>')}
-        <div class="cl-row2 mt">${card("Member Distribution", charts.donut({ title: "Members by department", items: Object.entries(a.by_department).map(([label, value]) => ({ label, value })), center: String(a.members), sub: "Members" }))}
-          ${card("Members by Batch", charts.bars({ title: "Members by batch", labels: Object.keys(a.by_batch).sort(), series: [{ name: "Members", values: Object.keys(a.by_batch).sort().map((k) => a.by_batch[k]) }] }))}</div>
-        <div class="cl-row2 mt">${card("Event Participation", charts.bars({ title: "Registrations and attendance per month", labels: a.events_monthly.slice(-6).map((x) => charts.monthLabel(x.m)), series: [{ name: "Registrations", values: a.events_monthly.slice(-6).map((x) => x.registrations) }, { name: "Attendance", values: a.events_monthly.slice(-6).map((x) => x.attendance) }] }))}
-          ${card("Top Performing Events", topEvents(a))}</div>`;
-    },
+    overview: (a, c) => R.overview(a, c),
     members(a) {
       const g = a.growth;
       return `<div class="cl-row2">${card("Members by Department", charts.donut({ title: "Members by department", items: Object.entries(a.by_department).map(([label, value]) => ({ label, value })), center: String(a.members), sub: "Members" }))}

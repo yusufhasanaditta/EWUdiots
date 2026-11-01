@@ -56,7 +56,7 @@ const ACTIVE = {
   "club/c": "club/explore", "club/post": "club/feed", "club/form": "club/events", "club/event": "club/events", "club/eventadmin": "club/events", "club/checkin": "club/events", "club/tickets": "club/events", "club/pass": "club/events", "club/scan": "club/events",
   "club/chat": "club/messages", "club/space": "club/home", "club/manage": "club/home", "club/members": "club/home", "club/member": "club/home", "club/committee": "club/home",
   "club/meetings": "club/home", "club/meeting": "club/home", "club/projects": "club/home", "club/project": "club/home", "club/resources": "club/home", "club/recruit": "club/home",
-  "club/applicant": "club/home", "club/finance": "club/home", "club/analytics": "club/home", "club/poll": "club/polls", "club/elections": "club/polls", "club/election": "club/polls",
+  "club/applicant": "club/home", "club/finance": "club/home", "club/analytics": "club/home", "club/reports": "club/home", "club/poll": "club/polls", "club/elections": "club/polls", "club/election": "club/polls",
   "club/product": "club/store", "club/cart": "club/store", "club/checkout": "club/store", "club/order": "club/store", "club/orders": "club/store", "club/merch": "club/home", "club/ordersadmin": "club/home", "club/orderadmin": "club/home",
   "club/sponsor": "club/sponsors", "club/ticket": "club/help", "club/mine": "club/more", "club/me": "club/more", "club/cert": "club/more", "club/privacy": "club/more", "club/admin": "club/more"
 };

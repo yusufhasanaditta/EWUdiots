@@ -77,7 +77,7 @@ try {
     events: "#/club/events", event: `#/club/event?id=${ids.ev}`, eventadmin: `#/club/eventadmin?id=${ids.ev}`, tickets: `#/club/eventadmin?id=${ids.ev}&tab=tickets`, checkin: `#/club/checkin?id=${ids.ev}`,
     messages: "#/club/messages", notifications: "#/club/notifications", meetings: `#/club/meetings?c=${clubId}`, meeting: `#/club/meeting?id=${ids.mt}`, projects: `#/club/projects?c=${clubId}`,
     project: `#/club/project?id=${ids.pr}&tab=tasks`, resources: `#/club/resources?c=${clubId}`, polls: "#/club/polls", poll: `#/club/poll?id=${ids.pl}`, elections: "#/club/elections", recruit: "#/club/recruit", finance: `#/club/finance?c=${clubId}`,
-    analytics: `#/club/analytics?c=${clubId}`, store: "#/club/store", product: `#/club/product?id=${ids.pd}`, merch: `#/club/merch?c=${clubId}`, orders: `#/club/ordersadmin?c=${clubId}`,
+    analytics: `#/club/analytics?c=${clubId}`, reports: `#/club/reports?c=${clubId}`, reportsx: `#/club/reports?c=${clubId}&tab=export`, store: "#/club/store", product: `#/club/product?id=${ids.pd}`, merch: `#/club/merch?c=${clubId}`, orders: `#/club/ordersadmin?c=${clubId}`,
     sponsors: "#/club/sponsors", collab: "#/club/collab", help: "#/club/help", privacy: "#/club/privacy", me: "#/club/me", more: "#/club/more", roles: `#/club/manage?c=${clubId}&tab=roles`,
     committee: `#/club/committee?c=${clubId}`, mytickets: "#/club/tickets", scan: "#/club/scan"
   };

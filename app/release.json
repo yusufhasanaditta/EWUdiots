@@ -1,12 +1,12 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
+    "Club Analytics & Insights: growth, departments, participation, engagement, recruitment funnel",
+    "Club Reports & Performance: key insights, retention, activity heatmap and categories",
+    "Download club reports as CSV or print them as PDF",
+    "Executives can now see their club analytics",
     "Club pages redesigned: cover, stats, executives with photos, achievements and sponsors",
-    "Presidents choose what visitors see; previous and event committees",
-    "Home in clear sections with a live countdown to your next class",
-    "Mark attendance after each class and note what you covered",
-    "Past semesters with grades, and a 12-semester plan you can auto-generate",
-    "Arcade: study tools as games, a welcome loader and smoother page slides"
+    "Presidents choose what visitors see; previous and event committees"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"
