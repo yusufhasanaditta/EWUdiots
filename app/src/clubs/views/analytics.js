@@ -17,7 +17,7 @@ export function register(pages, kit) {
     const ae = store.use(`club:analytics:${c}`, () => api.analytics(c), { ttl: 120e3 });
     const clubs = kit.clubsWith("analytics.view");
     return `${kit.back(`#/club/space?c=${c}`, kit.membership(c)?.short_name || "Club")}
-      <header class="rp-head"><div class="min0"><h1>Club Analytics &amp; Insights</h1><p>Understand your club's growth, engagement and impact</p></div>${R.periodSelect(c, "analytics", t)}</header>
+      <header class="rp-head"><div class="min0"><h1>Club Analytics</h1><p>Track your club's growth, engagement, and performance with detailed insights.</p></div>${R.periodSelect(c, "analytics", t)}</header>
       <div class="rp-tools">${clubs.length > 1 ? ui.select("c", clubs.map((m) => [m.club_id, m.short_name || m.name]), c, 'id="an-club" aria-label="Club"') : ""}<a class="btn sm outline" href="#/club/reports?c=${c}">${icon("file", "sm")} Reports &amp; export</a></div>
       <nav class="rp-tabs" role="tablist">${TABS.map(([v, l]) => `<a role="tab" href="#/club/analytics?c=${c}&tab=${v}&p=${kit.param("p") || 6}" aria-selected="${v === t}">${l}</a>`).join("")}</nav>
       ${ui.view(ae, (a) => (SECTION[t] || SECTION.overview)(a, c), { n: 4, h: 160 })}`;
@@ -48,7 +48,7 @@ export function register(pages, kit) {
         <div class="cl-row2 mt">${card("Member Activity", charts.line({ title: "Active and inactive members per month", labels: months(a).slice(-6), series: [{ name: "Active", values: g.slice(-6).map((x) => x.active), area: true }, { name: "Inactive", values: g.slice(-6).map((x) => Math.max(0, x.total - x.active)) }] }))}
           ${card("Engagement Rate", `<div class="row" style="gap:16px;align-items:center">${charts.ring({ value: engagement(a) / 100, label: `${engagement(a)}%`, sub: "Active engagement", tone: "good" })}<p class="small muted">Members who checked in or wrote in the club chat this month, out of all active members.</p></div>`)}</div>
         ${ui.sec("Top Active Members")}${topMembers(a)}
-        ${card("Member Retention", charts.bars({ title: "New and leaving members per month", labels: months(a).slice(-6), series: [{ name: "New members", values: g.slice(-6).map((x) => x.new) }, { name: "Left", values: g.slice(-6).map((x) => x.left) }] }))}`;
+        ${card("Member Retention", (() => { const sm = semesters(g); return charts.bars({ title: "New, retained and leaving members per semester", labels: sm.map((x) => x.label), series: [{ name: "New Members", values: sm.map((x) => x.new) }, { name: "Retained Members", values: sm.map((x) => x.kept) }, { name: "Left Members", values: sm.map((x) => x.left) }] }); })())}`;
     },
     events(a) {
       return `${card("Registrations vs Attendance", charts.line({ title: "Registrations and attendance per month", labels: a.events_monthly.map((x) => charts.monthLabel(x.m)), series: [{ name: "Registrations", values: a.events_monthly.map((x) => x.registrations), area: true }, { name: "Attendance", values: a.events_monthly.map((x) => x.attendance) }] }))}
@@ -85,5 +85,8 @@ export function register(pages, kit) {
     }
   };
   const topEvents = (a) => (a.top_events.length ? `<div class="stack" style="gap:8px">${a.top_events.map((e, i) => `<a class="row nowrap" href="#/club/event?id=${e.id}" style="gap:10px;text-decoration:none;color:inherit"><b class="cl-q-n">${i + 1}</b>${e.image ? `<img src="${esc(e.image)}" alt="" style="width:44px;height:32px;object-fit:cover;border-radius:6px">` : ""}<span class="min0"><b class="ellipsis" style="display:block;font-size:13.5px">${esc(e.title)}</b><span class="xs">${e.participants} participants</span></span></a>`).join("")}</div>` : `<p class="small muted">No events yet.</p>`);
-  const topMembers = (a) => (a.top_members.length ? `<div class="cl-hscroll">${a.top_members.map((m, i) => `<div class="cl-pcard" style="width:150px"><span class="st ${i === 0 ? "amber" : "gray"}">${i + 1}</span>${ui.ava(m.display_name, m.photo_url, "lg")}<b>${esc(m.display_name)}</b><span class="xs">${esc(m.role_name)}</span><b style="color:var(--success-t)">${m.score} pts</b></div>`).join("")}</div>` : `<p class="small muted">No activity yet.</p>`);
+  /* EWU terms: Spring Jan–Apr, Summer May–Aug, Fall Sep–Dec. Retained = members at the end of the term. */
+  const semesters = (g) => { const out = []; g.forEach((x) => { const [y, mo] = x.m.split("-").map(Number), t = mo <= 4 ? "Spring" : mo <= 8 ? "Summer" : "Fall", label = `${t} ${y}`;
+    let s = out.at(-1); if (!s || s.label !== label) { s = { label, new: 0, left: 0, kept: 0 }; out.push(s); } s.new += x.new || 0; s.left += x.left || 0; s.kept = x.total; }); return out.slice(-4); };
+  const topMembers = (a) => (a.top_members.length ? `<div class="an-top">${a.top_members.slice(0, 5).map((m, i) => { const best = a.top_members[0].score || 1; return `<div class="an-tm"><span class="an-rank r${i}">${i + 1}</span>${ui.ava(m.display_name, m.photo_url, "lg")}<b class="ellipsis">${esc(m.display_name)}</b><span class="xs ellipsis">${esc(m.role_name)}</span><b class="an-sc">${Math.round((100 * m.score) / best)}%</b><span class="xs">Activity Score</span></div>`; }).join("")}</div>` : `<p class="small muted">No activity yet.</p>`);
 }

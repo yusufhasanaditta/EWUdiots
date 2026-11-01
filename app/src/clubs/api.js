@@ -85,7 +85,7 @@ export function createClubApi(sb, me) {
     /* ── Posts ── */
     /** Newest posts I'm allowed to see (the database filters by audience). */
     feed: async ({ clubIds = null, kind = null, limit = 40, before = null } = {}) => {
-      let q = from("club_posts").select("*, clubs!inner(slug, name, short_name, logo_url, color, verified)").eq("status", "published").order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(limit);
+      let q = from("club_posts").select("*, clubs!inner(slug, name, short_name, logo_url, color, verified), events(starts_at, ends_at, venue)").eq("status", "published").order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(limit);
       if (clubIds) q = q.in("club_id", clubIds.length ? clubIds : ["00000000-0000-0000-0000-000000000000"]);
       if (kind) q = q.eq("kind", kind);
       if (before) q = q.lt("created_at", before);

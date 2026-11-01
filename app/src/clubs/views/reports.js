@@ -18,26 +18,30 @@ export function createReports(kit) {
 
   /* ── Analytics & Insights: Overview ── */
   function overview(a, c) {
-    const club = kit.membership(c) || store.peek(`clubid:${c}`) || {}, xe = extra(c), n = period();
+    const xe = extra(c), n = period();
     const g = a.growth.slice(-n), em = a.events_monthly.slice(-n), months = g.map((x) => charts.monthLabel(x.m));
     return ui.view(xe, (x) => {
       const eng = x.engagement, active = g.at(-1)?.active || 0, engRate = pct(active, a.members);
       const forms = a.recruitment.filter((f) => f.statuses), f = forms[0], s = f?.statuses || {}, total = Object.values(s).reduce((p, q) => p + q, 0);
       const funnel = [["Applied", total], ["Shortlisted", (s.shortlisted || 0) + (s.interview || 0) + (s.accepted || 0)], ["Interviewed", (s.interview || 0) + (s.accepted || 0)], ["Selected", s.accepted || 0]];
       const depts = Object.entries(a.by_department).sort((p, q) => q[1] - p[1]), top = depts.slice(0, 6), rest = depts.slice(6).reduce((p, [, v]) => p + v, 0);
-      return `<section class="rp-club">${ui.logo(club, "lg")}<div class="min0"><b class="rp-club-n">${esc(club.name || "Club")}</b>${club.tagline ? `<p class="xs">${esc(club.tagline)}</p>` : ""}
-          <div class="rp-club-s">${[["users", a.members, "Total Members"], ["file", a.events, "Total Events"], ["user", x.executives, "Executive Members"]].map(([ic, v, l]) => `<span>${icon(ic, "sm")}<b>${v}</b><i>${l}</i></span>`).join("")}</div></div></section>
-        <div class="rp-kpis">${[["users", "blue", a.members, "Total Members", delta(a.members, x.members_6m)], ["bars", "green", active, "Active Members", delta(active, g[0]?.active || 0)],
-          ["calendar", "purple", a.events, "Events Organized", delta(a.events, x.events_6m)], ["community", "orange", x.participants, "Total Event Participants", delta(x.participants, x.participants_prev)]]
-          .map(([ic, tone, v, l, d]) => `<div class="rp-kpi"><span class="itile ${tone}">${icon(ic)}</span><div class="min0"><b>${v.toLocaleString()}</b><span>${l}</span></div><p>${d} <i>vs ${n} months ago</i></p></div>`).join("")}</div>
+      // "Club Analytics" board: four tiles with a trend line, Membership Growth, distribution + year-wise growth,
+      // event participation + top events, then engagement and the recruitment funnel.
+      const batches = Object.keys(a.by_batch).filter((k) => /^\d{4}$/.test(k)).sort().slice(-5);
+      const tile = (ic, tone, v, l, d, sp, slot) => `<div class="an-kpi t-${tone}"><div class="row nowrap" style="gap:10px">${icon(ic, "solid")}<span class="min0"><b>${v}</b><span>${l}</span></span></div><div class="an-kf">${d}${charts.spark(sp, slot)}</div></div>`;
+      return `<div class="an-kpis">${tile("users", "purple", a.members.toLocaleString(), "Total Members", delta(a.members, x.members_6m), g.map((v) => v.total), 0)}
+          ${tile("calendar", "blue", a.events.toLocaleString(), "Total Events", delta(a.events, x.events_6m), em.map((v) => v.registrations), 1)}
+          ${tile("file", "pink", eng.posts.toLocaleString(), "Total Posts", `<span class="rp-flat">90 days</span>`, [eng.posts, eng.reactions, eng.comments].map(Number), 3)}
+          ${tile("star", "amber", `${engRate}%`, "Engagement", delta(active, g[0]?.active || 0), g.map((v) => pct(v.active, v.total)), 2)}</div>
         <div class="rp-grid">
-          ${card("Member Growth", charts.line({ title: "Total and active members per month", labels: months, series: [{ name: "Total Members", values: g.map((v) => v.total), area: true }, { name: "Active Members", values: g.map((v) => v.active), area: true }] }))}
-          ${card("Department-wise Members", depts.length ? charts.donut({ title: "Members by department", items: [...top.map(([label, value]) => ({ label, value })), ...(rest ? [{ label: "Others", value: rest }] : [])], center: String(a.members), sub: "Members" }) : empty("No members yet"))}
+        ${card("Membership Growth", charts.line({ title: "Total and active members per month", labels: months, series: [{ name: "Total Members", values: g.map((v) => v.total), area: true }, { name: "Active Members", values: g.map((v) => v.active), area: true }] }))}
+          ${card("Member Distribution", depts.length ? charts.donut({ title: "Members by department", items: [...top.map(([label, value]) => ({ label, value })), ...(rest ? [{ label: "Other", value: rest }] : [])], center: String(a.members), sub: "Members" }) : empty("No members yet"))}
+          ${card("Year-wise Growth", batches.length ? charts.bars({ title: "Members by batch year", labels: batches, series: [{ name: "Members", values: batches.map((k) => a.by_batch[k]) }] }) : empty("No batches yet", "Batch comes from the student ID."))}
           ${card("Event Participation", charts.bars({ title: "Registrations and attendance per month", labels: em.map((v) => charts.monthLabel(v.m)), series: [{ name: "Registrations", values: em.map((v) => v.registrations) }, { name: "Attendance", values: em.map((v) => v.attendance) }] }))}
+          ${card("Top Performing Events", a.top_events.length ? `<div class="rp-top">${a.top_events.map((e, i) => `<a href="#/club/event?id=${e.id}"><span class="an-rank">${i + 1}</span>${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy">` : `<span class="itile sm purple">${icon("calendar")}</span>`}<span class="min0"><b>${esc(e.title)}</b><i>${e.participants} participants</i></span></a>`).join("")}</div>` : empty("No events yet"))}
           ${card("Engagement Rate", `<div class="rp-eng">${charts.ring({ value: engRate / 100, label: `${engRate}%`, sub: "Active engagement", tone: "good" })}
               <ul>${[["file", "purple", eng.posts, "Posts"], ["heart", "pink", eng.reactions, "Reactions"], ["chat", "green", eng.comments, "Comments"], ["send", "blue", eng.messages, "Chat messages"]].map(([ic, t, v, l]) => `<li><span class="itile sm ${t}">${icon(ic)}</span><span><b>${v}</b><i>${l}</i></span></li>`).join("")}</ul></div><p class="xs">Last 90 days</p>`)}
           ${card(`Recruitment Funnel${f ? ` <span class="xs">(${esc(f.title)})</span>` : ""}`, f && total ? `<div class="rp-funnel">${funnel.map(([l, v], i) => `<div class="rp-step s${i}"><b>${v}</b><span>${l}</span><i>${pct(v, total)}%</i></div>`).join("")}</div>` : empty("No applications yet", "Membership and volunteer forms show here."))}
-          ${card("Top Performing Events", a.top_events.length ? `<div class="rp-top">${a.top_events.map((e, i) => `<a href="#/club/event?id=${e.id}">${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy">` : `<span class="itile sm purple">${icon("calendar")}</span>`}<span class="min0"><b>${esc(e.title)}</b><i>${e.participants} participants</i></span>${i === 0 && e.participants ? `<span class="rp-hot">${icon("flame", "sm")}</span>` : ""}</a>`).join("")}</div>` : empty("No events yet"), `<a class="rp-more" href="#/club/reports?c=${c}&tab=events">View all ${icon("chevR", "sm")}</a>`)}
         </div>`;
     }, { n: 4, h: 180 });
   }

@@ -11,6 +11,7 @@ import "./v218.css";
 import "./v219.css";
 import "./v220.css";
 import "./v221.css";
+import "./v222.css";
 import { start as startDropdowns } from "./dropdown.js";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";

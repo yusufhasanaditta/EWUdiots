@@ -71,13 +71,13 @@ let browser, srv;
 try {
   await setup();
   const ids = Object.fromEntries((await sql(`select 'ev' k, id::text v from public.events where club_id = '${clubId}' and title = 'Tech Talk 2026' union all select 'pr', id::text from public.club_projects where club_id = '${clubId}'
-    union all select 'mt', id::text from public.club_meetings where club_id = '${clubId}' union all select 'pd', id::text from public.club_products where club_id = '${clubId}' union all (select 'pl', id::text from public.club_polls where club_id = '${clubId}' limit 1)`)).map((r) => [r.k, r.v]));
+    union all select 'mt', id::text from public.club_meetings where club_id = '${clubId}' union all select 'pd', id::text from public.club_products where club_id = '${clubId}' union all (select 'pl', id::text from public.club_polls where club_id = '${clubId}' limit 1) union all (select 'po', id::text from public.club_posts where club_id = '${clubId}' limit 1)`)).map((r) => [r.k, r.v]));
   const SCREENS = {
-    home: "#/club/home", feed: "#/club/feed", explore: "#/club/explore", profile: `#/club/c?slug=shots-${tag}`, space: `#/club/space?c=${clubId}`, members: `#/club/members?c=${clubId}`, member: `#/club/member?c=${clubId}&u=${users.member.id}`, pass: "#/club/tickets",
+    home: "#/club/home", feed: "#/club/feed", post: `#/club/post?id=${ids.po}`, explore: "#/club/explore", profile: `#/club/c?slug=shots-${tag}`, space: `#/club/space?c=${clubId}`, members: `#/club/members?c=${clubId}`, member: `#/club/member?c=${clubId}&u=${users.member.id}`, pass: "#/club/tickets",
     events: "#/club/events", event: `#/club/event?id=${ids.ev}`, eventadmin: `#/club/eventadmin?id=${ids.ev}`, tickets: `#/club/eventadmin?id=${ids.ev}&tab=tickets`, checkin: `#/club/checkin?id=${ids.ev}`,
     messages: "#/club/messages", notifications: "#/club/notifications", meetings: `#/club/meetings?c=${clubId}`, meeting: `#/club/meeting?id=${ids.mt}`, projects: `#/club/projects?c=${clubId}`,
     project: `#/club/project?id=${ids.pr}&tab=tasks`, resources: `#/club/resources?c=${clubId}`, polls: "#/club/polls", poll: `#/club/poll?id=${ids.pl}`, elections: "#/club/elections", recruit: "#/club/recruit", finance: `#/club/finance?c=${clubId}`,
-    analytics: `#/club/analytics?c=${clubId}`, reports: `#/club/reports?c=${clubId}`, reportsx: `#/club/reports?c=${clubId}&tab=export`, store: "#/club/store", product: `#/club/product?id=${ids.pd}`, merch: `#/club/merch?c=${clubId}`, orders: `#/club/ordersadmin?c=${clubId}`,
+    analytics: `#/club/analytics?c=${clubId}`, analyticsm: `#/club/analytics?c=${clubId}&tab=members`, reports: `#/club/reports?c=${clubId}`, reportsx: `#/club/reports?c=${clubId}&tab=export`, store: "#/club/store", product: `#/club/product?id=${ids.pd}`, merch: `#/club/merch?c=${clubId}`, orders: `#/club/ordersadmin?c=${clubId}`,
     sponsors: "#/club/sponsors", collab: "#/club/collab", help: "#/club/help", privacy: "#/club/privacy", me: "#/club/me", more: "#/club/more", roles: `#/club/manage?c=${clubId}&tab=roles`,
     committee: `#/club/committee?c=${clubId}`, console: `#/club/manage?c=${clubId}`, mmembers: `#/club/manage?c=${clubId}&tab=members`, platform: "#/club/admin", platclubs: "#/club/admin?tab=clubs", mytickets: "#/club/tickets", scan: "#/club/scan"
   };

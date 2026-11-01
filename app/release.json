@@ -1,12 +1,12 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "iPhone: Photo Sync for your EWU portal (screenshots read on your phone)",
-    "New Security page: two-step verification, devices, recovery, delete account",
-    "Club Admin Control Center and Manage Members redesigned",
-    "Event pages: highlights, speakers, organizer, Save Event; 3-step registration",
-    "New professional icons across the whole app (Phosphor): solid icons in coloured tiles",
-    "Smoother, more premium feel: press feedback, ripples, springy switches and lifting cards"
+    "New Announcements page: search, filters (Events, Recruitments, Achievements, Alerts) and picture cards",
+    "Announcement details: highlights, speakers, Register Now, Like, Share and Save",
+    "Club Admin Dashboard: Quick Action, Club Growth, module cards, recent activities and deadlines",
+    "Member Management: role tabs, coloured role tags and a member profile preview",
+    "Club Analytics: trend tiles, year-wise growth, top active members and retention by semester",
+    "All Clubs list redesigned; Member Hub tiles refreshed"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

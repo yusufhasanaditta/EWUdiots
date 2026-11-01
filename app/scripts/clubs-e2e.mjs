@@ -88,9 +88,9 @@ try {
   check("header: EWUdiots Club brand + disclaimer", await A.evaluate(() => getComputedStyle(document.querySelector(".topbar .mlogo .word"), "::after").content.includes("Club")));
   await shot(A, "01-home");
   await go(A, "#/club/feed");
-  check("feed renders", await hasText(A, "Club Feed"));
+  check("feed renders", await hasText(A, "Announcements"));
   await go(A, "#/club/explore");
-  check("explore lists EWU's 23 clubs (+ the test club)", await until(A, () => document.querySelectorAll(".cl-card").length >= 24));
+  check("explore lists EWU's 23 clubs (+ the test club)", await until(A, () => document.querySelectorAll(".ac-row").length >= 24));
   await shot(A, "02-explore");
   await go(A, "#/club/mine");
   check("admin sees their club with Manage", await until(A, (id) => !!document.querySelector(`a[href="#/club/manage?c=${id}"]`), clubId));
@@ -324,7 +324,7 @@ try {
     ["meetings", `#/club/meetings?c=${clubId}`, "Executive Planning Meeting"], ["meeting", `#/club/meeting?id=${mid}`, "Meeting Agenda"], ["projects", `#/club/projects?c=${clubId}`, "Tech Talk 2026"],
     ["project-board", `#/club/project?id=${pid}&tab=tasks`, "Task Board"], ["resources", `#/club/resources?c=${clubId}`, "Event Planning"], ["polls", "#/club/polls", "Polls & Voting"],
     ["elections", "#/club/elections", "Executive Committee Election 2026"], ["election", `#/club/election?id=${eid}`, "Election Timeline"], ["recruit", `#/club/recruit?form=${formId}`, "Applications"],
-    ["finance", `#/club/finance?c=${clubId}`, "Finance & Budget"], ["analytics", `#/club/analytics?c=${clubId}`, "Member Growth"], ["analytics-engagement", `#/club/analytics?c=${clubId}&tab=engagement`, "Engagement rate"],
+    ["finance", `#/club/finance?c=${clubId}`, "Finance & Budget"], ["analytics", `#/club/analytics?c=${clubId}`, "Membership Growth"], ["analytics-engagement", `#/club/analytics?c=${clubId}&tab=engagement`, "Engagement rate"],
     ["store", "#/club/store", "E2E Hoodie"], ["products", `#/club/merch?c=${clubId}&tab=products`, "Product & Inventory"], ["orders-admin", `#/club/ordersadmin?c=${clubId}`, "Orders Management"],
     ["sponsors", "#/club/sponsors", "Sponsorship & Partnership Hub"], ["sponsor", `#/club/sponsor?id=${spid}`, "Sponsor Details"], ["collab", "#/club/collab", "Club Marketplace"], ["collab-detail", `#/club/collab?id=${cxid}`, "Involved Clubs"],
     ["notifications", "#/club/notifications", "Notifications"], ["help", "#/club/help", "Help Center"], ["privacy", "#/club/privacy", "Privacy & Data Control"], ["me", "#/club/me", "Profile & Settings"],

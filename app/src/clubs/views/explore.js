@@ -10,14 +10,14 @@ export function register(pages, kit) {
   pages["club/explore"] = () => {
     // A link like #/club/explore?cat=tech (from Home) picks the category once.
     const lc = kit.param("cat") || ""; if (lc && lc !== fromLink) { cat = CATEGORIES[lc] ? lc : "all"; fromLink = lc; }
-    const head = kit.head("Explore clubs", "Every club at East West University. Follow the ones you like, or apply to join.",
+    const head = kit.head("All Clubs", "Every club at East West University. Follow the ones you like, or apply to join.",
       kit.me() ? `<button class="btn outline" id="ex-request">${icon("plus")} Your club isn't listed?</button>` : "");
     if (!api) return head + kit.gate("clubs");
     const ce = store.use("clubs:all", api.listClubs, { ttl: 5 * 60e3 }), counts = store.use("clubs:counts", api.counts, { ttl: 60e3 }).value || {};
     const mine = kit.memberships().value || [], follows = kit.me() ? store.use("me:follows", api.follows).value || [] : [];
     return `${head}
       <div class="searchbar cl-search">${icon("search")}<input class="input" id="ex-q" type="search" placeholder="Search clubs: robotics, debate, photography…" value="${esc(q)}" autocomplete="off"></div>
-      <div class="chips mt-s">${[["all", "All"], ...Object.entries(CATEGORIES)].map(([v, l]) => `<button class="chip" data-cat="${v}" aria-pressed="${cat === v}">${esc(l)}</button>`).join("")}</div>
+      <nav class="an-chips mt-s" aria-label="Category">${[["all", "All"], ...Object.entries(CATEGORIES)].map(([v, l]) => `<button data-cat="${v}" aria-selected="${cat === v}">${esc(l)}</button>`).join("")}</nav>
       <div class="chips mt-s">${[["recruiting", "Recruiting now"], ["mine", "My clubs"], ["following", "Following"]].map(([v, l]) => `<button class="chip" data-only="${v}" aria-pressed="${only === v}">${l}</button>`).join("")}</div>
       <div class="mt">${ui.view(ce, (rows) => {
         const words = q.toLowerCase().split(/\s+/).filter(Boolean);
@@ -27,7 +27,8 @@ export function register(pages, kit) {
           // Clubs that are active on EWUdiots first, then by name.
           .sort((a, b) => (a.status === "active" ? 0 : 1) - (b.status === "active" ? 0 : 1) || a.name.localeCompare(b.name));
         if (!list.length) return ui.emptyBox("search", "No clubs match", "Try another word or category.");
-        return `<p class="xs" style="margin-bottom:10px">${ui.plural(list.length, "club")}</p><div class="cl-grid">${list.map((c) => ui.clubCard(c, { ...(counts[c.id] || {}), mine: mine.find((m) => m.club_id === c.id && m.status === "active"), following: follows.includes(c.id) })).join("")}</div>`;
+        return `<p class="xs" style="margin-bottom:10px">${ui.plural(list.length, "club")}</p><div class="ac-list">${list.map((c, i) => { const k = counts[c.id] || {}, me_ = mine.find((m) => m.club_id === c.id && m.status === "active"), live = c.status === "active";
+          return `<a class="ac-row" href="#/club/c?slug=${encodeURIComponent(c.slug)}">${ui.logo(c, "md")}<span class="min0 grow"><b class="ellipsis">${esc(c.name)}${ui.verified(c)}</b><span class="ac-sub">${live ? ui.plural(k.members || 0, "member") : "Not on EWUdiots yet"}<i class="cb-tag t${i % 5}">${esc(CATEGORIES[c.category] || "Club")}</i>${me_ ? '<i class="cb-tag t2">Joined</i>' : follows.includes(c.id) ? '<i class="cb-tag t4">Following</i>' : c.recruiting ? '<i class="cb-tag t1">Recruiting</i>' : ""}</span></span><span class="ac-view">View</span></a>`; }).join("")}</div>`;
       }, { n: 6, h: 120 })}</div>
       <p class="xs mt" style="text-align:center">Club list from ewubd.edu/clubs. Unofficial · not affiliated with EWU.</p>`;
   };
