@@ -8,6 +8,7 @@ import "./v212.css";
 import "./v216.css";
 import "./v217.css";
 import "./v218.css";
+import "./v219.css";
 import { start as startDropdowns } from "./dropdown.js";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";

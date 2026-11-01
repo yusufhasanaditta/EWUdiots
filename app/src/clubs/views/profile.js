@@ -4,7 +4,7 @@
 import { createPosts } from "./posts.js";
 import { CATEGORIES, JOIN_MODES } from "../perms.js";
 
-const TABS = [["about", "Overview"], ["committee", "Executives"], ["events", "Events"], ["posts", "Posts"], ["gallery", "Gallery"], ["history", "Achievements"]];
+const TABS = [["about", "Overview"], ["events", "Events"], ["committee", "Team"], ["gallery", "Gallery"], ["resources", "Resources"], ["history", "Achievements"], ["posts", "Posts"]];
 const SOCIAL = { facebook: ["Facebook", "globe"], instagram: ["Instagram", "image"], linkedin: ["LinkedIn", "linkedin"], youtube: ["YouTube", "play"], website: ["Website", "external"] };
 
 /** @param {Record<string, any>} pages @param {any} kit */
@@ -22,7 +22,7 @@ export function register(pages, kit) {
 
   // Sections the president hid from visitors (Manage → Settings). Members and the EWUdiots team always see everything.
   const hidden = (club, key) => club.public_sections?.[key] === false && !kit.membership(club.id) && !kit.isPlatform();
-  const PILLARS = [["book", "purple", "Learn", "Skills through workshops"], ["zap", "green", "Build", "Hands-on projects"], ["users", "blue", "Collaborate", "Peers and industry"], ["trend", "orange", "Grow", "Opportunities ahead"]];
+  const PILLARS = [["cap", "green", "Workshops", "Skills through workshops"], ["trophy", "orange", "Competitions", "Contests and hackathons"], ["briefcase", "blue", "Projects", "Hands-on projects"], ["users", "purple", "Networking", "Peers and industry"]];
 
   function render(club) {
     const counts = store.use("clubs:counts", api.counts, { ttl: 60e3 }).value?.[club.id] || { members: 0, followers: 0 };
@@ -30,20 +30,19 @@ export function register(pages, kit) {
     const follows = kit.me() ? store.use("me:follows", api.follows).value || [] : [];
     const req = kit.me() ? (store.use("me:requests", api.myRequests).value || []).find((r) => r.club_id === club.id && r.status === "pending") : null;
     const memberForm = (store.use("forms:open", api.openForms).value || []).find((f) => f.club_id === club.id && f.kind === "membership");
-    const evs = live ? store.use(`club:events:${club.id}`, () => api.clubEvents(club.id), { ttl: 60e3 }).value || [] : [];
-    const wins = live ? (store.use(`club:milestones:${club.id}`, () => api.milestones(club.id)).value || []).filter((x) => x.kind === "award") : [];
+    const execs = live ? store.use(`club:committee:${club.id}`, () => api.committee(club.id)).value || [] : [];
+    const years = club.founded_year ? Math.max(1, new Date().getFullYear() - club.founded_year) : null;
     const t = tab(), href = (v) => `#/club/c?slug=${encodeURIComponent(club.slug)}&tab=${v}`;
-    const stats = [["users", "purple", counts.members, "Members"], ["calendar", "blue", evs.length, "Events"], ["bell", "pink", counts.followers, "Followers"], ["trophy", "orange", wins.length, "Achievements"]];
-    return `<section class="cp-hero" style="--cc:${esc(club.color)}">${club.cover_url ? `<img src="${esc(club.cover_url)}" alt="" referrerpolicy="no-referrer">` : `<span class="cp-hero-art" aria-hidden="true"></span>`}<span class="cl-cover-fade"></span>
-        <button class="cp-share" id="cp-share" type="button" aria-label="Share this club">${icon("share", "sm")}</button></section>
-      <section class="cp-id">${ui.logo(club, "xl")}
-        <div class="grow min0"><h1>${esc(club.name)}${ui.verified(club)}</h1>
-          <p class="cp-cats">${[CATEGORIES[club.category] || "Club", club.founded_year && `Since ${club.founded_year}`, club.recruiting && "Recruiting"].filter(Boolean).map(esc).join('<i aria-hidden="true">·</i>')}</p></div></section>
-      ${club.tagline ? `<p class="cp-tag">${esc(club.tagline)}</p>` : ""}
-      ${live ? `<div class="cp-stats">${stats.map(([ic, tone, v, l]) => `<div class="cp-stat ${tone}">${icon(ic)}<b>${v}</b><span>${l}</span></div>`).join("")}</div>` : unclaimed(club)}
-      ${live ? `<div class="cp-dock">${actions(club, m, follows.includes(club.id), req, memberForm)}</div>` : ""}
-      <nav class="cp-tabs" role="tablist">${TABS.filter(([v]) => v === "about" || !hidden(club, v)).map(([v, l]) => `<a role="tab" href="${href(v)}" aria-selected="${t === v}">${l}</a>`).join("")}</nav>
-      <div class="cp-body fx-rise">${hidden(club, t) && t !== "about" ? ui.emptyBox("lock", "Members only", "The club shows this to its members.") : body(club, t)}</div>`;
+    const tags = [CATEGORIES[club.category] || "Club", ...(club.wings || []).slice(0, 2)];
+    const stats = [["users", counts.members, "Members"], ["crown", execs.length, "Executives"], years ? ["calendar", years, years === 1 ? "Year" : "Years"] : ["bell", counts.followers, "Followers"]];
+    return `<section class="cx-hero" style="--cc:${esc(club.color)}">${club.cover_url ? `<img class="cx-cover" src="${esc(club.cover_url)}" alt="" referrerpolicy="no-referrer">` : ""}<span class="cx-shade"></span>
+        <button class="cx-share" id="cp-share" type="button" aria-label="Share this club">${icon("share", "sm")}</button>
+        <div class="cx-id">${ui.logo(club, "xl")}<div class="min0"><h1>${esc(club.name)}${ui.verified(club)}</h1>${club.tagline ? `<p>${esc(club.tagline)}</p>` : ""}
+          <div class="cx-tags">${tags.map((x) => `<span>${esc(x)}</span>`).join("")}</div></div></div></section>
+      <section class="cx-panel">${live ? `<div class="cx-stats">${stats.map(([ic, v, l]) => `<div>${icon(ic)}<b>${v}</b><span>${l}</span></div>`).join("")}</div>
+          <div class="cx-cta">${actions(club, m, follows.includes(club.id), req, memberForm)}</div>` : unclaimed(club)}
+        <nav class="cx-tabs" role="tablist">${TABS.filter(([v]) => v === "about" || !hidden(club, v)).map(([v, l]) => `<a role="tab" href="${href(v)}" aria-selected="${t === v}">${l}</a>`).join("")}</nav>
+        <div class="cp-body fx-rise">${hidden(club, t) && t !== "about" ? ui.emptyBox("lock", "Members only", "The club shows this to its members.") : body(club, t)}</div></section>`;
   }
 
   function actions(club, m, following, req, memberForm) {
@@ -78,7 +77,7 @@ export function register(pages, kit) {
       return ui.view(ee, (rows) => {
         const now = Date.now(), up = rows.filter((e) => new Date(e.ends_at || e.starts_at) >= now).reverse(), past = rows.filter((e) => new Date(e.ends_at || e.starts_at) < now);
         if (!rows.length) return ui.emptyBox("calendar", "No events yet", "");
-        return `${up.length ? `<h2 class="cl-h2">Upcoming</h2><div class="stack">${up.map(eventRow).join("")}</div>` : ""}${past.length ? `<h2 class="cl-h2">Past</h2><div class="stack">${past.slice(0, 20).map(eventRow).join("")}</div>` : ""}`;
+        return `${up.length ? `<div class="cp-sh"><h2>Upcoming Events</h2></div>${evFeature(up[0])}<div class="cx-evlist">${up.slice(1).map(evRow).join("")}</div>` : ""}${past.length ? `<div class="cp-sh mt"><h2>Past Events</h2></div>${pastGrid(past.slice(0, 12))}` : ""}`;
       });
     }
     if (t === "committee") {
@@ -87,8 +86,11 @@ export function register(pages, kit) {
       const seg = ui.seg([["present", "Present"], ["previous", "Previous"], ["event", "Event teams"]], sub, (v) => `#/club/c?slug=${encodeURIComponent(club.slug)}&tab=committee&sub=${v}`);
       if (sub === "present") {
         const ce = store.use(`club:committee:${club.id}`, () => api.committee(club.id));
-        return seg + ui.view(ce, (rows) => (rows.length ? `<div class="cp-execs mt">${rows.map((p, i) => execCard(p, i)).join("")}</div>${moderators(club)}`
-          : ui.emptyBox("users", "Committee not listed yet", club.advisors ? `Faculty moderator: ${esc(club.advisors)}` : "") + moderators(club)), { n: 4, h: 180 });
+        const n = store.peek("clubs:counts")?.[club.id]?.members || 0;
+        return ui.view(ce, (rows) => (rows.length ? `<div class="cp-sh"><h2>Executive Team</h2></div><div class="cx-team">${rows.map((p, i) => execCard(p, i)).join("")}</div>
+          <div class="cp-sh mt"><h2>Club Members</h2></div><div class="cx-faces">${rows.slice(0, 8).map((p) => ui.ava(p.display_name, p.photo_url, "md")).join("")}${n > Math.min(8, rows.length) ? `<span class="more">+${n - Math.min(8, rows.length)}</span>` : ""}</div>
+          <div class="cp-sh mt"><h2>Committees</h2></div>${seg}${moderators(club)}`
+          : `${seg}` + ui.emptyBox("users", "Committee not listed yet", club.advisors ? `Faculty moderator: ${esc(club.advisors)}` : "") + moderators(club)), { n: 4, h: 180 });
       }
       const te = store.use(`club:terms:${club.id}`, () => api.terms(club.id));
       return seg + ui.view(te, (terms) => {
@@ -100,9 +102,10 @@ export function register(pages, kit) {
     }
     if (t === "history") {
       const me = store.use(`club:milestones:${club.id}`, () => api.milestones(club.id)), te = store.use(`club:terms:${club.id}`, () => api.terms(club.id));
-      return ui.view(me, (ms) => `${ms.length ? `<div class="cl-timeline">${ms.map((x) => `<div class="cl-tl-item"><span class="cl-tl-year">${x.year}</span><div class="card tight"><b>${x.kind === "award" ? `${icon("trophy", "sm")} ` : ""}${esc(x.title)}</b>${x.body ? `<p class="small muted">${ui.rich(x.body)}</p>` : ""}${x.image ? `<img class="cl-tl-img" src="${esc(x.image)}" alt="" loading="lazy">` : ""}</div></div>`).join("")}</div>` : ""}
+      return ui.view(me, (ms) => `${ms.some((x) => x.kind === "award") ? `<div class="cx-awards">${ms.filter((x) => x.kind === "award").map((x, i) => `<div class="cx-award"><span class="cx-medal m${i % 4}">${icon(["trophy", "award", "users", "star"][i % 4])}</span><b>${esc(x.title)}</b><span>${esc(String(x.body || "").slice(0, 60))} ${x.year}</span></div>`).join("")}</div>` : ""}${ms.some((x) => x.kind !== "award") ? `<div class="cp-sh mt"><h2>Milestones</h2></div><div class="cl-timeline">${ms.filter((x) => x.kind !== "award").map((x) => `<div class="cl-tl-item"><span class="cl-tl-year">${x.year}</span><div class="card tight"><b>${x.kind === "award" ? `${icon("trophy", "sm")} ` : ""}${esc(x.title)}</b>${x.body ? `<p class="small muted">${ui.rich(x.body)}</p>` : ""}${x.image ? `<img class="cl-tl-img" src="${esc(x.image)}" alt="" loading="lazy">` : ""}</div></div>`).join("")}</div>` : ""}
         ${ui.view(te, (terms) => (terms.length ? `<h2 class="cl-h2">Past committees</h2><div class="stack">${terms.map((x) => `<details class="card tight"><summary><b>${esc(x.label)}</b> <span class="xs">${ui.plural(x.committee.length, "person", "people")}</span></summary><div class="mt-s">${x.committee.map((p) => ui.person(p.name, esc(p.title || p.role))).join("")}</div></details>`).join("")}</div>` : !ms.length ? ui.emptyBox("clock", "No history yet", "The club adds milestones, awards and past committees here.") : ""))}`);
     }
+    if (t === "resources") return resources(club);
     const ge = store.use(`club:media:${club.id}`, () => api.media(club.id));
     return ui.view(ge, (rows) => {
       if (!rows.length) return ui.emptyBox("image", "No photos yet", "");
@@ -122,7 +125,7 @@ export function register(pages, kit) {
   };
   const ROLE_IC = [[/president|chair/i, "crown"], [/vice/i, "star"], [/secretary/i, "edit"], [/treasur|financ/i, "wallet"], [/tech|it\b|dev/i, "zap"], [/event|program/i, "calendar"], [/media|design|pr\b|public/i, "megaphone"], [/moderat|advis|faculty/i, "cap"]];
   const roleIcon = (title) => (ROLE_IC.find(([re]) => re.test(title || "")) || [0, "award"])[1];
-  const execCard = (p, i) => `<button type="button" class="cp-exec" data-person="${i}">${ui.ava(p.display_name, p.photo_url, "xl")}
+  const execCard = (p, i) => `<button type="button" class="cp-exec cx-pc" data-person="${i}"><span class="cx-photo">${p.photo_url ? `<img src="${esc(p.photo_url)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<i>${esc(ui.initials(p.display_name))}</i>`}</span>
       <b>${esc(p.display_name)}</b><span class="cp-role">${icon(roleIcon(p.title || p.role_name), "sm")}${esc(p.title || p.role_name)}</span>${p.department ? `<span class="xs">${esc(p.department)}</span>` : ""}</button>`;
   const about = (club) => {
     if (club.status !== "active") return `${club.source === "ewubd" ? `<div class="alert blue"><span class="a-ic">${icon("info")}</span><div class="grow"><b>From the EWU club site</b><p>Public information from EWU's club website (archived ${esc(club.ewu_info?.fetched || "")}). The club hasn't joined EWUdiots yet.</p></div></div>` : ""}
@@ -135,9 +138,8 @@ export function register(pages, kit) {
         ${club.mission ? `<p class="cp-mission">${icon("target", "sm")} ${ui.rich(club.mission)}</p>` : ""}
         <div class="cp-pillars">${PILLARS.map(([ic, tone, h, d]) => `<div class="cp-pillar"><span class="itile sm ${tone}">${icon(ic)}</span><b>${h}</b><span>${d}</span></div>`).join("")}</div></section>
       ${club.wings?.length ? `<section class="cp-sec"><div class="cp-sh"><h2>Our focus areas</h2></div><div class="cp-focus">${club.wings.map((w) => `<span class="cp-chip">${icon("layers", "sm")}${esc(w)}</span>`).join("")}</div></section>` : ""}
-      ${up.length && !hidden(club, "events") ? `<section class="cp-sec"><div class="cp-sh"><h2>Upcoming events</h2>${link("events")}</div><div class="cp-evs">${up.map((e) => `<a class="cp-ev" href="#/club/event?id=${e.id}">${e.cover_url ? `<img src="${esc(e.cover_url)}" alt="" loading="lazy">` : ""}<span class="cp-date"><b>${ui.when(e.starts_at, { day: "numeric" })}</b>${ui.when(e.starts_at, { month: "short" })}</span>
-          <span class="cp-ev-b"><b>${esc(e.title)}</b><span class="xs">${icon("clock", "sm")} ${ui.dateTime(e.starts_at)}</span>${e.venue ? `<span class="xs">${icon("pin", "sm")} ${esc(e.venue)}</span>` : ""}</span></a>`).join("")}</div></section>` : ""}
-      ${execs.length ? `<section class="cp-sec"><div class="cp-sh"><h2>Executive committee</h2>${link("committee")}</div><div class="cp-execs row-scroll">${execs.slice(0, 6).map((p, i) => execCard(p, i)).join("")}</div></section>` : ""}
+      ${up.length && !hidden(club, "events") ? `<section class="cp-sec"><div class="cp-sh"><h2>Upcoming events</h2>${link("events")}</div>${evFeature(up[0])}<div class="cx-evlist">${up.slice(1).map(evRow).join("")}</div></section>` : ""}
+      ${execs.length ? `<section class="cp-sec"><div class="cp-sh"><h2>Executive committee</h2>${link("committee")}</div><div class="cx-team">${execs.slice(0, 6).map((p, i) => execCard(p, i)).join("")}</div></section>` : ""}
       ${sp.length ? `<section class="cp-sec"><div class="cp-sh"><h2>Sponsors &amp; partners</h2></div><div class="cp-focus">${sp.filter((x) => x.sponsors).map((x) => `<span class="cp-chip sp">${x.sponsors.logo_url ? `<img src="${esc(x.sponsors.logo_url)}" alt="" loading="lazy">` : icon("briefcase", "sm")}${esc(x.sponsors.name)}</span>`).join("")}</div></section>` : ""}
       ${moderators(club)}${details(club)}`;
   };
@@ -156,6 +158,21 @@ export function register(pages, kit) {
         ${soc.length ? `<div class="row" style="gap:8px;justify-content:center">${soc.map(([k, v]) => `<a class="btn sm outline" href="${esc(v)}" target="_blank" rel="noopener noreferrer">${icon(k === "linkedin" ? "linkedin" : k === "github" ? "github" : "link", "sm")} ${esc(k)}</a>`).join("")}</div>` : ""}
         ${kit.membership(club.id) || kit.isPlatform() ? `<a class="btn primary block" href="#/club/member?c=${club.id}&u=${p.user_id}">${icon("trophy", "sm")} Profile, badges and achievements</a>` : `<p class="xs">Join the club to see members' full profiles and achievements.</p>`}</div>`);
   }
+
+  /* Concept-board event pieces: a big photo card, rows with a date box, thumbnail and arrow, and a past-events grid. */
+  const dbox = (d) => `<span class="cx-dbox"><b>${ui.when(d, { day: "2-digit" })}</b>${ui.when(d, { month: "short" })}</span>`;
+  const evFeature = (e) => `<a class="cx-feat" href="#/club/event?id=${e.id}">${e.cover_url || e.image ? `<img src="${esc(e.cover_url || e.image)}" alt="" loading="lazy">` : ""}<span class="cx-feat-shade"></span>
+      ${dbox(e.starts_at)}<span class="cx-feat-b"><b>${esc(e.title)}</b><span>${icon("clock", "sm")} ${ui.time(e.starts_at)}${e.ends_at ? ` – ${ui.time(e.ends_at)}` : ""}</span>${e.venue ? `<span>${icon("pin", "sm")} ${esc(e.venue)}</span>` : ""}</span>
+      <span class="cx-go">${icon("arrow", "sm")}</span></a>`;
+  const evRow = (e) => `<a class="cx-ev" href="#/club/event?id=${e.id}">${dbox(e.starts_at)}${e.cover_url || e.image ? `<img src="${esc(e.cover_url || e.image)}" alt="" loading="lazy">` : ""}
+      <span class="cx-ev-b"><b>${esc(e.title)}</b><span>${icon("clock", "sm")} ${ui.time(e.starts_at)}</span>${e.venue ? `<span>${icon("pin", "sm")} ${esc(e.venue)}</span>` : ""}</span><span class="cx-go soft">${icon("arrow", "sm")}</span></a>`;
+  const pastGrid = (list) => `<div class="cx-past">${list.map((e) => `<a href="#/club/event?id=${e.id}"><span class="ph">${e.cover_url || e.image ? `<img src="${esc(e.cover_url || e.image)}" alt="" loading="lazy">` : icon("calendar")}</span><b>${esc(e.title)}</b><span>${ui.dateShort(e.starts_at)}</span></a>`).join("")}</div>`;
+  const RES_LINKS = [["file", "orange", "Presentation Slides", "Workshop materials, tech talks, and more"], ["book", "blue", "Study Resources", "Notes, cheat sheets, and useful links"], ["github", "green", "Project Repository", "Projects by club members"], ["shield", "red", "Club Guidelines", "Club rules, membership policy and more"]];
+  const resources = (club) => {
+    const m = kit.membership(club.id) || kit.isPlatform();
+    return `<div class="cp-sh"><h2>Resources</h2>${m ? `<a class="cp-more" href="#/club/resources?c=${club.id}">Open library ${icon("chevR", "sm")}</a>` : ""}</div><div class="cx-res">${RES_LINKS.map(([ic, tone, t, d]) => `<${m ? `a href="#/club/resources?c=${club.id}"` : "div"} class="cx-resrow"><span class="itile ${tone}">${icon(ic)}</span><span class="min0"><b>${t}</b><span>${d}</span></span>${m ? icon("chevR", "sm") : icon("lock", "sm")}</${m ? "a" : "div"}>`).join("")}</div>
+      ${m ? "" : `<p class="xs mt-s">Join the club to open its files.</p>`}`;
+  };
 
   // Every club event opens its event page (details, registration, add to calendar).
   const eventRow = (e) => `<a class="card cl-event" href="#/club/event?id=${e.id}"><div class="ev-date"><b>${ui.when(e.starts_at, { day: "numeric" })}</b><span>${ui.when(e.starts_at, { month: "short" })}</span></div>

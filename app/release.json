@@ -1,12 +1,12 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
+    "New club page look: dark photo cover, round logo, team photo cards and event cards",
+    "Club Team tab: executive team, members, committees; new Resources tab",
+    "Recruitment review redesigned: counters, status chips, scores and quick actions",
+    "Collaboration marketplace and hub redesigned to match the club boards",
     "Club Analytics & Insights: growth, departments, participation, engagement, recruitment funnel",
-    "Club Reports & Performance: key insights, retention, activity heatmap and categories",
-    "Download club reports as CSV or print them as PDF",
-    "Executives can now see their club analytics",
-    "Club pages redesigned: cover, stats, executives with photos, achievements and sponsors",
-    "Presidents choose what visitors see; previous and event committees"
+    "Club Reports & Performance: key insights, retention, activity heatmap and categories"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"
