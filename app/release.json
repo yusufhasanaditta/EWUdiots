@@ -1,10 +1,10 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "New: course outlines. On any course, open Outline and upload the PDF (or photos): topics, marks, grading, exam dates and office hours fill in",
-    "Tick off course topics as classes cover them; send exam dates to your Exams planner and the mark distribution to the Marks estimator",
-    "Completed courses now list every finished semester, including your first; add a semester's courses and grades yourself if they aren't synced",
-    "Club pages: titles with their action beside them, number tiles in one row, check-in scanner beside the manual panel"
+    "New: Course outline. Upload the PDF or photos on any course to get topics, marks, grading and exam dates",
+    "Tick off topics; send exam dates to Exams and the mark split to the Marks estimator",
+    "Completed courses show every finished semester, including your first; add courses and grades yourself",
+    "Club pages: action beside the title, number tiles in one row, scanner beside manual check-in"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"
