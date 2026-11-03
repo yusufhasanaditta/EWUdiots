@@ -757,57 +757,7 @@ body[data-mode="club"] :is(h1, h2, h3, h4, p, span, b, a, strong, label) {
 }
 
 /* 2. Page Headers and Action Rows Responsive Wrapping */
-@media (max-width: 540px) {
-  .cl-ph {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 8px !important;
-  }
-  .cl-ph > .min0 {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-  .cl-ph .actions {
-    max-width: 100% !important;
-    width: 100% !important;
-    justify-content: flex-start !important;
-    gap: 6px !important;
-  }
-  .cl-ph .actions .btn {
-    flex: 1 1 auto;
-    text-align: center;
-    justify-content: center;
-  }
-  .cl-ph .actions .cl-disclaimer {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
 /* 3. Small-screen stat card grids (prevent 4/5 overflow on 320px-390px) */
-@media (max-width: 440px) {
-  .cl-stats,
-  .cl-stats.c5,
-  .cl-stats.c4,
-  .cl-stats:has(> .cl-stat:nth-child(4):last-child),
-  .cl-stats:has(> .cl-stat:nth-child(5):last-child) {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-  }
-  .cl-stats.c5 > .cl-stat:last-child {
-    grid-column: 1 / -1 !important;
-  }
-  .cl-stats.v .cl-stat {
-    padding: 10px 8px !important;
-  }
-  .cl-stat .num {
-    font-size: 17px !important;
-  }
-  .cl-stat .lbl {
-    font-size: 11px !important;
-  }
-}
-
 /* 4. Quick tiles 3-col wrapping on compact viewports */
 @media (max-width: 440px) {
   .cl-tiles.c6 {
@@ -870,9 +820,6 @@ body[data-mode="club"] :is(h1, h2, h3, h4, p, span, b, a, strong, label) {
   .cl-evafter {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 6px !important;
-  }
-  .cl-scanrow {
-    grid-template-columns: 1fr !important;
   }
 }
 

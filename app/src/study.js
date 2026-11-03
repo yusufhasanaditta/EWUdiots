@@ -3,6 +3,7 @@
    Everything is local-first and lives in S.study. */
 import { confetti, chime, ambient, ambientOn } from "./art.js";
 import { degreeStatus, roadmap, nextSem, latestGrades } from "./degreeplan.js";
+import { createOutline } from "./ui-outline.js";
 
 export const studyDefaults = () => ({
   sessions: [], days: {}, goal: 120, xp: 0, ev: {}, cards: [], prep: {}, notes: {}, links: {},
@@ -383,6 +384,7 @@ export function install(ctx) {
   /* ───────── Exam revision planner ───────── */
   const upcomingExams = () => S().tasks.filter((t) => t.type === "Exam" && !t.done && new Date(t.due) > Date.now()).sort((a, b) => new Date(a.due) - new Date(b.due));
   const prepOf = (id) => (st().prep[id] = st().prep[id] || { topics: [], done: {} });
+  const outline = createOutline(ctx, { prepOf });
   function candidateSlots(day, afterMin, len) {
     const busy = ctx.expand(S().routine).filter((b) => b.day === day).sort((a, b) => a.s - b.s);
     const out = [];
@@ -490,11 +492,40 @@ export function install(ctx) {
   /* 12-semester plan (4 years × Spring/Summer/Fall): semesters you've done (grades and synced classes), this one, then
      the road map from the curriculum. Any future semester can be edited by hand; "Auto-plan" fills the rest again. */
   const TERMS = ["Spring", "Summer", "Fall"];
+  // The first semester: the one in the student ID ("2026-2-…" = Summer 2026), or an earlier one if grades go back further.
   function firstSem(St, rows) {
-    const id = String(St.profile?.id || ""), m = id.match(/^(\d{4})-([123])-/);
-    if (m) return `${TERMS[Number(m[2]) - 1]}-${m[1]}`;
-    const sems = rows.map((r) => r.sem).filter(Boolean).sort((a, b) => ctx.semesterKey(a) - ctx.semesterKey(b));
+    const m = String(St.profile?.id || "").match(/^(\d{4})-([123])-/);
+    const sems = [...(m ? [`${TERMS[Number(m[2]) - 1]}-${m[1]}`] : []), ...rows.map((r) => r.sem).filter((x) => x && x !== "Earlier")].sort((x, y) => ctx.semesterKey(x) - ctx.semesterKey(y));
     return sems[0] || St.routineSem || ctx.currentSemester();
+  }
+  /* Semesters already finished: from the first one (student ID, else the earliest grade) up to, not including, now. */
+  function doneSems(St, rows) {
+    const cur = St.routineSem || ctx.currentSemester(), out = [];
+    for (let s = firstSem(St, rows), i = 0; s && ctx.semesterKey(s) < ctx.semesterKey(cur) && i < 24; s = nextSem(s), i++) out.push(s);
+    return out;
+  }
+  const semNo = (St, rows, sem) => { let n = 1; for (let s = firstSem(St, rows); s && s !== sem && n < 30; s = nextSem(s)) n++; return n; };
+  /* Add a finished semester's courses by hand (when the grade report isn't synced or isn't out yet). */
+  function addSemester(sem) {
+    const St = S(), cur = St.curriculum || [], have = St.grades.filter((g) => g.sem === sem);
+    const row = (g = {}) => `<div class="sem-row"><input class="input" name="code" list="sem-codes" placeholder="CSE103" value="${esc(g.code || "")}" aria-label="Course code" autocomplete="off"><input class="input" name="cr" type="number" min="0" max="6" step="0.5" value="${esc(g.cr ?? 3)}" aria-label="Credits">
+      <select class="select" name="g" aria-label="Grade"><option value="">Not out yet</option>${ctx.GRADES.map((x) => `<option ${g.g === x.g ? "selected" : ""}>${x.g}</option>`).join("")}${["W", "I", "P", "R"].map((x) => `<option ${g.g === x ? "selected" : ""}>${x}</option>`).join("")}</select></div>`;
+    openModal(modalHead(`${sem.replace("-", " ")} courses`) + `<form id="sem-form" class="stack"><p class="small muted">Courses you took that semester. Leave the grade as "Not out yet" if results aren't published.</p>
+      <div class="sem-rows"><div class="sem-row sem-h2"><span>Course</span><span>Credits</span><span>Grade</span></div>${(have.length ? have : [{}, {}, {}, {}]).map(row).join("")}</div>
+      <datalist id="sem-codes">${cur.map((c) => `<option value="${esc(c.code)}">${esc(c.title || "")}</option>`).join("")}</datalist>
+      <button type="button" class="btn sm ghost" id="sem-more">${icon("plus", "sm")} Another course</button>
+      <div class="row"><button type="button" class="btn neutral grow" data-close>Cancel</button><button class="btn primary grow">Save semester</button></div></form>`, (m) => {
+      $("#sem-more", m).addEventListener("click", () => $(".sem-rows", m).insertAdjacentHTML("beforeend", row()));
+      $("#sem-form", m).addEventListener("submit", (e) => {
+        e.preventDefault();
+        const rows = [...m.querySelectorAll(".sem-row:not(.sem-h2)")].map((r) => ({ code: r.querySelector("[name=code]").value.toUpperCase().replace(/\s/g, ""), cr: Number(r.querySelector("[name=cr]").value) || 0, g: r.querySelector("[name=g]").value }))
+          .filter((r) => /^[A-Z]{2,4}\d{3}[A-Z]?$/.test(r.code));
+        if (!rows.length) return toast("Add at least one course code, like CSE103", "error");
+        St.grades = St.grades.filter((g) => g.sem !== sem || !g.manual).filter((g) => !(g.sem === sem && rows.some((r) => r.code === g.code)));
+        rows.forEach((r) => St.grades.push({ id: uid(), sem, code: r.code, title: cur.find((c) => c.code === r.code)?.title || "", cr: r.cr, g: r.g, manual: true }));
+        ctx.save(); closeModal(); ctx.rerender(); toast(`${sem.replace("-", " ")} saved`, "success", `${rows.length} course${rows.length > 1 ? "s" : ""}. Your CGPA and plan are updated.`);
+      });
+    });
   }
   function plan12(St, rows, curCodes, plan) {
     const cur = St.routineSem || ctx.currentSemester(), own = (St.plan12 = St.plan12 || {});
@@ -514,6 +545,7 @@ export function install(ctx) {
         <button class="btn sm primary" id="p12-auto">${icon("sparkle", "sm")} Auto-plan</button></div>
       <div class="plan12 mt">${out.map((s) => `<section class="card ${s.state}"><h3><span>${s.n}. ${esc(s.sem)}</span><span class="xs">${s.state === "done" ? "Done" : s.state === "now" ? "Now" : s.mine ? "Your plan" : s.courses.length ? "Auto" : "Free"}</span></h3>
           ${s.courses.length ? s.courses.map((c) => `<div class="pc"><span><b>${esc(c.code)}</b>${c.title ? ` <span class="xs">${esc(c.title)}</span>` : ""}</span><span class="xs num">${c.g ? esc(c.g) : c.cr !== "" ? `${c.cr} cr` : ""}</span></div>`).join("") : `<p class="xs">${s.state === "done" ? "No courses synced for this semester." : "Nothing planned."}</p>`}
+          ${s.state === "done" ? `<button class="btn sm ghost mt-s" data-addsem="${esc(s.sem)}">${icon(s.courses.length ? "edit" : "plus", "sm")} ${s.courses.length ? "Edit" : "Add courses"}</button>` : ""}
           ${s.state === "next" ? `<button class="btn sm ghost mt-s" data-p12="${esc(s.sem)}">${icon("edit", "sm")} Edit</button>` : ""}</section>`).join("")}</div>`;
   }
   function editPlan12(sem) {
@@ -556,8 +588,10 @@ export function install(ctx) {
     else if (coTab === "completed") {
       const rows = pastRows(St, ds);
       const bySem = {}; rows.forEach((r) => (bySem[r.sem || "Earlier"] = bySem[r.sem || "Earlier"] || []).push(r));
-      const sems = Object.keys(bySem).sort((a, b) => ctx.semesterKey(b) - ctx.semesterKey(a));
-      body = sems.length ? sems.map((s) => { const t = ctx.cgpaOf(bySem[s]); return `<div class="sem-h mt"><h3>${esc(s)}</h3><span class="xs">${t.credits ? `Term GPA ${t.cgpa.toFixed(2)} · ` : ""}${bySem[s].reduce((a, r) => a + (Number(r.cr) || 0), 0)} credits</span></div><div class="grid g3 mt-s">${bySem[s].map(doneCard).join("")}</div>`; }).join("")
+      const sems = [...new Set([...Object.keys(bySem), ...doneSems(St, rows)])].sort((a, b) => ctx.semesterKey(b) - ctx.semesterKey(a));
+      body = sems.length ? `<p class="small muted mt">Every semester you've finished. Grades come from your synced Grade Report; you can also add a semester's courses yourself.</p>${sems.map((s, i) => { const list = bySem[s] || [], t = ctx.cgpaOf(list);
+          return `<div class="sem-h mt"><h3>${esc(s.replace("-", " "))}${s !== "Earlier" ? ` <span class="pill">Semester ${semNo(St, rows, s)}</span>` : ""}</h3><span class="xs">${t.credits ? `Term GPA ${t.cgpa.toFixed(2)} · ` : ""}${list.reduce((a, r) => a + (Number(r.cr) || 0), 0)} credits${s !== "Earlier" ? ` · <button class="lnk" data-addsem="${esc(s)}">${icon("plus", "sm")} Add courses</button>` : ""}</span></div>
+          ${list.length ? `<div class="grid g3 mt-s">${list.map(doneCard).join("")}</div>` : `<div class="card mt-s sem-empty row nowrap"><span class="itile purple">${icon("cap")}</span><div class="grow"><b>No courses for ${esc(s.replace("-", " "))} yet</b><p class="xs">Sync your Grade Report, or add this semester's courses and grades yourself.</p></div><button class="btn sm primary" data-addsem="${esc(s)}">${icon("plus", "sm")} Add</button></div>`}`; }).join("")}`
         : `<div class="card mt">${ctx.empty("icon:cap", "No completed courses yet", "Sync your grade report to see every course you've done.", `<a class="btn primary" href="#/sync">Sync portal</a>`)}</div>`;
     } else if (coTab === "left") {
       body = St.curriculum?.length ? `${ds.ready.length ? `<h3 class="mt">Ready to take <span class="xs">· ${ds.ready.length}</span></h3><div class="grid g3 mt-s">${ds.ready.map((c) => leftCard(c)).join("")}</div>` : ""}
@@ -584,6 +618,7 @@ export function install(ctx) {
     $$("[data-co]", el).forEach((b) => b.addEventListener("click", () => { coTab = b.dataset.co; ctx.rerender(); }));
     $("#p12-auto", el)?.addEventListener("click", () => { S().plan12 = {}; ctx.save(); ctx.rerender(); ctx.toast("Plan rebuilt from your curriculum", "success"); });
     $$("[data-p12]", el).forEach((b) => b.addEventListener("click", () => editPlan12(b.dataset.p12)));
+    $$("[data-addsem]", el).forEach((b) => b.addEventListener("click", () => addSemester(b.dataset.addsem)));
     $("#co-per", el)?.addEventListener("change", (e) => { S().settings.perSem = Number(e.target.value); ctx.save(); ctx.rerender(); });
   };
   const safeUrl = (u) => (/^https?:\/\/[^\s"'<>]+$/i.test(u) ? u : "");
@@ -594,7 +629,8 @@ export function install(ctx) {
     return `<section class="card past-grade"><span class="grade-bubble">${esc(c.g || "—")}</span><div class="grow min0"><b>${c.g ? "Final grade" : "Taken"} · ${esc(c.sem || "")}</b><p class="small muted">${c.cr !== "" ? `${c.cr} credits` : ""}${gp != null && c.g ? ` · ${Number(gp).toFixed(2)} grade points` : ""}${["F", "W", "I"].includes(c.g) ? " · not passed: plan a retake" : ""}</p></div></section>
       <section class="card mt info-strip">${[["user", ctx.facName(c.faculty) || "—", "Faculty"], ["users", c.sec ? `Section ${c.sec}` : "—", "Section"], ["pin", c.room || "—", "Room"]].map(([ic, v, l]) => `<div><span class="itile sm purple">${icon(ic)}</span><div class="min0"><b class="ellipsis" style="display:block">${esc(v)}</b><span class="xs">${esc(l)}</span></div></div>`).join("")}</section>
       ${f ? `<a class="card mt row nowrap" href="#/prof?i=${encodeURIComponent(f.init)}"><span class="itile blue">${icon("user")}</span><div class="grow"><b>${esc(f.name || f.init)}</b><p class="xs">See their profile, reviews and shared materials</p></div>${icon("chevR")}</a>` : ""}
-      ${marked ? `<a class="card mt row nowrap" href="#/course?c=${encodeURIComponent(c.code)}&tab=attendance"><div class="ring sm ${st.pct < 70 ? "red" : "green"}" style="--p:${st.pct ?? 0}"><div><b>${st.pct ?? "—"}%</b></div></div><div><b>Attendance that semester</b><p class="xs">${st.present} present · ${st.absent} absent</p></div></a>` : ""}`;
+      ${marked ? `<a class="card mt row nowrap" href="#/course?c=${encodeURIComponent(c.code)}&tab=attendance"><div class="ring sm ${st.pct < 70 ? "red" : "green"}" style="--p:${st.pct ?? 0}"><div><b>${st.pct ?? "—"}%</b></div></div><div><b>Attendance that semester</b><p class="xs">${st.present} present · ${st.absent} absent</p></div></a>` : ""}
+      ${outline.card(c.code)}`;
   }
   pages.course = () => {
     const code = (ctx.qparam("c") || "").toUpperCase();
@@ -611,7 +647,7 @@ export function install(ctx) {
     let nxt = null; for (let k = 0; k < 8 && !nxt; k++) { const d = (nowD.getDay() + k) % 7; const b = blocks.filter((x) => x.day === d && !(k === 0 && x.e <= nm)).sort((x, y) => x.s - y.s)[0]; if (b) nxt = { ...b, k, mins: k * 1440 + b.s - nm }; }
     const days = [...new Set(blocks.filter((b) => !b.lab).map((b) => ctx.DAY_NAMES[b.day]))].join(", ");
     const est = ms && ms.of ? (100 * ms.got) / ms.of : null, estG = est !== null ? (ctx.GRADES.find((g) => est >= g.min) || { g: "F" }).g : null;
-    if (c.past && !["overview", "attendance", "materials", "notes"].includes(chTab)) chTab = "overview";
+    if (c.past && !["overview", "outline", "attendance", "materials", "notes"].includes(chTab)) chTab = "overview";
     const sem = c.past ? c.sem : S0.routineSem;
     let body;
     if (c.past && chTab === "overview") body = pastOverview(c);
@@ -620,6 +656,7 @@ export function install(ctx) {
         <a class="card row nowrap" href="#/marks?c=${encodeURIComponent(code)}&from=course" style="gap:14px"><div class="ring sm" style="--p:${est ?? 0}"><div><b style="font-size:13px">${ms && ms.of ? `${ms.got}/${ms.of}` : "—"}</b></div></div><div><b>Current Marks</b><p class="xs">${ms && ms.of ? `${Math.round(est)}% of assessments` : "Add your marks"}</p></div></a></div>
       ${att !== null && att < 70 ? `<a class="alert red mt" href="#/course?c=${encodeURIComponent(code)}&tab=attendance"><span class="a-ic">${icon("alertc")}</span><div class="grow"><b>Your attendance is below 70%</b><p>You may not be eligible to sit for the final exam. Check your course outline.</p></div>${icon("chevR")}</a>` : ""}
       ${nxt ? `<section class="card mt row nowrap" style="border-left:4px solid var(--primary)"><span class="itile purple">${icon("calendar")}</span><div class="grow"><b>Next Class</b><p class="small">${nxt.k === 0 ? "Today" : nxt.k === 1 ? "Tomorrow" : ctx.DAY_NAMES[nxt.day]}, ${ctx.fmt12(nxt.s)} – ${ctx.fmt12(nxt.e)}</p><p class="xs">${icon("pin", "sm")} ${esc(nxt.room || "TBA")}${nxt.lab ? " · Lab" : ""}</p></div><span class="pill green">${ctx.fmtCountdown(Math.max(0, nxt.mins))} left</span></section>` : ""}
+      ${outline.card(code)}
       <div class="section-h"><h2>Upcoming Deadlines</h2><a class="see" href="#/tasks">See All</a></div>${tasks.length ? tasks.slice(0, 3).map((t) => ctx.taskLine(t)).join("") : `<p class="small muted">Nothing due for this course.</p>`}
       <div class="section-h"><h2>Quick Links</h2></div><div class="g2m">${[["file", "red", "Lecture Slides", "In the Study Library", `#/vault?q=${encodeURIComponent(code)}`], ["notes", "blue", "Past Papers", "Shared by students", `#/vault?q=${encodeURIComponent(code)}`], ["clipboard", "purple", "Assignments", `${tasks.length} open`, "#/tasks"], ["link", "green", "Useful Links", `${links.length} resources`, `#/course?c=${encodeURIComponent(code)}&tab=materials`]]
         .map(([ic, tone, t, d, h]) => `<a class="dtile" href="${h}"><span class="itile ${tone}">${icon(ic)}</span><div><b>${t}</b><span>${d}</span></div></a>`).join("")}</div>
@@ -629,6 +666,7 @@ export function install(ctx) {
         ${estG ? `<div class="card tint-green mt row nowrap"><span class="grade-bubble">${estG}</span><div class="grow"><b>Estimated Final Grade</b><p class="small muted">Based on current marks (${Math.round(est)}% of what's been assessed)</p></div></div>` : ""}` : `<div class="card">${ctx.empty("icon:percent", "No marks yet", "Enter your quiz, assignment and exam marks to estimate your grade.")}</div>`}
       <a class="btn primary block mt" href="#/marks?c=${encodeURIComponent(code)}&from=course">${icon("calc")} Open Marks Estimator</a>`;
     else if (chTab === "attendance") body = ctx.attendance.panel(code, c.past ? c.sem : undefined);
+    else if (chTab === "outline") body = outline.panel(code, c);
     else if (chTab === "notes") body = `<section class="card stack"><div class="card-h" style="margin:0"><h2>${icon("edit")} Notes</h2><span class="xs" id="ch-saved">Saved on this device</span></div>
       <textarea class="input" id="ch-notes" rows="14" placeholder="Class notes, formulas, what the faculty said will be on the exam…" aria-label="Notes for ${esc(code)}">${esc(st().notes[code] || "")}</textarea></section>`;
     else body = `${ctx.materials.panel(code, { faculty: c.faculty, sec: c.sec, sem })}
@@ -638,7 +676,7 @@ export function install(ctx) {
       <a class="btn outline" href="#/vault?q=${encodeURIComponent(code)}">${icon("vault")} Find ${esc(code)} notes in the Study Library</a></section>`;
     return `${ctx.subHead(esc(code), esc(c.title || ""), "#/courses", f?.email ? `<a class="icon-btn" href="mailto:${esc(f.email)}?subject=${encodeURIComponent(code + " Section " + (c.sec || ""))}" aria-label="Email faculty">${icon("mail")}</a>` : "")}
       <div style="max-width:900px;margin:0 auto"><section class="course-hero"><h1>${esc(code)}</h1><p>${esc(c.title || "")}</p><div class="row">${c.sec ? `<span>${icon("users", "sm")} Section ${esc(c.sec)}</span>` : ""}<span>${icon("calendar", "sm")} ${esc(sem || "")}</span>${f ? `<a href="#/prof?i=${encodeURIComponent(f.init)}" style="color:#fff">${icon("user", "sm")} ${esc(f.name || f.init)}</a>` : ""}</div></section>
-      <div class="mt">${ctx.seg([["overview", "Overview"], ["materials", "Materials"], ...(c.past ? [] : [["marks", "Marks"]]), ["attendance", "Attendance"], ["notes", "Notes"]], chTab, "data-cht")}</div><div class="mt">${body}</div></div>`;
+      <div class="mt">${ctx.seg([["overview", "Overview"], ["outline", "Outline"], ["materials", "Materials"], ...(c.past ? [] : [["marks", "Marks"]]), ["attendance", "Attendance"], ["notes", "Notes"]], chTab, "data-cht")}</div><div class="mt">${body}</div></div>`;
   };
   pages.course.mount = (el) => {
     const code = (ctx.qparam("c") || "").toUpperCase();
@@ -649,6 +687,7 @@ export function install(ctx) {
     on("#ch-link", "submit", (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); if (!safeUrl(f.url)) return toast("Use a full link starting with https://", "error"); (st().links[code] = st().links[code] || []).push({ title: f.title.slice(0, 60), url: f.url }); ctx.save(); ctx.rerender(); });
     $$("[data-ldel]", el).forEach((b) => b.addEventListener("click", () => { st().links[code].splice(Number(b.dataset.ldel), 1); ctx.save(); ctx.rerender(); }));
     if (chTab === "attendance") ctx.attendance.mount(el, code);
+    if (chTab === "outline") outline.mount(el, code, myCourses().find((x) => x.code === code) || pastCourse(code));
     if (chTab === "materials") { const c = myCourses().find((x) => x.code === code) || pastCourse(code); if (c) ctx.materials.mountPanel(el, code, { faculty: c.faculty, sec: c.sec, sem: c.past ? c.sem : S().routineSem }); }
   };
 
