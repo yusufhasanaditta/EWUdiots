@@ -75,7 +75,7 @@
 .ev-org b { display: block; } .ev-org .min0 > span { font-size: 13px; color: var(--text-2); } .ev-org .btn { flex: none; }
 .ev-cta { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; } .ev-cta:empty { display: none; } .ev-cta > :only-child { grid-column: 1 / -1; }
 .ev-cta .btn { justify-content: center; min-height: 52px; border-radius: 14px; font-size: 16px; }
-.ev-cta .btn.primary { background: linear-gradient(135deg, #4b2bf0, #6a4bff); }
+.ev-cta .btn.primary { background: #4b2bf0; }
 
 /* ── 3-step registration ── */
 .fm-wiz { padding: 18px; }
@@ -97,6 +97,6 @@
 .fm-review > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; padding: 12px; background: var(--surface); font-size: 13.5px; }
 .fm-review span { color: var(--text-2); } .fm-review b { overflow-wrap: anywhere; font-weight: 600; }
 .fm-nav { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; margin-top: 18px; } .fm-nav .btn { justify-content: center; min-height: 52px; border-radius: 14px; }
-.fm-nav .btn.primary { background: linear-gradient(135deg, #4b2bf0, #6a4bff); }
+.fm-nav .btn.primary { background: #4b2bf0; }
 [data-step]:not([hidden]) { animation: stepIn .32s var(--ease-out, ease) both; } @keyframes stepIn { from { opacity: 0; transform: translateX(16px); } }
 @media (prefers-reduced-motion: reduce) { [data-step] { animation: none !important; } }

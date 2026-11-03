@@ -28,7 +28,7 @@ export function register(pages, kit) {
         return `<div class="cl-stats mt-s">${ui.stat("folder", "purple", rows.length, "Total projects")}${ui.stat("clock", "green", n("in_progress") + n("planning"), "In progress")}${ui.stat("checkc", "green", n("completed"), "Completed")}${ui.stat("pause", "red", n("on_hold"), "On hold")}</div>
           <nav class="cl-seg">${[["all", "All Projects"], ["in_progress", "In Progress"], ["completed", "Completed"], ["on_hold", "On Hold"]].map(([v, l]) => `<button data-f="${v}" aria-pressed="${filter === v}">${l}</button>`).join("")}</nav>
           <div class="stack">${list.length ? list.map((p) => { const k = counts[p.id] || { total: 0, done: 0 }, pct = k.total ? Math.round((k.done / k.total) * 100) : p.status === "completed" ? 100 : 0;
-            return `<a class="cl-ccard" href="#/club/project?id=${p.id}"><span class="art" style="background:linear-gradient(135deg, ${esc(p.color)}, #160d4a)">${ui.art(p.cover_url, p.title)}</span>
+            return `<a class="cl-ccard" href="#/club/project?id=${p.id}"><span class="art" style="background:${esc(p.color)}">${ui.art(p.cover_url, p.title)}</span>
               <span class="min0"><span class="row between nowrap"><b class="ellipsis">${esc(p.title)}</b>${ui.st(PSTATUS[p.status])}</span>
                 <span class="row nowrap mt-s" style="gap:8px"><span class="cl-prog grow ${pct === 100 ? "green" : ""}"><i style="width:${pct}%"></i></span><b class="xs">${pct}%</b></span>
                 <span class="meta"><span>${icon("calendar")} ${p.status === "completed" ? "Completed" : p.due ? `Due ${ui.dateShort(p.due)}` : "No due date"}</span><span>${icon("users")} ${ui.plural(p.team.length, "member")}</span></span></span></a>`; }).join("")
@@ -78,7 +78,7 @@ export function register(pages, kit) {
       const team = people.filter((x) => p.team.includes(x.user_id));
       const manage = kit.can(p.club_id, "projects.manage"), onTeam = p.team.includes(kit.me()?.id), edit = manage || onTeam || kit.can(p.club_id, "tasks.manage");
       return `${kit.back(`#/club/projects?c=${p.club_id}`, "Projects")}
-        <section class="cl-cover-lg" style="background:linear-gradient(135deg, ${esc(p.color)}, #160d4a)">${p.cover_url ? `<img src="${esc(p.cover_url)}" alt="">` : ""}${manage ? `<div class="tools"><button class="btn sm white" id="pj-edit">${icon("edit", "sm")} Edit Project</button></div>` : ""}
+        <section class="cl-cover-lg" style="background:${esc(p.color)}">${p.cover_url ? `<img src="${esc(p.cover_url)}" alt="">` : ""}${manage ? `<div class="tools"><button class="btn sm white" id="pj-edit">${icon("edit", "sm")} Edit Project</button></div>` : ""}
           <h1>${esc(p.title)} ${ui.st(PSTATUS[p.status])}</h1><p>Organized by ${esc(p.clubs?.name || "")}${p.due ? ` · Due ${ui.dateLong(p.due)}` : ""}</p></section>
         ${ui.seg([["overview", "Overview"], ["tasks", "Tasks"], ["team", "Team"], ["files", "Files"]], t, (v) => `#/club/project?id=${id}&tab=${v}`, "mt")}
         ${t === "overview" ? `<section class="card"><h2>About</h2><p style="color:var(--text-2)">${p.description ? ui.rich(p.description) : "<i>No description yet.</i>"}</p></section>${progressRow(tasks, s, team)}`

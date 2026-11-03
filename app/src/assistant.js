@@ -27,14 +27,47 @@ function dayOf(q) {
   return { day: d, label: DAYS[d][0].toUpperCase() + DAYS[d].slice(1) };
 }
 
+/* Questions about a scanned course outline (S.outlines[code], see ui-outline.js): exams, marks, grading, books,
+   instructor and topics. Pure, so tests can call it. Returns null when the question isn't about an outline. */
+export function outlineAnswer(q, outlines, now = new Date()) {
+  const m = q.match(COURSE_RE), code = m ? (m[1] + m[2]).toUpperCase() : null, o = code && outlines?.[code];
+  if (!o) return null;
+  const has = (re) => re.test(q);
+  if (has(/\b(marks?|worth|weight|percent|distribution|assessment)\b|%/) && o.assessment?.length) {
+    const ws = words(q).filter((w) => w.length > 2 && !/^(much|worth|marks?|weight|percent|distribution|assessment|course)$/.test(w) && !/\d/.test(w));
+    const hit = o.assessment.filter((a) => ws.some((w) => norm(a.name).includes(w.replace(/s$/, ""))));
+    return { code, kind: "marks", items: hit.length ? hit : o.assessment, all: !hit.length };
+  }
+  if (has(/\b(mid|midterm|final|exams?|quiz|term)\b|\bwhen\b/) && o.exams?.length) {
+    const up = o.exams.filter((e) => e.date && new Date(`${e.date}T23:59`) >= now).sort((a, b) => a.date.localeCompare(b.date));
+    return { code, kind: "exams", exams: up.length ? up : o.exams, past: !up.length };
+  }
+  if (has(/\b(grad(e|es|ing)|scale|a\+)/) && o.grading?.length) return { code, kind: "grading", items: o.grading };
+  if (has(/\b(books?|textbooks?|references?|reading)\b/) && o.textbooks?.length) return { code, kind: "books", items: o.textbooks };
+  if (has(/\b(office|consult(ation)?|email|phone|instructor|teacher|faculty|contact|who)\b/) && o.instructor) return { code, kind: "instructor", ins: o.instructor, hours: o.officeHours || [] };
+  if (has(/\b(topics?|syllabus|units?|chapters?|cover(ed|s)?|contents?|outline|learn|left|remaining|study)\b/) && o.units?.length) {
+    const left = []; let total = 0;
+    o.units.forEach((u, i) => u.topics.forEach((t, k) => { total++; if (!o.done?.[`${i}.${k}`]) left.push(t); }));
+    return { code, kind: "topics", units: o.units, total, left, onlyLeft: has(/\b(left|remaining)\b/) };
+  }
+  return null;
+}
+/** Outline topics that match a free-text question, across every course, for the "search everything" fallback. */
+export function outlineTopicHits(q, outlines, n = 3) {
+  const all = Object.entries(outlines || {}).flatMap(([code, o]) => (o.units || []).flatMap((u) => u.topics.map((t) => ({ code, unit: u.title, topic: t }))));
+  return pick(all, q, (x) => `${x.topic} ${x.unit}`, 0.5, n);
+}
+
 export function createAssistant(ctx) {
   const S = () => ctx.S, esc = ctx.esc;
   const role = () => S().role || "student";
   const card = (icon, title, sub = "", href = "", tone = "purple") => ({ icon, title, sub, href, tone });
-  const A = (text, cards = [], actions = []) => ({ text, cards, actions });
+  const A = (text, cards = [], actions = [], src = "") => ({ text, cards, actions, src });
   const classLine = (b) => `${ctx.fmt12(b.s)}–${ctx.fmt12(b.e)} · ${b.room ? ctx.baseRoom(b.room) : "room TBA"}`;
 
-  const suggestions = () => ({
+  const olSugg = () => { const c = Object.keys(S().outlines || {})[0]; return c ? [`When is the ${c} mid-term?`, `${c} topics left`] : []; };
+  const suggestions = () => [...(role() === "student" ? olSugg() : []), ...baseSugg()];
+  const baseSugg = () => ({
     student: ["What's my next class?", "Tomorrow's classes", "Where is FUB-603?", "My CGPA", "Deadlines this week", "Remind me 30 min before class", "Free rooms now", "Latest notices"],
     faculty: ["Free rooms now", "Where is room 636?", "Find a faculty member", "Latest notices", "Campus news", "How do I share notes?"],
     alumni: ["Alumni working abroad", "Alumni at Google", "Campus news", "Latest notices", "Where is the library?", "How do I add my alumni profile?"]
@@ -182,6 +215,28 @@ export function createAssistant(ctx) {
     return A(`<b>${esc(f[0])}</b><br>${esc(f[1])}`, [], [{ label: "Help & Support", href: "#/help" }]);
   });
 
+  // Course outlines first (after greetings): they hold the course's own facts, so they beat general answers.
+  const olLink = (code) => `#/course?c=${encodeURIComponent(code)}&tab=outline`;
+  const dayLong = (d) => new Date(`${d}T12:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const inDays = (d) => { const n = Math.round((new Date(`${d}T00:00`) - new Date(new Date().toDateString())) / 864e5); return n === 0 ? "today" : n === 1 ? "tomorrow" : n > 0 ? `in ${n} days` : `${-n} days ago`; };
+  H.splice(1, 0, [(q) => !!outlineAnswer(q, S().outlines), (q) => {
+    const r = outlineAnswer(q, S().outlines), c = esc(r.code), src = `Your scanned ${r.code} course outline`;
+    const go = [{ label: `Open ${r.code} outline`, href: olLink(r.code) }];
+    if (r.kind === "exams") return A(r.past ? `All ${c} exams in the outline are over.` : `Next ${c} exam: <b>${esc(r.exams[0].name)}</b> on ${esc(dayLong(r.exams[0].date))} (${inDays(r.exams[0].date)}).`,
+      r.exams.map((e) => card("calendar", e.name, e.date ? `${dayLong(e.date)} · ${inDays(e.date)}` : "Date not in the outline", olLink(r.code), "orange")), go, src);
+    if (r.kind === "marks") return A(r.all ? `${c} mark distribution:` : r.items.map((a) => `<b>${esc(a.name)}</b> is worth <b>${a.pct}%</b>`).join("; ") + ` of ${c}.`,
+      r.all ? r.items.map((a) => card("chart", `${a.name}`, `${a.pct}%`, olLink(r.code), "blue")) : [], go, src);
+    if (r.kind === "grading") return A(`${c} grading: ${r.items.slice(0, 5).map((g) => `<b>${esc(g.letter)}</b> ${esc(g.range)}`).join(" · ")}${r.items.length > 5 ? " · …" : ""}`, [], go, src);
+    if (r.kind === "books") return A(`${c} textbooks:`, r.items.slice(0, 5).map((b) => card("book", b, "", olLink(r.code), "teal")), go, src);
+    if (r.kind === "instructor") { const i = r.ins;
+      return A(`${c} is taught by <b>${esc(i.name || "your instructor")}</b>${i.role ? `, ${esc(i.role)}` : ""}.${i.office ? ` Office: <b>${esc(i.office)}</b>.` : ""}${r.hours.length ? ` Office hours: ${r.hours.map((h) => `${esc(h.day)} ${esc(h.start)}–${esc(h.end)}`).join(", ")}.` : ""}`,
+        [i.email && card("mail", i.email, "Email", `mailto:${i.email}`, "blue"), i.phone && card("phone", i.phone, "Phone", `tel:${i.phone}`, "green")].filter(Boolean), go, src); }
+    const left = r.left.length;
+    return A(r.onlyLeft ? (left ? `${left} of ${r.total} ${c} topics left. Next up: <b>${esc(r.left[0])}</b>.` : `You've ticked every ${c} topic. 🎉`)
+      : `${c} has ${r.total} topics in ${r.units.length} units${left < r.total ? `; ${left} left` : ""}.`,
+      r.units.slice(0, 6).map((u) => card("book", u.title, `${u.topics.length} topics`, olLink(r.code))), go, src);
+  }]);
+
   const noRoutine = () => A("I don't know your routine yet. Sync your Class Schedule (screenshot, paste or the Chrome extension) and I'll know every class.", [], [{ label: "Sync portal", href: "#/sync" }]);
 
   // Fallback: search everything
@@ -190,9 +245,10 @@ export function createAssistant(ctx) {
     pick(ctx.PAGES_SEARCH, q, (p) => p[1], 0.34, 3).forEach((p) => out.push(card(p[2], p[1], "Page", "#/" + p[0])));
     [...new Map(S().routine.map((r) => [r.code, r])).values()].filter((r) => score(q, `${r.code} ${r.title}`) >= 0.5).slice(0, 2).forEach((r) => out.push(card("book", r.code, r.title || "Course", `#/course?c=${encodeURIComponent(r.code)}`)));
     pick(faculty(), q, (f) => `${f.name} ${f.deptName || ""}`, 0.5, 2).forEach((f) => out.push(facCard(f)));
+    outlineTopicHits(q, S().outlines).forEach((t) => out.push(card("book", t.topic, `${t.code} · ${t.unit}`, `#/course?c=${encodeURIComponent(t.code)}&tab=outline`, "teal")));
     pick(ctx.notices.list(), q, (n) => n.title, 0.4, 2).forEach((n) => out.push(card("file", n.title, "Notice", n.url || "#/notices", "orange")));
     pick(ctx.community.newsList(), q, (n) => n.title, 0.4, 2).forEach((n) => out.push(card("globe", n.title, "News", n.url, "blue")));
-    return out.length ? A("Here's what I found:", out.slice(0, 7)) : A("I'm not sure about that one yet. I can help with classes, rooms, teachers, grades, deadlines, fees, notices, news, alumni and alarms.", [], [{ label: "Search the app", run: () => { ctx.palette(); return null; } }]);
+    return out.length ? A("Here's what I found:", out.slice(0, 7), [], "A search of your courses, outlines, teachers, notices and news on this device") : A("I'm not sure about that one yet. I can help with classes, rooms, teachers, grades, deadlines, fees, notices, news, alumni and alarms.", [], [{ label: "Search the app", run: () => { ctx.palette(); return null; } }]);
   }
 
   async function answer(raw) {

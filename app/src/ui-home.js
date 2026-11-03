@@ -199,12 +199,12 @@ export function install(ctx) {
   /* Arcade: the study tools as games, with your level and XP from Focus Quest. */
   const arcade = () => {
     const L = ctx.study.levelInfo(), streak = ctx.study.streak(), due = ctx.study.dueCards().length;
-    const GAMES = [["focus", "target", "linear-gradient(135deg,#5b3df5,#8b5cf6)", "Focus Quest", "Beat the 25-min boss", `Lv ${L.n}`],
-      ["cards", "cards", "linear-gradient(135deg,#e0457b,#f59e0b)", "Flashcard Duel", due ? `${due} cards waiting` : "Win your daily review", due ? `${due}` : "Ready"],
-      ["me", "trophy", "linear-gradient(135deg,#f08a24,#facc15)", "Trophy Room", "Badges and records", `${ctx.study.unlockedCount()} won`],
-      ["map", "map", "linear-gradient(135deg,#0ea5e9,#22c55e)", "Campus Quest", "Walk the campus in 3D", "Explore"],
-      ["whatif", "bars", "linear-gradient(135deg,#15122e,#5b3df5)", "CGPA Boss Fight", "What grade do you need?", "Plan"],
-      ["exams", "exam", "linear-gradient(135deg,#16a34a,#84cc16)", "Exam Raid", "A revision plan per exam", "Prep"]].filter(([id]) => ctx.pages[id]);
+    const GAMES = [["focus", "target", "#5b3df5", "Focus Quest", "Beat the 25-min boss", `Lv ${L.n}`],
+      ["cards", "cards", "#e0457b", "Flashcard Duel", due ? `${due} cards waiting` : "Win your daily review", due ? `${due}` : "Ready"],
+      ["me", "trophy", "#f08a24", "Trophy Room", "Badges and records", `${ctx.study.unlockedCount()} won`],
+      ["map", "map", "#0ea5e9", "Campus Quest", "Walk the campus in 3D", "Explore"],
+      ["whatif", "bars", "#15122e", "CGPA Boss Fight", "What grade do you need?", "Plan"],
+      ["exams", "exam", "#16a34a", "Exam Raid", "A revision plan per exam", "Prep"]].filter(([id]) => ctx.pages[id]);
     return `<section class="arcade-head mt"><div class="row between nowrap" style="gap:10px"><div class="min0"><h2 class="mgroup-h" style="margin:0">Arcade</h2><p class="xs" style="margin:2px 0 0">Level ${L.n} · ${esc(L.name)} · ${streak}-day streak</p></div>
         <span class="xp-pill">${icon("zap", "sm")} ${L.xp} XP</span></div><div class="xp-bar mt-s" role="progressbar" aria-valuenow="${L.pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Progress to level ${L.n + 1}"><i style="width:${L.pct}%"></i></div><p class="xs mt-s">${L.toNext} XP to level ${L.n + 1}</p></section>
       <div class="arcade mt-s">${GAMES.map(([id, ic, bg, t, d, lv]) => `<a class="arc" href="#/${id}" style="background:${bg}"><span class="lvl">${esc(lv)}</span>${icon(ic)}<b>${t}</b><span>${d}</span></a>`).join("")}</div>`;

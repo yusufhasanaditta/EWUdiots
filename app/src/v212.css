@@ -63,7 +63,7 @@
 .ym-c.today { outline: 2px solid var(--primary); outline-offset: -2px; } .ym-c.off.cls::after { background: #fff; }
 .ym-k { display: inline-block; width: 12px; height: 12px; border-radius: 4px; } .ym-k.off { background: #dc2626; } .ym-k.exam { background: var(--primary-l); border: 1px solid var(--primary); } .ym-k.pay { background: var(--orange-s); border: 1px solid #f97316; }
 .ym-k.cls { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
-.brk { display: flex; gap: 14px; align-items: center; } .brk-days { flex: none; width: 74px; height: 74px; border-radius: 20px; display: grid; place-content: center; text-align: center; color: #fff; background: linear-gradient(135deg, #10b981, #0e7490); box-shadow: 0 8px 20px rgba(14, 116, 144, .25); }
+.brk { display: flex; gap: 14px; align-items: center; } .brk-days { flex: none; width: 74px; height: 74px; border-radius: 20px; display: grid; place-content: center; text-align: center; color: #fff; background: #10b981; box-shadow: 0 8px 20px rgba(14, 116, 144, .25); }
 .brk-days b { font-size: 28px; line-height: 1; } .brk-days span { font-size: 11px; opacity: .9; }
 .brk p { margin: 4px 0 8px; } .brk-cost { display: flex; flex-wrap: wrap; gap: 6px; }
 .brk-tip { width: 100%; text-align: left; cursor: pointer; font: inherit; border: 0; }
@@ -89,7 +89,7 @@
 .att-what svg { max-height: 190px; }
 
 /* ── Courses and road maps ── */
-.deg-hero { position: relative; overflow: hidden; display: flex; gap: 20px; align-items: center; padding: 20px; border-radius: 24px; color: #fff; background: linear-gradient(135deg, #0f172a, #312e81 55%, #7c3aed); box-shadow: var(--sh-lg); }
+.deg-hero { position: relative; overflow: hidden; display: flex; gap: 20px; align-items: center; padding: 20px; border-radius: 24px; color: #fff; background: #0f172a; box-shadow: var(--sh-lg); }
 .deg-hero .ring::before { background: rgba(15, 12, 50, .6); } .deg-hero .ring b, .deg-hero .ring span { color: #fff; }
 .deg-stats { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
 .deg-stats div { padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .14); }
@@ -99,10 +99,10 @@
 .grade-chip.g-F, .grade-chip.g-W, .grade-chip.g-I { background: var(--error-s); color: var(--error-t); } .grade-chip[class*="g-A"] { background: var(--success-s); color: var(--success-t); }
 .ccard.done, .ccard.left { cursor: default; } a.ccard.done { cursor: pointer; } .ccard.left { border-style: dashed; }
 .road { list-style: none; margin: 0; padding: 0; position: relative; display: grid; gap: 10px; }
-.road::before { content: ""; position: absolute; left: 17px; top: 18px; bottom: 18px; width: 2px; background: linear-gradient(var(--primary), color-mix(in srgb, var(--primary) 20%, transparent)); }
+.road::before { content: ""; position: absolute; left: 17px; top: 18px; bottom: 18px; width: 2px; background: var(--primary); }
 .road-step { position: relative; display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); margin-left: 0; }
 .road-dot { position: relative; z-index: 1; flex: none; width: 36px; height: 36px; margin: -2px 0 0 -2px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; color: #fff; background: var(--grad); box-shadow: 0 0 0 4px var(--bg); }
-.road-step.end .road-dot { background: linear-gradient(135deg, #f59e0b, #ea580c); }
+.road-step.end .road-dot { background: #f59e0b; }
 .road-courses { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .road-c { display: inline-flex; gap: 6px; align-items: center; max-width: 100%; padding: 5px 10px; border-radius: 10px; font-size: 12.5px; background: color-mix(in srgb, var(--cc) 12%, var(--surface)); border-left: 3px solid var(--cc); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .deg-row { padding: 8px 0; } .deg-row + .deg-row { border-top: 1px solid var(--border); }
@@ -112,7 +112,7 @@
 /* ── Analytics, scholarship, fees ── */
 .sw-list .lrow { gap: 12px; }
 .sch-prog { margin-top: 12px; } .sch-prog .xs { color: rgba(255, 255, 255, .8); }
-.sch-prog-bar { height: 10px; border-radius: 10px; margin-top: 6px; background: rgba(255, 255, 255, .15); overflow: hidden; } .sch-prog-bar i { display: block; height: 100%; border-radius: 10px; background: linear-gradient(90deg, #facc15, #fb923c); transition: width .8s var(--ease); }
+.sch-prog-bar { height: 10px; border-radius: 10px; margin-top: 6px; background: rgba(255, 255, 255, .15); overflow: hidden; } .sch-prog-bar i { display: block; height: 100%; border-radius: 10px; background: #facc15; transition: width .8s var(--ease); }
 .sch-need { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border-radius: 16px; background: var(--primary-ll); border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent); }
 .sch-need b { font-size: 30px; color: var(--primary); flex: none; } .sch-need.ok { background: var(--success-s); border-color: transparent; } .sch-need.ok b { color: var(--success-t); } .sch-need.bad { background: var(--error-s); border-color: transparent; } .sch-need.bad b { color: var(--error-t); }
 .viz .ln.proj { stroke-dasharray: 6 5; animation: none; stroke-dashoffset: 0; } .viz .dot.hollow { fill: var(--surface); stroke: var(--viz1); stroke-width: 2; }

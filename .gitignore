@@ -24,3 +24,7 @@ extension.zip
 
 # Test screenshots (npm run test:clubs)
 app/.shots/
+
+# Agent skills are installed locally (third-party, large)
+.claude/skills/
+.claude/settings.local.json

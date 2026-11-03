@@ -66,22 +66,22 @@ export function install(ctx) {
   }
   // [id, name, how, icon, hexagon colour, test]
   const BADGES = [
-    ["first", "First Class", "Finish your first focus session", "clock", "linear-gradient(135deg,#c084fc,#7c3aed)", (x) => x.sessions >= 1],
-    ["notes", "Note Maker", "Write notes for 3 courses", "notes", "linear-gradient(135deg,#fdba74,#ea580c)", (x) => x.notes >= 3],
-    ["streak7", "Streak Master", "7-day study streak", "flame", "linear-gradient(135deg,#38bdf8,#1d4ed8)", (x) => x.streak >= 7],
-    ["slayer", "Helpful Mate", "Complete 10 deadlines", "check", "linear-gradient(135deg,#1e3a8a,#0f766e)", (x) => x.tasksDone >= 10],
-    ["early", "Early Bird", "Study before 8 AM", "sun", "linear-gradient(135deg,#fde047,#f59e0b)", (x) => x.early],
-    ["club", "Top Contributor", "CGPA of 3.50 or higher", "trophy", "linear-gradient(135deg,#fbbf24,#c2410c)", (x) => x.cgpa >= 3.5],
-    ["deep", "Deep Diver", "One focus session of 50+ minutes", "sparkle", "linear-gradient(135deg,#a78bfa,#4c1d95)", (x) => x.maxSession >= 50],
-    ["ten", "10-Hour Club", "10 hours of total focus", "award", "linear-gradient(135deg,#f472b6,#be185d)", (x) => x.totalMin >= 600],
-    ["streak3", "Warming Up", "3-day study streak", "flame", "linear-gradient(135deg,#fb923c,#dc2626)", (x) => x.streak >= 3],
-    ["night", "Night Owl", "Study after 11 PM", "moon", "linear-gradient(135deg,#6366f1,#1e1b4b)", (x) => x.night],
-    ["cards50", "Card Shark", "Review 50 flashcards", "cards", "linear-gradient(135deg,#34d399,#047857)", (x) => x.reviews >= 50],
-    ["deck", "Memory Palace", "Create 30 flashcards", "brain", "linear-gradient(135deg,#22d3ee,#0e7490)", (x) => x.cards >= 30],
-    ["sync", "Synced Up", "Import your portal data", "sync", "linear-gradient(135deg,#2dd4bf,#0f766e)", (x) => x.synced],
-    ["plan", "Clash-Free", "Save a routine from the planner", "calcheck", "linear-gradient(135deg,#4ade80,#15803d)", (x) => x.planner],
-    ["front", "Front Bencher", "95%+ attendance in a course", "user", "linear-gradient(135deg,#60a5fa,#1e40af)", (x) => x.front],
-    ["prep", "Revision Machine", "Complete 10 exam-prep sessions", "target", "linear-gradient(135deg,#e879f9,#86198f)", (x) => x.prepDone >= 10]
+    ["first", "First Class", "Finish your first focus session", "clock", "#c084fc", (x) => x.sessions >= 1],
+    ["notes", "Note Maker", "Write notes for 3 courses", "notes", "#fdba74", (x) => x.notes >= 3],
+    ["streak7", "Streak Master", "7-day study streak", "flame", "#38bdf8", (x) => x.streak >= 7],
+    ["slayer", "Helpful Mate", "Complete 10 deadlines", "check", "#1e3a8a", (x) => x.tasksDone >= 10],
+    ["early", "Early Bird", "Study before 8 AM", "sun", "#fde047", (x) => x.early],
+    ["club", "Top Contributor", "CGPA of 3.50 or higher", "trophy", "#fbbf24", (x) => x.cgpa >= 3.5],
+    ["deep", "Deep Diver", "One focus session of 50+ minutes", "sparkle", "#a78bfa", (x) => x.maxSession >= 50],
+    ["ten", "10-Hour Club", "10 hours of total focus", "award", "#f472b6", (x) => x.totalMin >= 600],
+    ["streak3", "Warming Up", "3-day study streak", "flame", "#fb923c", (x) => x.streak >= 3],
+    ["night", "Night Owl", "Study after 11 PM", "moon", "#6366f1", (x) => x.night],
+    ["cards50", "Card Shark", "Review 50 flashcards", "cards", "#34d399", (x) => x.reviews >= 50],
+    ["deck", "Memory Palace", "Create 30 flashcards", "brain", "#22d3ee", (x) => x.cards >= 30],
+    ["sync", "Synced Up", "Import your portal data", "sync", "#2dd4bf", (x) => x.synced],
+    ["plan", "Clash-Free", "Save a routine from the planner", "calcheck", "#4ade80", (x) => x.planner],
+    ["front", "Front Bencher", "95%+ attendance in a course", "user", "#60a5fa", (x) => x.front],
+    ["prep", "Revision Machine", "Complete 10 exam-prep sessions", "target", "#e879f9", (x) => x.prepDone >= 10]
   ];
   const unlocked = () => { const x = stats(); return BADGES.filter((b) => b[5](x)).map((b) => b[0]); };
   function checkBadges() {
@@ -167,8 +167,8 @@ export function install(ctx) {
   const minutesOn = (k) => dayOf(k).m;
   const focusToday = () => minutesOn(dkey());
   const fmtH = (m) => m >= 60 ? `${Math.floor(m / 60)}h ${m % 60 ? (m % 60) + "m" : ""}`.trim() : `${m}m`;
-  const SOUNDS = [["off", "volx", "No Sound", "linear-gradient(135deg,#94a3b8,#64748b)"], ["rain", "rain", "Rain", "linear-gradient(135deg,#475569,#1e3a8a)"], ["library", "library", "Library", "linear-gradient(135deg,#a16207,#713f12)"],
-    ["cafe", "coffee", "Cafe", "linear-gradient(135deg,#b45309,#7c2d12)"], ["brown", "wave", "Brown Noise", "linear-gradient(135deg,#7c3aed,#4c1d95)"]];
+  const SOUNDS = [["off", "volx", "No Sound", "#94a3b8"], ["rain", "rain", "Rain", "#475569"], ["library", "library", "Library", "#a16207"],
+    ["cafe", "coffee", "Cafe", "#b45309"], ["brown", "wave", "Brown Noise", "#7c3aed"]];
   let fTab = "timer", aRange = "today", aDay = dkey();
 
   pages.focus = () => {
@@ -700,7 +700,7 @@ export function install(ctx) {
     return `${ctx.demoBanner()}${ctx.head("Trophy Room", "Study more. Do more. Be a better you.", "", ctx.art("mascot-thumbs", "Small steps<br>Big progress!"))}
       <div class="grid g2"><section class="level-card"><div class="row nowrap"><span class="hex">${icon("star")}</span><div><b style="font-size:24px">Level ${L.n}</b><p style="opacity:.85">${esc(L.name)}</p></div></div>
           <div class="row nowrap" style="margin-top:16px;max-width:70%"><div class="xp"><span style="width:${L.pct}%"></span></div><span class="small num" style="white-space:nowrap">${L.xp - L.lo} / ${L.hi - L.lo} XP</span></div>
-          <span class="hex bighex" style="background:linear-gradient(135deg,#a78bfa,#6d28d9)" aria-hidden="true">${icon("crown", "lg")}</span></section>
+          <span class="hex bighex" style="background:#a78bfa" aria-hidden="true">${icon("crown", "lg")}</span></section>
         <section class="card stats-strip">${[["shield", "yellow", got.size, "Badges"], ["clock", "purple", Math.round(x.totalMin / 60), "Study Hours"], ["cards", "orange", x.cards, "Flashcards"], ["flame", "red", x.streak, "Day Streak"]].map(([ic, tone, v, l]) => `<div><span class="itile sm ${tone}">${icon(ic)}</span><div><b class="num">${v}</b><span>${l}</span></div></div>`).join("")}</section></div>
       <div class="section-h"><h2>Badges</h2><button class="see" id="me-all" style="background:none;border:0;cursor:pointer">${allBadges ? "Show less" : "See All"}</button></div>
       <section class="card"><div class="hexes">${shownB.map(([id, n, d, ic, bg]) => `<div class="hexb ${got.has(id) ? "" : "off"}"><span class="hex" style="--hc:${bg}">${icon(got.has(id) ? ic : "lock")}</span><b>${n}</b><span>${d}</span>${got.has(id) ? "" : `<span class="sr-only">Locked</span>`}</div>`).join("")}</div></section>

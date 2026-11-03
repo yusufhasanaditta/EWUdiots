@@ -175,8 +175,6 @@ export function register(pages, kit) {
   };
 
   // Every club event opens its event page (details, registration, add to calendar).
-  const eventRow = (e) => `<a class="card cl-event" href="#/club/event?id=${e.id}"><div class="ev-date"><b>${ui.when(e.starts_at, { day: "numeric" })}</b><span>${ui.when(e.starts_at, { month: "short" })}</span></div>
-      <div class="grow min0"><b>${esc(e.title)}</b><p class="xs">${ui.dateTime(e.starts_at)}${e.venue ? ` · ${esc(e.venue)}` : ""}</p></div>${e.visibility === "members" ? ui.pill(`${icon("lock", "sm")} Members`, "purple") : ""}${e.form_id ? ui.pill("Registration", "green") : ""}</a>`;
 
   pages["club/c"].mount = (el) => {
     const club = store.peek(`club:${slug()}`); if (!club) return kit.bindRetry(el);

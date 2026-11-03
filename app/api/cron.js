@@ -5,6 +5,7 @@ import { fetchNotices } from "../src/notices.js";
 import { fetchNewsletters } from "../src/newsletters.js";
 import { fetchEvents } from "../src/events.js";
 import { db, hasService } from "./_db.js";
+import { timingSafeEqual } from "node:crypto";
 
 const now = () => new Date().toISOString();
 const upsert = (rows) => db("/rest/v1/feed_items?on_conflict=id", { method: "POST", service: true, prefer: "resolution=merge-duplicates,return=minimal", body: rows });
@@ -51,7 +52,8 @@ const JOBS = {
 
 async function allowed(req) {
   const auth = String(req.headers.authorization || "");
-  if (process.env.CRON_SECRET && auth === `Bearer ${process.env.CRON_SECRET}`) return "schedule";
+  const want = Buffer.from(`Bearer ${process.env.CRON_SECRET || ""}`), got = Buffer.from(auth);
+  if (process.env.CRON_SECRET && got.length === want.length && timingSafeEqual(got, want)) return "schedule"; // constant time: no secret leaks through timing
   const token = auth.replace(/^Bearer\s+/, "");
   if (!token || token.length > 4000) return null;
   try { return (await db("/rest/v1/rpc/can", { method: "POST", token, body: { p: "jobs.run" } })) === true ? "admin" : null; } catch { return null; }

@@ -1,0 +1,35 @@
+/* v2.25 — interface foundation from the Web Interface Guidelines and the anti-slop design rules (see DESIGN.md).
+   Flat colour only: no gradient backgrounds or gradient text anywhere in the app. */
+
+/* Touch: no double-tap zoom delay, an intentional tap highlight. */
+a, button, [role="button"], [role="tab"], label, summary, select, input[type="checkbox"], input[type="radio"] { touch-action: manipulation; }
+html { -webkit-tap-highlight-color: color-mix(in srgb, var(--primary) 14%, transparent); }
+
+/* Small icon buttons keep their look but get a 44 × 44 px hit area on touch screens. */
+@media (pointer: coarse) {
+  :is(.icon-btn, .btn.icon-only, .t-x, .chip-x) { position: relative; }
+  :is(.icon-btn, .btn.icon-only, .t-x, .chip-x)::after { content: ""; position: absolute; left: 50%; top: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%); }
+}
+
+/* Text: balanced headings (no one-word last lines), steady digits in numbers that change. */
+:is(h1, h2, h3, .cl-ph h1, .modal-head h2) { text-wrap: balance; }
+:is(p, .muted, .small) { text-wrap: pretty; }
+:is(.cl-stat b, .stat b, .itile + * b, .kpi b, .an-kpis b, .rv-kpi b, .rc-n b, td.num, .money, [data-num]) { font-variant-numeric: tabular-nums; }
+
+/* Sheets and modals don't scroll the page behind them. */
+:is(.modal, .modal-body, .sheet, .dd-list) { overscroll-behavior: contain; }
+
+/* Focus is always visible for keyboard users. */
+:is(a, button, [role="button"], [role="tab"], summary, .chip):focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.cl-composer:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent); }
+
+/* Ask EWUdiots: where an answer came from. */
+.ans-src { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; font-size: 12px; color: var(--text-3); }
+.ans-src .icon { width: 14px; height: 14px; flex: none; }
+
+/* Club home tiles: the phone rule shrank the icon box to 24px but kept its 10px padding, leaving a 4px glyph. */
+.cl-tiles.cl-tiles > .cl-tile.cl-tile > .icon { width: 42px; height: 42px; padding: 10px; }
+@media (max-width: 600px) { .cl-tiles.cl-tiles > .cl-tile.cl-tile > .icon { width: 38px; height: 38px; padding: 9px; } }
+
+/* No colour blobs behind cards: flat colour only. */
+.fluid { display: none; }

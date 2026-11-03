@@ -13,7 +13,7 @@ body[data-mode="club"] .ask-btn { display: none; }
 
 /* ── Entry from More ── */
 .cl-entry { display: flex; align-items: center; gap: 14px; padding: 16px 18px; margin-top: 14px; border-radius: 20px; text-decoration: none !important; color: #fff;
-  background: radial-gradient(120% 160% at 0% 0%, #7c3aed 0%, #4c1d95 55%, #1e1b4b 100%); box-shadow: var(--sh-lg); }
+  background: #7c3aed; box-shadow: var(--sh-lg); }
 .cl-entry b { display: block; font-size: 16px; } .cl-entry span span { font-size: 13px; opacity: .85; }
 .cl-entry-ic { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: rgba(255, 255, 255, .14); flex: none; }
 .cl-entry > .icon { opacity: .8; }
@@ -23,7 +23,7 @@ body[data-mode="club"] .ask-btn { display: none; }
 .cl-logo.xs { width: 22px; height: 22px; border-radius: 6px; font-size: 8px !important; } .cl-logo.sm { width: 36px; height: 36px; border-radius: 10px; }
 .cl-logo.lg { width: 72px; height: 72px; border-radius: 20px; } .cl-logo.xl { width: 96px; height: 96px; border-radius: 26px; border: 4px solid var(--surface); box-shadow: var(--sh-md); }
 .cl-logo.mono { display: inline-grid; place-items: center; color: #fff; font-weight: 800; letter-spacing: -.02em; font-size: 14px;
-  background: linear-gradient(135deg, var(--cc), color-mix(in srgb, var(--cc) 55%, #111827)); }
+  background: var(--cc); }
 .cl-logo.mono.sm { font-size: 12px; } .cl-logo.mono.lg { font-size: 22px; } .cl-logo.mono.xl { font-size: 28px; }
 .cl-verified { display: inline-flex; vertical-align: -2px; margin-left: 4px; color: var(--info); } .cl-verified .icon { width: 16px; height: 16px; }
 .cl-role { display: inline-flex; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--surface-2); color: var(--text-2); white-space: nowrap; }
@@ -36,7 +36,7 @@ body[data-mode="club"] .ask-btn { display: none; }
 
 /* ── Feed ── */
 .cl-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; padding: 22px; border-radius: 24px; color: #fff; margin-bottom: 16px;
-  background: radial-gradient(120% 160% at 100% 0%, rgba(163, 230, 53, .28), transparent 50%), radial-gradient(130% 150% at 0% 0%, #7c3aed 0%, #4c1d95 50%, #111827 100%); box-shadow: var(--sh-lg); }
+  background:  #7c3aed; box-shadow: var(--sh-lg); }
 .cl-hero h1 { font-size: clamp(22px, 4.6vw, 30px); line-height: 1.15; margin: 6px 0; } .cl-hero p { opacity: .85; max-width: 520px; font-size: 14px; }
 .cl-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .9; }
 .cl-strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; }
@@ -65,7 +65,7 @@ a.cl-card:hover { transform: translateY(-2px); box-shadow: var(--sh-lg); }
 
 /* ── Profile ── */
 .cl-cover { position: relative; height: clamp(120px, 26vw, 220px); border-radius: 22px; overflow: hidden;
-  background: radial-gradient(120% 140% at 0% 0%, var(--cc), color-mix(in srgb, var(--cc) 40%, #0f172a)); }
+  background: var(--cc); }
 .cl-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cl-cover-fade { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, .25)); }
 .cl-identity { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; margin: -44px 4px 0 18px; position: relative; }
@@ -118,7 +118,7 @@ a.cl-card:hover { transform: translateY(-2px); box-shadow: var(--sh-lg); }
 
 /* ── Members' space ── */
 .cl-space-head { display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: 22px; color: #fff; flex-wrap: wrap;
-  background: radial-gradient(130% 160% at 0% 0%, var(--cc), color-mix(in srgb, var(--cc) 30%, #0f172a)); box-shadow: var(--sh-md); }
+  background: var(--cc); box-shadow: var(--sh-md); }
 .cl-space-head h1 { font-size: clamp(18px, 4vw, 24px); } .cl-space-head .xs { color: rgba(255, 255, 255, .85); }
 .cl-space-head .cl-role { background: rgba(255, 255, 255, .18); color: #fff; }
 .cl-tabs.scroll a .icon { width: 16px; height: 16px; }

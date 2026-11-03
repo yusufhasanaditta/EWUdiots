@@ -1,10 +1,11 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Club Recruitment overview: totals, a create button and every recruitment cycle with its applications",
-    "Roles & Permissions: role cards with permission and user counts; the role hierarchy shows its colours again",
-    "Member profile details are readable again (they were squeezed into one row)",
-    "Help Centre topics no longer cut words; project status sits beside the title"
+    "Ask EWUdiots answers from your course outlines: next exam, mark split, topics left, books, office hours",
+    "Answers now show where they came from",
+    "New flat look: no gradients, clearer colours and bigger tap areas on phones",
+    "Security: tighter database permissions and safer server checks",
+    "Club home icons, applicant links and other small fixes"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

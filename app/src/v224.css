@@ -32,7 +32,7 @@
 .rc-cycle { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px; border-radius: 16px;
   background: var(--surface); border: 1px solid var(--border); color: inherit; text-decoration: none; box-shadow: var(--sh-sm, none); }
 .rc-cycle:hover { border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); }
-.rc-art { width: 84px; height: 84px; border-radius: 12px; overflow: hidden; display: grid; place-items: center; background: linear-gradient(140deg, #1b1464, #5b3df5); }
+.rc-art { width: 84px; height: 84px; border-radius: 12px; overflow: hidden; display: grid; place-items: center; background: #1b1464; }
 .rc-art img { width: 100%; height: 100%; object-fit: cover; }
 .rc-body { display: grid; gap: 3px; }
 .rc-body b { font-size: 15px; color: var(--heading, #1b1464); line-height: 1.3; }

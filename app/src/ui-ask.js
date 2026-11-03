@@ -9,7 +9,8 @@ export function install(ctx) {
   const bubble = (m, i) => m.who === "me" ? `<div class="msg me"><p>${esc(m.text)}</p></div>`
     : `<div class="msg bot"><span class="bot-av" aria-hidden="true">${icon("sparkle", "sm")}</span><div class="grow min0"><p>${m.text}</p>
         ${m.cards?.length ? `<div class="ans-cards">${m.cards.map((c) => `<a class="ans-card" href="${esc(c.href || "#/ask")}"${/^https?:/.test(c.href || "") ? ' target="_blank" rel="noopener"' : ""}><span class="itile sm ${c.tone}">${icon(c.icon)}</span><span class="min0"><b>${esc(c.title)}</b>${c.sub ? `<span>${esc(c.sub)}</span>` : ""}</span></a>`).join("")}</div>` : ""}
-        ${m.actions?.length ? `<div class="row ans-acts">${m.actions.map((a, k) => a.href ? `<a class="btn sm outline" href="${esc(a.href)}">${esc(a.label)}</a>` : `<button class="btn sm primary" data-act="${i}:${k}">${esc(a.label)}</button>`).join("")}</div>` : ""}</div></div>`;
+        ${m.actions?.length ? `<div class="row ans-acts">${m.actions.map((a, k) => a.href ? `<a class="btn sm outline" href="${esc(a.href)}">${esc(a.label)}</a>` : `<button class="btn sm primary" data-act="${i}:${k}">${esc(a.label)}</button>`).join("")}</div>` : ""}
+        ${m.src ? `<p class="ans-src">${icon("info", "sm")} Source: ${esc(m.src)}</p>` : ""}</div></div>`;
 
   pages.ask = () => `${ctx.subHead("Ask EWUdiots", "Free assistant · works offline · private", "#/home")}
     <div class="ask-wrap"><div class="ask-log" id="ask-log" aria-live="polite">

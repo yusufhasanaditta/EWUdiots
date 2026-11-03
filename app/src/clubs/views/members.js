@@ -187,7 +187,7 @@ export function register(pages, kit) {
     const termForm = (x) => kit.ctx.openModal(kit.ctx.modalHead(x ? "Edit past committee" : "Add a past committee") + `<form id="tf" class="stack">
         <div class="grid g2"><label class="field">Term<input class="input" name="label" required minlength="2" maxlength="40" placeholder="2024 - 2025 or Tech Fest 2025" value="${esc((x?.label || "").replace(/^events*[·:-]s*/i, ""))}"></label>
           <label class="field">Ended on<input class="input" type="date" name="ended_on" required value="${esc(x?.ended_on || new Date().toISOString().slice(0, 10))}"></label></div>
-        <label class="field">Kind<select class="input" name="kind"><option value="exec">Executive committee</option><option value="event" ${/^event/i.test(x?.label || "") ? "selected" : ""}>Event team (organised one event)</option></select></label>
+        <label class="field">Kind<select class="input" name="kind"><option value="exec">Executive committee</option><option value="event" ${/^event\b/i.test(x?.label || "") ? "selected" : ""}>Event team (organised one event)</option></select></label>
         <label class="field">Committee (one per line: Name, Position)<textarea class="input" name="list" rows="8" placeholder="Rafi Ahmed, President&#10;Nusrat Jahan, General Secretary">${esc((x?.committee || []).map((p) => `${p.name}, ${p.title || p.role || ""}`).join("\n"))}</textarea></label>
         <button class="btn primary block">${icon("check", "sm")} Save</button></form>`, (m) => kit.$("#tf", m).addEventListener("submit", async (e) => {
         e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));

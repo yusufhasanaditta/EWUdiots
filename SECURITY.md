@@ -6,5 +6,7 @@ EWUdiots is an unofficial student project. If you find a security problem, pleas
 - **No secrets in this repository.** The only keys in the code are the Supabase URL and its public "anon" key, which are meant to be public: every table is protected by Row Level Security, so the key alone can read nothing private.
 - **Server-side rules.** Students can only read and change their own data. Admin actions (users, suspensions, security events) run as database functions that check the admin role on the server.
 - **Accounts.** New accounts verify their email with a one-time code; students also scan both sides of their EWU ID card. Passwords need 8+ characters with letters and numbers; resets use one-time codes.
+- **Least privilege in the database.** On top of Row Level Security, signed-out visitors hold no write rights at all, and no app user can run TRUNCATE (which skips row rules). Privileged functions pin their search path and check permissions inside. Crowd-sourced teacher and class data records who changed it last and can't be blanked out.
+- **Server functions.** The newsletter PDF proxy only fetches from ewubd.edu, including after redirects; the scheduled-job secret is compared in constant time.
 - **Website.** Strict security headers (Content-Security-Policy, HSTS, no framing, no sniffing).
 - **GitHub.** Secret scanning with push protection, Dependabot security updates, and a protected `main` branch (no force-push or deletion). Signing keys, SMTP and Supabase credentials live only in a local `.secrets/` folder and in encrypted repository secrets.

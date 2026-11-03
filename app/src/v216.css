@@ -40,7 +40,7 @@ html, body { overflow-x: clip; } /* last-resort guard: a stray pixel can't make 
 .admin-banner.has-img { flex-wrap: wrap; } .admin-banner.has-img .bn-img { flex: 1 0 100%; }
 
 /* ── Club: my panel ── */
-.cl-mypanel { padding: 18px; border-radius: 22px; color: #fff; background: linear-gradient(135deg, #15122e, #3b2a9e 60%, #5b3df5); box-shadow: var(--sh-lg); }
+.cl-mypanel { padding: 18px; border-radius: 22px; color: #fff; background: #15122e; box-shadow: var(--sh-lg); }
 .cl-mypanel h2 { color: #fff; margin: 2px 0 4px; font-size: 22px; } .cl-mypanel .xs { color: rgba(255, 255, 255, .75); }
 .cl-duties { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
 .cl-duties li { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; line-height: 1.45; } .cl-duties .icon { color: #c8f04a; flex: none; margin-top: 2px; }
@@ -58,8 +58,8 @@ html, body { overflow-x: clip; } /* last-resort guard: a stray pixel can't make 
   box-shadow: 0 1px 0 #d6d1f3, 0 2px 0 #cfc9ef, 0 3px 0 #c7c0ea, 0 4px 0 #bfb7e6, 0 5px 0 #b8afe2, 0 22px 40px rgba(21, 18, 46, .28); animation: tkFloat 6s ease-in-out infinite; }
 .tk3d.live .tk3d-card { transition: transform .08s linear; animation: none; }
 .tk3d-shine { position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit; mix-blend-mode: soft-light;
-  background: radial-gradient(circle at var(--mx, 30%) var(--my, 20%), rgba(255, 255, 255, .75), rgba(255, 255, 255, 0) 45%), linear-gradient(115deg, transparent 40%, rgba(200, 240, 74, .18) 50%, transparent 60%); }
-.tk3d-floor { position: absolute; left: 12%; right: 12%; bottom: 4px; height: 18px; border-radius: 50%; background: radial-gradient(rgba(21, 18, 46, .28), transparent 70%); filter: blur(4px); }
+  background: none; }
+.tk3d-floor { position: absolute; left: 12%; right: 12%; bottom: 4px; height: 18px; border-radius: 50%; background: none; filter: blur(4px); }
 @keyframes tkFloat { 0%, 100% { transform: rotateX(4deg) rotateY(-6deg) translateY(0); } 50% { transform: rotateX(-2deg) rotateY(6deg) translateY(-6px); } }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tk3d-card { box-shadow: 0 1px 0 #2a2452, 0 2px 0 #26204a, 0 3px 0 #221c43, 0 4px 0 #1e183c, 0 5px 0 #1a1535, 0 22px 40px rgba(0, 0, 0, .55); } }
 :root[data-theme="dark"] .tk3d-card { box-shadow: 0 1px 0 #2a2452, 0 2px 0 #26204a, 0 3px 0 #221c43, 0 4px 0 #1e183c, 0 5px 0 #1a1535, 0 22px 40px rgba(0, 0, 0, .55); }

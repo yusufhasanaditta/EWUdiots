@@ -5,6 +5,7 @@ export default async function handler(req, res) {
   if (!/^https:\/\/(www\.)?ewubd\.edu\/storage\/[\w/%.-]+\.pdf$/i.test(url)) return res.status(400).json({ error: "Only EWU newsletter PDFs" });
   try {
     const r = await fetch(url, { headers: { "user-agent": "EWUdiots newsletter reader (unofficial student app)" }, signal: AbortSignal.timeout(20000) });
+    if (!/^(www\.)?ewubd\.edu$/i.test(new URL(r.url).hostname)) return res.status(400).json({ error: "Only EWU newsletter PDFs" }); // a redirect must not lead off ewubd.edu
     if (!r.ok) return res.status(502).json({ error: `ewubd.edu answered ${r.status}` });
     const buf = Buffer.from(await r.arrayBuffer());
     if (buf.length > 40e6 || buf.subarray(0, 4).toString() !== "%PDF") return res.status(502).json({ error: "That isn't a PDF" });

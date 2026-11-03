@@ -20,7 +20,7 @@ export function applyBrand(t = {}, root = document.documentElement) {
   root.style.setProperty("--primary-d", `color-mix(in srgb, ${c} 78%, #000)`);
   root.style.setProperty("--primary-l", `color-mix(in srgb, ${c} 16%, var(--surface, #fff))`);
   root.style.setProperty("--primary-ll", `color-mix(in srgb, ${c} 8%, var(--surface, #fff))`);
-  root.style.setProperty("--grad", `linear-gradient(135deg, color-mix(in srgb, ${c} 75%, #fff) 0%, ${c} 45%, color-mix(in srgb, ${c} 80%, #000) 100%)`);
+  root.style.setProperty("--grad", `color-mix(in srgb, ${c} 75%, #fff)`);
   root.style.setProperty("--glow", `0 10px 28px rgba(${rgb}, .35)`);
   return c;
 }
