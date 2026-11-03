@@ -25,6 +25,12 @@ export function moreApi(sb, me, ok, safeName) {
     setMemberRole: async (clubId, userId, { role = null, title = null, wing = null, status = null } = {}) => ok(await rpc("set_member_role", { c: clubId, u: userId, rid: role, ttl: title, wng: wing, st: status })),
     inviteRole: async (clubId, who, roleId, title = "", wing = "") => ok(await rpc("invite_member", { c: clubId, who, rnk: 7, ttl: title, wng: wing, rid: roleId })),
     addRole: async (row) => ok(await from("club_roles").insert(row).select().single()),
+    /* Role access requests ("I need Media access"); club_decide_access checks rank and permissions. */
+    accessRequests: async (clubId) => ok(await from("club_access_requests").select("*, club_roles(name, rank)").eq("club_id", clubId).order("created_at", { ascending: false }).limit(100)),
+    myAccessRequests: async (clubId) => (uid() ? ok(await from("club_access_requests").select("*, club_roles(name)").eq("club_id", clubId).eq("user_id", uid()).order("created_at", { ascending: false }).limit(10)) : []),
+    requestAccess: async (clubId, roleId, reason) => ok(await from("club_access_requests").insert({ club_id: clubId, user_id: uid(), name: String(me()?.user_metadata?.name || "Member").slice(0, 80), role_id: roleId, reason: String(reason || "").slice(0, 300) }).select().single()),
+    withdrawAccess: async (id) => ok(await from("club_access_requests").delete().eq("id", id)),
+    decideAccess: async (id, approve) => ok(await rpc("club_decide_access", { req: id, approve })),
     deleteRole: async (id) => ok(await from("club_roles").delete().eq("id", id)),
     updateMyProfile: async (clubId, patch) => ok(await rpc("update_my_club_profile", { c: clubId, patch })),
     memberNotes: async (clubId, userId) => ok(await from("club_member_notes").select("*").eq("club_id", clubId).eq("user_id", userId).order("created_at", { ascending: false })),
@@ -97,6 +103,11 @@ export function moreApi(sb, me, ok, safeName) {
     projectTaskCounts: async (clubId) => (ok(await from("club_tasks").select("project_id, status").eq("club_id", clubId).not("project_id", "is", null)) || [])
       .reduce((m, t) => { const x = (m[t.project_id] ||= { total: 0, done: 0 }); x.total++; if (t.status === "done") x.done++; return m; }, {}),
     myTasks: async () => (uid() ? ok(await from("club_tasks").select("*, clubs(name, short_name, color)").eq("assignee", uid()).neq("status", "done").order("due", { nullsFirst: false }).limit(20)) : []),
+    task: async (id) => ok(await from("club_tasks").select("*, club_projects(id, title, cover_url), clubs(id, name, short_name, color)").eq("id", id).maybeSingle()),
+    taskComments: async (taskId) => ok(await from("club_task_comments").select("*").eq("task_id", taskId).order("created_at").limit(200)),
+    addTaskComment: async (task, body) => ok(await from("club_task_comments").insert({ task_id: task.id, club_id: task.club_id, user_id: uid(), author_name: String(me()?.user_metadata?.name || "Member").slice(0, 80), body }).select().single()),
+    deleteTaskComment: async (id) => ok(await from("club_task_comments").delete().eq("id", id)),
+    uploadTaskFile: async (clubId, file) => upload(PRIVATE, `${clubId}/tasks/${uid()}/${stamp(file)}`, file),
     moveTasks: async (updates) => { for (const u of updates) ok(await from("club_tasks").update({ status: u.status, position: u.position }).eq("id", u.id)); },
     projectDocs: async (id) => ok(await from("club_docs").select("*").eq("project_id", id).order("created_at", { ascending: false })),
 

@@ -13,11 +13,13 @@ const PAGE = 25;
 export function register(pages, kit) {
   const { ui, icon, esc, api, store, ctx, charts } = kit;
   let tab = "applications", st = "all", q = "", page = 1, sel = new Set();
+  const fl = { dept: "all", batch: "all", sort: "new" };
+  /** Match = the rubric score as a share of the maximum; null until someone scores the application. */
+  const matchOf = (r, max) => (r.score_total == null ? null : Math.round((Number(r.score_total) / (max || 100)) * 100));
   const formE = (fid) => store.use(`club:form:${fid}`, () => api.form(fid), { ttl: 60e3 });
   const respE = (fid) => store.use(`club:resp:${fid}`, () => api.responses(fid), { ttl: 20e3 });
   const rubricOf = (form) => (Array.isArray(form?.settings?.rubric) && form.settings.rubric.length ? form.settings.rubric : DEFAULT_RUBRIC);
   const maxOf = (form) => rubricOf(form).reduce((s, r) => s + Number(r.max || 0), 0) || 100;
-  const positions = (form) => (form.fields || []).filter((f) => /wing|team|position|role/i.test(f.label) && ["choice", "multi", "dropdown"].includes(f.type)).reduce((n, f) => n + (f.options?.length || 0), 0);
   const prefOf = (form, r) => r.position_pref || (form.fields || []).filter((f) => /wing|team|position|role/i.test(f.label) && ["choice", "multi", "dropdown"].includes(f.type)).map((f) => r.answers?.[f.id]).flat().filter(Boolean).join(", ");
 
   pages["club/recruit"] = () => {
@@ -29,14 +31,16 @@ export function register(pages, kit) {
       const re = respE(fid), rows = re.value || [], max = maxOf(form);
       const n = (s) => rows.filter((r) => r.status === s).length;
       const club = form.clubs || {};
-      return `${kit.back(`#/club/manage?c=${form.club_id}&tab=forms`, "Forms")}
-        <section class="rv-head"><span class="rv-cover">${club.cover_url ? `<img src="${esc(club.cover_url)}" alt="" loading="lazy">` : ui.logo(club, "lg")}</span>
-          <div class="min0"><h1>${esc(form.title)} ${ui.st(form.status === "open" ? ["Active", "green"] : form.status === "closed" ? ["Closed", "gray"] : ["Draft", "amber"])}</h1>
-            <p>${icon("calendar", "sm")} ${ui.dateShort(form.created_at)}${form.settings?.deadline ? ` – ${ui.dateShort(form.settings.deadline)}` : ""}</p>
-            <p>${icon("users", "sm")} ${ui.plural(rows.length, "Application")} ${positions(form) ? `· ${icon("file", "sm")} ${ui.plural(positions(form), "Position")}` : ""}</p></div></section>
-        <nav class="rp-tabs" role="tablist">${[["applications", "Applications"], ["shortlist", "Shortlisting"], ["interviews", "Interviews"], ["analytics", "Analytics"]].map(([v, l]) => `<a role="tab" href="#/club/recruit?form=${fid}&t=${v}" aria-selected="${tab === v}">${l}</a>`).join("")}<a role="tab" href="#/club/manage?c=${form.club_id}&tab=forms" aria-selected="false">Settings</a></nav>
-        <div class="rv-kpis">${[["users", "purple", rows.length, "Applications"], ["clock", "green", n("pending"), "Reviewing"], ["star", "orange", n("shortlisted") + n("interview"), "Shortlisted"], ["file", "blue", n("accepted"), "Selected"], ["xc", "red", n("rejected"), "Rejected"]]
-          .map(([ic, tone, v, l]) => `<div class="rv-kpi"><span class="itile ${tone}">${icon(ic)}</span><span class="min0"><b>${v}</b><span>${l}</span></span></div>`).join("")}</div>
+      // "Recruitment Management" board: title, status chips with counts, the cycle card, tabs, then the tab's content.
+      const create = kit.can(form.club_id, "forms.create") ? `<a class="btn primary" href="#/club/manage?c=${form.club_id}&tab=forms&new=1">${icon("plus")} Create New Recruitment</a>` : "";
+      return `${kit.back("#/club/recruit", "All recruitment")}${ui.ph("Recruitment Management", "Manage applications for club recruitments, review candidates and select new members.", create)}
+        <div class="rv-chips">${[["all", `All (${rows.length})`], ["pending", `Pending (${n("pending")})`], ["shortlisted", `Shortlisted (${n("shortlisted")})`], ["interview", `Interview (${n("interview")})`], ["accepted", `Selected (${n("accepted")})`], ["rejected", `Rejected (${n("rejected")})`]].map(([v, l]) => `<button data-st="${v}" aria-pressed="${st === v && tab === "applications"}">${l}</button>`).join("")}</div>
+        <section class="rv-cycle card mt-s"><span class="rv-poster">${club.cover_url ? `<img src="${esc(club.cover_url)}" alt="" loading="lazy">` : `<b>${esc(form.title)}</b>`}</span>
+          <div class="min0 grow"><b class="rv-title">${esc(form.title)}</b><span class="row nowrap" style="gap:6px">${ui.logo(club, "xs")} ${esc(club.name || "")}</span>
+            <span class="xs">${icon("users", "sm")} ${ui.plural(rows.length, "Application")}</span>${form.settings?.deadline ? `<span class="xs">${icon("calendar", "sm")} Deadline: ${ui.dateShort(form.settings.deadline)}</span>` : ""}</div>
+          <span class="rv-cside">${kit.can(form.club_id, "forms.create") ? `<a class="icon-btn" href="#/club/manage?c=${form.club_id}&tab=forms" aria-label="Edit this recruitment">${icon("more")}</a>` : ""}${ui.st(form.status === "open" ? ["Active", "green"] : form.status === "closed" ? ["Closed", "gray"] : ["Draft", "amber"])}</span></section>
+        <nav class="cl-seg mt-s" role="tablist">${[["applications", "Applications"], ["interviews", "Interviews"], ["analytics", "Analytics"]].map(([v, l]) => `<a role="tab" href="#/club/recruit?form=${fid}&t=${v}" aria-selected="${tab === v}">${l}</a>`).join("")}
+          ${kit.can(form.club_id, "forms.create") ? `<a role="tab" href="#/club/manage?c=${form.club_id}&tab=forms" aria-selected="false">Form &amp; Questions</a><a role="tab" href="#/club/manage?c=${form.club_id}&tab=forms" aria-selected="false">Settings</a>` : ""}</nav>
         ${re.loading && !re.value ? ui.skeleton(5, 70) : tab === "analytics" ? analytics(form, rows) : tab === "interviews" ? interviews(form, rows) : list(form, rows, max)}`;
     }, { n: 3, h: 120 });
   };
@@ -68,21 +72,23 @@ export function register(pages, kit) {
     });
   }
   function list(form, rows, max) {
-    const statusFor = tab === "shortlist" ? "shortlisted" : st;
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-    const all = rows.filter((r) => (statusFor === "all" || r.status === statusFor) && (!words.length || words.every((w) => `${r.name} ${r.department} ${r.student_id} ${prefOf(form, r)}`.toLowerCase().includes(w))))
-      .sort((a, b) => (b.score_total ?? -1) - (a.score_total ?? -1) || new Date(b.created_at) - new Date(a.created_at));
+    const dept = (r) => r.department || deptFromId(r.student_id) || "", batch = (r) => (r.student_id || "").slice(0, 4);
+    const all = rows.filter((r) => (st === "all" || r.status === st) && (fl.dept === "all" || dept(r) === fl.dept) && (fl.batch === "all" || batch(r) === fl.batch) && (!words.length || words.every((w) => `${r.name} ${dept(r)} ${r.student_id} ${prefOf(form, r)}`.toLowerCase().includes(w))))
+      .sort((a, b) => (fl.sort === "match" ? (b.score_total ?? -1) - (a.score_total ?? -1) : 0) || (fl.sort === "name" ? a.name.localeCompare(b.name) : 0) || (fl.sort === "old" ? 1 : -1) * (new Date(b.created_at) - new Date(a.created_at)));
     const pages_ = Math.max(1, Math.ceil(all.length / PAGE)); page = Math.min(page, pages_);
     const shown = all.slice((page - 1) * PAGE, page * PAGE);
-    const n = (s) => rows.filter((r) => r.status === s).length;
-    return `<div class="rv-search"><div class="searchbar cl-search">${icon("search")}<input class="input" id="rc-q" type="search" placeholder="Search by name, department, or position…" value="${esc(q)}" autocomplete="off"></div>
-        <a class="btn outline" href="#/club/recruit?form=${form.id}&t=analytics">${icon("filter", "sm")} Insights</a></div>
-      ${tab === "applications" ? `<div class="rv-chips">${[["all", `All (${rows.length})`], ["pending", `Under Review (${n("pending")})`], ["shortlisted", `Shortlisted (${n("shortlisted")})`], ["interview", `Interview (${n("interview")})`], ["accepted", `Selected (${n("accepted")})`], ["rejected", `Rejected (${n("rejected")})`]].map(([v, l]) => `<button data-st="${v}" aria-pressed="${st === v}">${l}</button>`).join("")}</div>` : ""}
-      ${shown.length ? `<div class="rv-list">${shown.map((r) => `<div class="rv-row"><input type="checkbox" data-sel="${r.id}" ${sel.has(r.id) ? "checked" : ""} aria-label="Select ${esc(r.name)}">
+    const opts = (list) => [...new Set(rows.map(list).filter(Boolean))].sort();
+    return `<div class="rv-search"><div class="searchbar cl-search grow">${icon("search")}<input class="input" id="rc-q" type="search" placeholder="Search applicants by name, department…" value="${esc(q)}" autocomplete="off"></div>
+        <a class="btn outline" href="#/club/recruit?form=${form.id}&t=analytics" aria-label="Insights">${icon("filter", "sm")}</a></div>
+      <div class="rv-filters mt-s">${ui.select("dept", [["all", "Department"], ...opts(dept).map((d) => [d, d])], fl.dept, 'data-fl aria-label="Department"')}${ui.select("batch", [["all", "Batch"], ...opts(batch).map((b) => [b, `Batch ${b}`])], fl.batch, 'data-fl aria-label="Batch"')}
+        ${ui.select("st", [["all", "Status"], ...Object.entries(PIPE).map(([k, v]) => [k, v[0]])], st, 'data-fl aria-label="Status"')}${ui.select("sort", [["new", "Sort by: Newest"], ["old", "Oldest"], ["match", "Best match"], ["name", "Name"]], fl.sort, 'data-fl aria-label="Sort"')}</div>
+      ${shown.length ? `<div class="rv-list mt-s">${shown.map((r) => { const pct = matchOf(r, max);
+        return `<div class="rv-row"><input type="checkbox" data-sel="${r.id}" ${sel.has(r.id) ? "checked" : ""} aria-label="Select ${esc(r.name)}">
           <span class="rv-face" aria-hidden="true">${esc(ui.initials(r.name))}</span>
-          <a class="rv-main" href="#/club/applicant?id=${r.id}"><b>${esc(r.name)}</b><span>${esc([r.department || deptFromId(r.student_id), r.student_id && `Batch ${r.student_id.slice(0, 4)}`].filter(Boolean).join(" · "))}</span>${prefOf(form, r) ? `<span>Applied: ${esc(prefOf(form, r))}</span>` : ""}</a>
-          <span class="rv-side"><span class="xs">${ui.dateShort(r.created_at)}</span>${ui.st(PIPE[r.status])}<span class="rv-score">${r.score_total != null ? `${Math.round(r.score_total)}<i>/${max}</i>` : "<i>Not scored</i>"}</span></span>
-          <a class="rv-more" href="#/club/applicant?id=${r.id}" aria-label="Open ${esc(r.name)}">${icon("more")}</a></div>`).join("")}</div>${ui.pager(page, pages_)}`
+          <a class="rv-main" href="#/club/applicant?id=${r.id}"><b>${esc(r.name)}</b><span>${esc([dept(r), batch(r) && `Batch ${batch(r)}`].filter(Boolean).join(" · "))}</span><span>Applied: ${ui.dateShort(r.created_at)}</span></a>
+          <span class="rv-side">${ui.st(PIPE[r.status])}<span class="cl-match"><b>${pct == null ? "–" : `${pct}%`}</b><span>Match</span></span></span>
+          <a class="rv-more" href="#/club/applicant?id=${r.id}" aria-label="Open ${esc(r.name)}">${icon("more")}</a></div>`; }).join("")}</div>${ui.pager(page, pages_)}`
         : ui.emptyBox("users", "No applications here", "Try another filter.")}
       <div class="rv-bar"><label><input type="checkbox" id="rc-all" ${shown.length && shown.every((r) => sel.has(r.id)) ? "checked" : ""}> Select All</label>
         <select class="select" id="rc-bulk" ${sel.size ? "" : "disabled"} aria-label="Bulk action"><option value="">Bulk Actions${sel.size ? ` (${sel.size})` : ""}</option><option value="shortlisted">Shortlist</option><option value="interview">Move to Interview</option><option value="accepted">Select (accept)</option><option value="rejected">Reject</option><option value="schedule">Schedule interviews…</option></select>
@@ -109,8 +115,9 @@ export function register(pages, kit) {
     const reload = () => store.invalidate(`club:resp:${fid}`);
     const input = kit.$("#rc-q", el);
     input?.addEventListener("input", () => { q = input.value; page = 1; const pos = input.selectionStart; ctx.rerender(); const i = kit.$("#rc-q"); if (i) { i.focus(); i.setSelectionRange(pos, pos); } });
-    kit.$$("[data-st]", el).forEach((b) => b.addEventListener("click", () => { st = b.dataset.st; page = 1; sel.clear(); ctx.rerender(); }));
+    kit.$$("[data-st]", el).forEach((b) => b.addEventListener("click", () => { st = b.dataset.st; page = 1; sel.clear(); if (tab !== "applications") kit.go(`#/club/recruit?form=${fid}&t=applications`); else ctx.rerender(); }));
     kit.$$("[data-pg]", el).forEach((b) => b.addEventListener("click", () => { page = Number(b.dataset.pg); ctx.rerender(); }));
+    kit.$$("[data-fl]", el).forEach((x) => x.addEventListener("change", () => { if (x.name === "st") st = x.value; else fl[x.name] = x.value; page = 1; sel.clear(); ctx.rerender(); }));
     kit.$$("[data-sel]", el).forEach((c) => c.addEventListener("change", () => { if (c.checked) sel.add(c.dataset.sel); else sel.delete(c.dataset.sel); ctx.rerender(); }));
     kit.$("#rc-all", el)?.addEventListener("change", (e) => { kit.$$("[data-sel]", el).forEach((c) => (e.target.checked ? sel.add(c.dataset.sel) : sel.delete(c.dataset.sel))); ctx.rerender(); });
     kit.$("#rc-bulk", el)?.addEventListener("change", (e) => {
@@ -136,27 +143,36 @@ export function register(pages, kit) {
     return ui.view(re, (r) => {
       if (!r) return ui.emptyBox("lock", "Application not found", "");
       const form = r.club_forms, rub = rubricOf(form), max = maxOf(form);
-      const links = (form.fields || []).filter((f) => f.type === "link" && r.answers?.[f.id]).map((f) => [f.label, r.answers[f.id]]);
+      // "Applicant" board: dark hero with the overall match, tabs, the answers sorted into the board's sections, Admin Actions.
+      const used = new Set(), pick = (re) => { const f = (form.fields || []).find((x) => !used.has(x.id) && re.test(x.label) && r.answers?.[x.id] != null && r.answers[x.id] !== ""); if (!f) return null; used.add(f.id); return [f, r.answers[f.id]]; };
+      const txt = (v) => [].concat(v).join(", ");
+      const cgpa = pick(/cgpa|gpa|result/i), skills = pick(/skill|interest|expertise/i), motiv = pick(/motivat|why.*(join|interest)|reason/i), why = pick(/why.*(select|choose|you)|strength/i);
+      const docs = (form.fields || []).filter((f) => ["link", "file"].includes(f.type) && r.answers?.[f.id]).map((f) => { used.add(f.id); return [f.label, r.answers[f.id]]; });
+      const extra = (form.fields || []).filter((f) => !used.has(f.id) && !["note", "section"].includes(f.type) && r.answers?.[f.id] != null && r.answers[f.id] !== "" && !/^(full )?name$|e-?mail|phone|mobile|student id/i.test(f.label)).slice(0, 6);
+      const pct = matchOf(r, max), d = r.department || deptFromId(r.student_id), b = (r.student_id || "").slice(0, 4);
       return `${kit.back(`#/club/recruit?form=${r.form_id}`, form.title)}
-        <section class="ap-head"><span class="ap-photo" aria-hidden="true">${esc(ui.initials(r.name))}</span><div class="min0"><h1>${esc(r.name)} ${ui.st(PIPE[r.status])}</h1>
-          <p>${esc([r.department || deptFromId(r.student_id), r.student_id && `Batch ${r.student_id.slice(0, 4)}`].filter(Boolean).join(" · "))}</p>
-          ${r.email ? `<p>${icon("mail", "sm")} <a href="mailto:${esc(r.email)}">${esc(r.email)}</a></p>` : ""}${r.phone ? `<p>${icon("phone", "sm")} <a href="tel:${esc(r.phone)}">${esc(r.phone)}</a></p>` : ""}
-          <div class="ap-acts"><button class="btn primary" id="ap-iv">${icon("calendar")} Schedule Interview</button>${r.email ? `<a class="btn outline" href="mailto:${esc(r.email)}?subject=${encodeURIComponent(form.title)}">${icon("mail")} Send Message</a>` : ""}
-            <select class="select" id="ap-st" style="width:auto" aria-label="Change status"><option value="">More…</option>${Object.entries(PIPE).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join("")}</select></div></div></section>
-        <nav class="rp-tabs" role="tablist">${[["overview", "Overview"], ["application", "Application"], ["evaluation", "Evaluation"], ["interview", "Interview"], ["notes", "Notes"]].map(([v, l]) => `<button type="button" class="${atab === v ? "on" : ""}" data-at="${v}" role="tab" aria-selected="${atab === v}">${l}</button>`).join("")}</nav>
-        ${atab === "application" ? `<section class="card">${(form.fields || []).filter((f) => f.type !== "note").map((f) => `<div style="margin-bottom:12px"><b class="xs" style="display:block">${esc(f.label)}</b><p>${ui.rich([].concat(r.answers?.[f.id] ?? "—").join(", "))}</p></div>`).join("")}</section>`
+        <section class="ap-hero"><div class="row between" style="gap:8px;flex-wrap:wrap">${ui.st(PIPE[r.status])}<span class="xs">Applied on ${ui.dateShort(r.created_at)}</span><span class="xs">Application #${esc(r.id.slice(0, 8).toUpperCase())}</span></div>
+          <div class="row nowrap mt-s" style="gap:14px;align-items:flex-start"><span class="ap-photo" aria-hidden="true">${esc(ui.initials(r.name))}</span>
+            <div class="min0 grow"><h1>${esc(r.name)}</h1><p>${esc([d, b && `Batch ${b}`].filter(Boolean).join(" · "))}</p>
+              ${r.email ? `<p>${icon("mail", "sm")} <a href="mailto:${esc(r.email)}">${esc(r.email)}</a></p>` : ""}${r.phone ? `<p>${icon("phone", "sm")} <a href="tel:${esc(r.phone)}">${esc(r.phone)}</a></p>` : ""}</div>
+            <div class="ap-match"><b>${pct == null ? "–" : `${pct}%`}</b><span>Overall Match</span><div class="cl-bar"><i style="width:${pct || 0}%"></i></div>${pct == null ? `<span class="xs">Score it in Evaluation</span>` : ""}</div></div></section>
+        <nav class="cl-seg mt" role="tablist">${[["overview", "Application"], ["application", "Responses"], ["interview", "Interview"], ["evaluation", "Evaluation"], ["notes", "Notes"]].map(([v, l]) => `<button type="button" data-at="${v}" role="tab" aria-selected="${atab === v}">${l}</button>`).join("")}</nav>
+        ${atab === "application" ? `<section class="card">${(form.fields || []).filter((f) => f.type !== "note").map((f) => `<div style="margin-bottom:12px"><b class="xs" style="display:block">${esc(f.label)}</b><p>${ui.rich(txt(r.answers?.[f.id] ?? "—"))}</p></div>`).join("")}</section>`
           : atab === "evaluation" ? evaluation(r, rub, max)
           : atab === "interview" ? `<section class="card"><h2>Interview Schedule</h2>${r.interview_at ? `<div class="cl-li" style="padding:10px 0">${ui.dchip(r.interview_at)}<span class="body"><b>${ui.dateLong(r.interview_at)}</b><span>${ui.time(r.interview_at)}${r.interview_place ? ` · ${esc(r.interview_place)}` : ""}</span></span></div>` : `<p class="small muted">Not scheduled yet.</p>`}<button class="btn outline mt-s" id="ap-iv2">${icon("plus", "sm")} ${r.interview_at ? "Reschedule" : "Schedule Interview"}</button></section>`
           : atab === "notes" ? `<form id="ap-note" class="stack">${ui.area("note", r.note, 'rows="5" maxlength="500" placeholder="Private notes for the recruitment team"')}<button class="btn primary">Save notes</button></form>`
-          : `<div class="ap-grid"><section class="card rp-card"><div class="rp-ch"><h3>Application Information</h3></div><div class="ap-info">${[["calendar", "Applied On", ui.dateLong(r.created_at)], ["briefcase", "Preferred Positions", prefOf(form, r) ? prefOf(form, r).split(/,\s*/).map((p, i) => `${i + 1}. ${p}`).join("\n") : "—"], ["clock", "Interview", r.interview_at ? `${ui.dateTime(r.interview_at)}${r.interview_place ? `\n${r.interview_place}` : ""}` : "Not scheduled"]]
-              .map(([ic, l, v]) => `<div><span class="itile sm purple">${icon(ic)}</span><span class="min0"><b>${l}</b><span>${esc(v)}</span></span></div>`).join("")}</div></section>
-            <section class="card rp-card"><div class="rp-ch"><h3>Quick Actions</h3></div><div class="ap-quick">${[["shortlisted", "checkc", "Shortlist"], ["interview", "calendar", "Move to Interview"], ["accepted", "trophy", "Select"], ["rejected", "xc", "Reject"]].map(([s, ic, l]) => `<button type="button" data-q="${s}">${icon(ic)}<span>${l}</span></button>`).join("")}</div></section></div>
-            ${links.some(([, u]) => /^https?:\/\//i.test(u)) ? `<section class="card rp-card mt"><div class="rp-ch"><h3>Documents &amp; Links</h3></div><div class="cl-list">${links.filter(([, u]) => /^https?:\/\//i.test(u)).map(([l, u]) => `<a class="cl-li" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span class="itile sm blue">${icon("link")}</span><span class="body"><b>${esc(l)}</b><span class="ellipsis">${esc(u)}</span></span>${icon("external", "sm")}</a>`).join("")}</div></section>` : ""}
-            <section class="card rp-card mt"><div class="rp-ch"><h3>Application Answers</h3><button type="button" class="rp-more" data-at="application" style="border:0;background:none;cursor:pointer;font:inherit">View Full Application ${icon("arrow", "sm")}</button></div>
-              <div class="ap-qa">${(form.fields || []).filter((f) => f.type !== "note" && r.answers?.[f.id] != null && r.answers[f.id] !== "").slice(0, 4).map((f, i) => `<div><b>${i + 1}. ${esc(f.label)}</b><p>${f.type === "link" ? `<a href="${esc(r.answers[f.id])}" target="_blank" rel="noopener noreferrer">${icon("link", "sm")} ${esc(r.answers[f.id])}</a>` : ui.rich([].concat(r.answers[f.id]).join(", "))}</p></div>`).join("") || `<p class="small muted">No answers.</p>`}</div></section>
-            <section class="card rp-card mt"><div class="rp-ch"><h3>Evaluation &amp; Scoring</h3><span class="ap-total">Total Score: <b>${r.score_total != null ? `${Math.round(r.score_total)}/${max}` : "–"}</b></span></div>
-              <div class="ap-scores">${rub.map((x, i) => `<div class="ap-score">${icon(["target", "clipboard", "image", "users"][i % 4])}<span>${esc(x.label)}</span><b>${r.score?.[x.key] ?? "–"}/${x.max}</b></div>`).join("")}</div>
-              <button type="button" class="btn outline sm mt" data-at="evaluation">${icon("edit", "sm")} Score this application</button></section>`}`;
+          : `<div class="ap-cols"><div class="stack">
+              <section class="card"><h2 class="cl-hd">Academic Information</h2><div class="ap-acad">${[["cap", "Department", d || "—"], ["calendar", "Batch", b || "—"], ["chart", "CGPA", cgpa ? txt(cgpa[1]) : "—"]].map(([ic, l, v]) => `<div>${icon(ic)}<span><span class="xs">${l}</span><b>${esc(v)}</b></span></div>`).join("")}</div></section>
+              ${skills ? `<section class="card"><h2 class="cl-hd">Skills &amp; Interests</h2><div class="cl-chips">${[].concat(skills[1]).flatMap((x) => String(x).split(/,\s*/)).filter(Boolean).slice(0, 12).map((x) => `<span class="cl-lbl">${esc(x)}</span>`).join("")}</div></section>` : ""}
+              ${motiv ? `<section class="card"><h2 class="cl-hd">Motivation Statement</h2><blockquote class="ap-quote">${ui.rich(txt(motiv[1]))}</blockquote></section>` : ""}
+              ${why ? `<section class="card"><h2 class="cl-hd">${esc(why[0].label)}</h2><p class="small">${ui.rich(txt(why[1]))}</p></section>` : ""}</div>
+            <div class="stack">
+              <section class="card"><h2 class="cl-hd">Profile Documents</h2>${docs.some(([, u]) => /^https?:\/\//i.test(u)) ? `<div class="cl-list">${docs.filter(([, u]) => /^https?:\/\//i.test(u)).map(([l, u]) => `<a class="cl-li" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span class="itile sm red">${icon("file")}</span><span class="body"><b>${esc(l)}</b></span>${icon("external", "sm")}</a>`).join("")}</div>` : `<p class="small muted">No documents attached.</p>`}</section>
+              ${extra.length ? `<section class="card"><h2 class="cl-hd">Additional Information</h2><div class="cl-list">${extra.map((f) => `<div class="cl-li"><span class="itile sm purple">${icon("info")}</span><span class="body"><span class="xs">${esc(f.label)}</span><b>${f.type === "link" ? esc(r.answers[f.id]) : esc(txt(r.answers[f.id]))}</b></span></div>`).join("")}</div></section>` : ""}</div></div>
+            <section class="card mt"><h2 class="cl-hd">Admin Actions</h2><div class="ap-admin">
+              <button type="button" class="btn ok" data-q="accepted">${icon("check")} Approve</button><button type="button" class="btn primary" data-q="interview">${icon("arrow")} Move to Interview</button><button type="button" class="btn danger" data-q="rejected">${icon("x")} Reject</button>
+              ${r.email ? `<a class="btn outline" href="mailto:${esc(r.email)}?subject=${encodeURIComponent(form.title)}">${icon("mail")} Message</a>` : ""}<button type="button" class="btn outline" id="ap-iv">${icon("calendar")} Schedule Interview</button><button type="button" class="btn outline" data-at="notes">${icon("edit")} Add Note</button></div>
+              <p class="xs mt-s">Approving ${form.kind === "membership" ? "makes them a General Member of the club. " : ""}Each change is sent to the applicant in the app.</p></section>`}`;
     }, { n: 3, h: 120 });
   };
   const evaluation = (r, rub, max) => `<form id="ap-eval" class="card stack"><h2>Evaluation (out of ${max})</h2>${rub.map((x) => `<label class="field">${esc(x.label)} <span class="xs">(0–${x.max})</span><input class="input" type="number" name="${esc(x.key)}" min="0" max="${x.max}" step="1" value="${r.score?.[x.key] ?? ""}"></label>`).join("")}

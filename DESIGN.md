@@ -15,12 +15,12 @@ use EWU's logo, crest or colours, and keep "Unofficial · not affiliated with EW
 
 | Role | Student side | Club side | Use |
 |---|---|---|---|
-| `--primary` | `#7c3aed` | `#4f2bff` | buttons, links, active tab, focus ring |
-| `--primary-d` | `#5b21b6` | `#3a1ad6` | pressed / hover on primary |
+| `--primary` | `#7c3aed` | `#4318ff` royal indigo | buttons, links, active tab, focus ring |
+| `--primary-d` | `#5b21b6` | `#2f0fd1` | pressed / hover on primary |
 | `--primary-l` | `#ede9fe` | `#e9e5ff` | tinted backgrounds, selected chips |
-| `--grad` | `#7c3aed` (flat) | `#6a4dff` (flat) | legacy name, now one flat colour |
-| `--cl-hero` | — | `#5b3df5` | club hero / cover panels (flat) |
-| Heading ink | `--text` `#0f172a` | `#1b1464` navy | page titles |
+| `--grad` | `#7c3aed` (flat) | `#4318ff` (flat) | legacy name, now one flat colour |
+| `--cl-hero` | — | `#23198f` deep indigo | club hero, banners, applicant and election headers (flat) |
+| Heading ink | `--text` `#0f172a` | `--cl-title` `#1f1a9e` navy-blue | page and section titles; sub-lines `--text-3` `#6763b5` lavender |
 | `--text-2` / `--text-3` | `#475569` / `#64748b` | same | body / secondary text |
 | `--bg` / `--surface` | `#f8fafc` / `#fff` | `#f7f7fc` / `#fff` | page / cards |
 | `--border` | `#e5e7eb` | same | 1px card borders |
@@ -28,7 +28,7 @@ use EWU's logo, crest or colours, and keep "Unofficial · not affiliated with EW
 | Status | success `#22c55e`, warning `#f59e0b`, error `#ef4444`, info `#3b82f6` | | always with an icon + label, never colour alone |
 | Charts | `--viz-1…5` | | validated with the dataviz palette checker, fixed order |
 
-White text only on colours with ≥ 4.5:1 contrast (`#7c3aed`, `#4f2bff`, `#5b3df5`, `#1b1464` all pass; `#8b5cf6` does not).
+White text only on colours with ≥ 4.5:1 contrast (`#7c3aed`, `#4318ff`, `#23198f`, `#1f1a9e` all pass; `#8b5cf6` does not).
 Dark mode redefines every token under `:root[data-theme="dark"]`; never flip colours automatically.
 
 ## 3. Typography
@@ -64,3 +64,10 @@ Shadows `--sh-sm` (rest), `--sh-md` (cards), `--sh-lg` (sheets), `--sh-xl` (moda
 - Don't: gradients, gradient text, glow blobs, purple-to-blue headline effects, centred walls of text.
 - Don't: disable zoom, block paste, `transition: all`, or `outline: none` without a focus replacement.
 - Don't: more than one primary button per screen section.
+
+## Club tiles and tabs (v2.26)
+
+- Quick-action tiles are pastel-filled cards with a **solid** icon in the tile's colour (no inner icon square).
+- Pill tabs: chosen = solid `--primary` with white text; others = lavender `--cl-soft` with ink text.
+- Club overrides live in `v226.css` under `body[data-mode="club"][data-mode]`: the club CSS loads later (lazy chunk),
+  so the extra attribute keeps release rules ahead of it.

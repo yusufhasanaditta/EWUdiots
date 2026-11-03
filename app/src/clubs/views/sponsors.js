@@ -23,11 +23,11 @@ export function register(pages, kit) {
       ${kit.param("manage") ? manage(kit.param("manage")) : `
       <div class="searchbar cl-search">${icon("search")}<input class="input" id="sp-q" type="search" placeholder="Search sponsors, partners, industries…" value="${esc(q)}" autocomplete="off"></div>
       <nav class="cl-seg mt-s">${[["all", "All"], ...Object.entries(KINDS)].map(([v, l]) => `<button data-k="${v}" aria-pressed="${kind === v}">${l}</button>`).join("")}</nav>
-      <section class="cl-banner"><h2>Let's Create Bigger Opportunities <span style="color:var(--lime)">Together.</span></h2><p style="opacity:.9;max-width:420px">Connect with brands, organizations and alumni to support meaningful student initiatives.</p></section>
+      <section class="cl-banner"><h2>Let's Create Bigger Opportunities <span style="color:var(--lime)">Together.</span></h2><p style="opacity:.9;max-width:420px">Connect with brands, organizations and alumni to support meaningful student initiatives.</p><button class="btn mt-s" id="sp-find" type="button">Find Sponsors ${icon("arrow", "sm")}</button></section>
       ${ui.view(se, (rows) => {
         const words = q.toLowerCase().split(/\s+/).filter(Boolean);
         const list = rows.filter((s) => s.status === "approved" && (kind === "all" || s.kind === kind) && (!words.length || words.every((w) => `${s.name} ${s.industry} ${s.tagline}`.toLowerCase().includes(w))));
-        return `${ui.sec("Featured Sponsors & Partners")}${list.length ? `<div class="cl-prods">${list.map((s) => `<a class="cl-prod" href="#/club/sponsor?id=${s.id}" style="text-align:center;justify-items:center">${logoOf(s)}<b>${esc(s.name)}${s.verified ? ` ${icon("checkc", "sm")}` : ""}</b>${ui.st([s.industry, "blue"])}<span class="xs">${esc(s.tagline)}</span><span class="btn sm outline">View Profile</span></a>`).join("")}</div>`
+        return `<div id="sp-feat"></div>${ui.sec("Featured Sponsors & Partners")}${list.length ? `<div class="cl-prods sp-grid">${list.map((s) => `<a class="cl-prod" href="#/club/sponsor?id=${s.id}" style="text-align:center;justify-items:center">${logoOf(s)}<b>${esc(s.name)}${s.verified ? ` ${icon("checkc", "sm")}` : ""}</b>${ui.st([s.industry, "blue"])}<span class="xs">${esc(s.tagline)}</span><span class="btn sm outline">View Profile</span></a>`).join("")}</div>`
           : ui.emptyBox("handshake", "No sponsors listed yet", mine.length ? "Add the companies your club works with; the EWUdiots team approves them." : "Sponsors appear here once clubs add them.")}`;
       }, { n: 3, h: 160 })}
       ${ui.view(oe, (rows) => (rows.length ? `${ui.sec("Sponsorship Opportunities")}<div class="cl-hscroll">${rows.map((e) => `<a class="cl-vcard" href="#/club/event?id=${e.id}" style="width:220px"><span class="art">${ui.art(e.image, e.title)}${ui.dchip(e.starts_at)}</span><span class="in">${ui.st(["Sponsorship", "amber"])}<b>${esc(e.title)}</b><span class="xs">${esc(e.clubs?.name || "")}</span><span class="xs">${icon("pin", "sm")} ${esc(e.venue || "EWU")}</span></span></a>`).join("")}</div>` : ""))}
@@ -49,6 +49,7 @@ export function register(pages, kit) {
     input?.addEventListener("input", () => { q = input.value; const pos = input.selectionStart; ctx.rerender(); const i = kit.$("#sp-q"); if (i) { i.focus(); i.setSelectionRange(pos, pos); } });
     kit.$$("[data-k]", el).forEach((b) => b.addEventListener("click", () => { kind = b.dataset.k; ctx.rerender(); }));
     kit.$("#sp-add", el)?.addEventListener("click", addSponsor);
+    kit.$("#sp-find", el)?.addEventListener("click", () => kit.$("#sp-feat", el)?.scrollIntoView({ behavior: "smooth" }));
     mountManage(el);
   };
 
@@ -82,8 +83,9 @@ export function register(pages, kit) {
       ${ui.sec("Deals", `<button class="btn sm primary" id="sp-deal">${icon("plus", "sm")} New deal</button>`)}
       ${ui.view(de, (rows) => (rows.length ? `<div class="cl-list">${rows.map((d) => `<button class="cl-li" data-deal="${d.id}">${logoOf(d.sponsors || { name: "?" }, "sm")}<span class="body"><b>${esc(d.title)}</b><span>${esc(d.sponsors?.name || "")}${d.amount ? ` · ${ui.money(d.amount)}` : ""}</span></span>${ui.st(DEAL[d.status])}</button>`).join("")}</div>` : `<p class="small muted">No deals yet.</p>`))}`;
   }
-  const packages = (rows, edit = false) => `<div class="cl-pkgs">${rows.map((p) => `<div class="cl-pkg ${p.popular ? "pop" : ""}">${p.popular ? `<span class="tag">Most Popular</span>` : ""}<b>${esc(p.name)}</b>${ui.st([ui.money(p.amount), "green"])}
-    <ul>${p.perks.map((x) => `<li>${icon("checkc")}${esc(x)}</li>`).join("")}</ul>${edit ? `<button class="btn sm ghost" data-pkg="${p.id}">Edit</button>` : ""}</div>`).join("")}</div>`;
+  const packages = (rows, edit = false) => `<div class="cl-pkgs">${rows.map((p) => `<div class="cl-pkg ${p.popular ? "pop" : ""}">${p.popular ? `<span class="tag">Most Popular</span>` : ""}<span class="pk-ic ${tierOf(p.name)}">${icon(tierOf(p.name) === "gold" ? "crown" : "award")}</span><b>${esc(p.name)}</b>${ui.st([ui.money(p.amount), "green"])}
+    <ul>${p.perks.map((x) => `<li>${icon("checkc")}${esc(x)}</li>`).join("")}</ul>${edit === true ? `<button class="btn sm ghost" data-pkg="${p.id}">Edit</button>` : edit ? `<button class="btn sm ${p.popular ? "primary" : "soft"}" data-selpkg="${p.id}">Select Package</button>` : ""}</div>`).join("")}</div>`;
+  const tierOf = (n) => (/gold|platinum|title/i.test(n) ? "gold" : /silver/i.test(n) ? "silver" : "bronze");
   function mountManage(el) {
     const c = kit.param("manage"); if (!c) return;
     const reload = () => store.invalidate(`club:packages:${c}`, `club:deals:${c}`, `club:fin:${c}`);
@@ -109,6 +111,8 @@ export function register(pages, kit) {
       });
     };
     kit.$("#sp-deal", el)?.addEventListener("click", () => dealSheet());
+    if (kit.param("sponsor") && !ctx.modalOpen()) { const p = (store.peek(`club:packages:${c}`) || []).find((x) => x.id === kit.param("pkg"));
+      dealSheet({ sponsor_id: kit.param("sponsor"), package_id: p?.id || "", amount: p?.amount ?? 0, status: "proposed", title: p ? p.name : "Custom package" }); history.replaceState(null, "", `#/club/sponsors?manage=${c}`); }
     kit.$$("[data-deal]", el).forEach((b) => b.addEventListener("click", () => dealSheet((store.peek(`club:deals:${c}`) || []).find((x) => x.id === b.dataset.deal))));
   }
 
@@ -124,12 +128,19 @@ export function register(pages, kit) {
       return `${ui.ph("Sponsor Details & Collaboration", "Explore details, packages and past collaborations.")}
         <section class="card row" style="gap:16px;flex-wrap:wrap">${logoOf(s, "xl")}<div class="grow min0"><h1 style="font-size:24px">${esc(s.name)} ${s.verified ? icon("checkc", "sm") : ""}</h1><p class="xs">${esc(s.industry)}${s.location ? ` · ${icon("pin", "sm")} ${esc(s.location)}` : ""}</p><p>${esc(s.tagline)}</p></div>
           <div class="stack" style="gap:8px">${s.website ? `<a class="btn primary" href="${esc(s.website)}" target="_blank" rel="noopener noreferrer">Visit Website ${icon("external", "sm")}</a>` : ""}${s.email ? `<a class="btn outline" href="mailto:${esc(s.email)}">${icon("mail")} Contact Sponsor</a>` : ""}</div></section>
-        <div class="cl-stats mt">${ui.stat("handshake", "green", p.clubs ?? 0, "Campus partnerships")}${ui.stat("calendar", "blue", p.events ?? 0, "University events")}${ui.stat("users", "green", p.reached ? `${p.reached}+` : "–", "Students reached")}${ui.stat("clock", "amber", p.since ? new Date().getFullYear() - p.since + 1 : "–", "Years partner")}</div>
+        <nav class="cl-seg sm mt">${[["sp-ov", "Overview"], ["sp-pk", "Sponsorship Packages"], ["sp-pc", "Past Collaborations"]].map(([v, l], i) => `<button type="button" data-jump="${v}" aria-pressed="${!i}">${l}</button>`).join("")}</nav>
+        <div class="cards4 mt-s" id="sp-ov">${ui.stat("handshake", "green", p.clubs ?? 0, "Campus partnerships")}${ui.stat("calendar", "blue", p.events ?? 0, "University events")}${ui.stat("users", "green", p.reached ? `${p.reached}+` : "–", "Students reached")}${ui.stat("clock", "amber", p.since ? new Date().getFullYear() - p.since + 1 : "–", "Years partner")}</div>
         ${s.about ? `<section class="card"><h2>About ${esc(s.name)}</h2><p style="color:var(--text-2)">${ui.rich(s.about)}</p></section>` : ""}
-        ${pk.length ? `${ui.sec("Sponsorship Packages")}<p class="xs">Packages offered by EWU clubs.</p>${Object.values(pk.reduce((m, x) => { (m[x.club_id] ||= { club: x.clubs, rows: [] }).rows.push(x); return m; }, {})).slice(0, 3).map((g) => `<h3 class="small mt">${esc(g.club?.name || "")}</h3>${packages(g.rows)}`).join("")}` : ""}
-        ${p.collaborations?.length ? `${ui.sec("Past Collaborations")}<div class="cl-hscroll">${p.collaborations.map((x) => `<div class="cl-vcard" style="width:220px"><span class="art">${ui.art(x.image, x.title)}</span><span class="in"><b>${esc(x.title)}</b><span class="xs">${x.happened_on ? ui.dateLong(x.happened_on) : ""}</span><span class="xs">${esc(x.club)}${x.participants ? ` · ${x.participants}+ participants` : ""}</span></span></div>`).join("")}</div>` : ""}
+        ${asks.length ? `<div id="sp-pk"></div>${ui.sec("Sponsorship Packages", `<a class="small" href="#/club/sponsors?manage=${asks[0].club_id}&sponsor=${s.id}">Request Custom Package ${icon("chevR", "sm")}</a>`)}${(() => { const own = pk.filter((x) => x.club_id === asks[0].club_id); return own.length ? packages(own, "select") : `<p class="small muted">Your club has no packages yet. <a href="#/club/sponsors?manage=${asks[0].club_id}">Add Bronze, Silver and Gold packages</a> to offer them here.</p>`; })()}`
+          : pk.length ? `<div id="sp-pk"></div>${ui.sec("Sponsorship Packages")}<p class="xs">Packages offered by EWU clubs.</p>${Object.values(pk.reduce((m, x) => { (m[x.club_id] ||= { club: x.clubs, rows: [] }).rows.push(x); return m; }, {})).slice(0, 3).map((g) => `<h3 class="small mt">${esc(g.club?.name || "")}</h3>${packages(g.rows)}`).join("")}` : ""}
+        ${p.collaborations?.length ? `<div id="sp-pc"></div>${ui.sec("Past Collaborations")}<div class="cl-hscroll">${p.collaborations.map((x) => `<div class="cl-vcard" style="width:220px"><span class="art">${ui.art(x.image, x.title)}</span><span class="in"><b>${esc(x.title)}</b><span class="xs">${x.happened_on ? ui.dateLong(x.happened_on) : ""}</span><span class="xs">${esc(x.club)}${x.participants ? ` · ${x.participants}+ participants` : ""}</span></span></div>`).join("")}</div>` : ""}
         ${asks.length ? `<section class="card row nowrap mt" style="gap:12px">${icon("handshake")}<div class="grow"><b>Interested in a Collaboration?</b><p class="xs">Start a deal for your club and send a proposal.</p></div><a class="btn primary" href="#/club/sponsors?manage=${asks[0].club_id}">${icon("send")} Send Collaboration Request</a></section>` : ""}`;
     }, { n: 3, h: 140 });
   };
-  pages["club/sponsor"].mount = (el) => kit.bindRetry(el);
+  pages["club/sponsor"].mount = (el) => {
+    kit.bindRetry(el);
+    const asks = kit.clubsWith("sponsors.manage"), id = kit.param("id");
+    kit.$$("[data-selpkg]", el).forEach((b) => b.addEventListener("click", () => kit.go(`#/club/sponsors?manage=${asks[0].club_id}&sponsor=${id}&pkg=${b.dataset.selpkg}`)));
+    kit.$$("[data-jump]", el).forEach((b) => b.addEventListener("click", () => { kit.$(`#${b.dataset.jump}`, el)?.scrollIntoView({ behavior: "smooth", block: "start" }); kit.$$("[data-jump]", el).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); }));
+  };
 }

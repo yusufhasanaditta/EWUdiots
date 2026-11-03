@@ -65,7 +65,7 @@ export function register(pages, kit) {
   function taskRow(t) {
     const due = t.due ? new Date(`${t.due}T23:59:00+06:00`) : null, late = due && due < Date.now();
     const pr = { high: ["High", "red"], medium: ["Medium", "amber"], low: ["Low", "gray"] }[t.priority] || ["Medium", "amber"];
-    return `<a class="cl-li" href="${t.project_id ? `#/club/project?id=${t.project_id}` : `#/club/space?c=${t.club_id}&tab=tasks`}"><span class="itile sm ${t.status === "doing" ? "blue" : "gray"}">${icon(t.status === "doing" ? "clock" : "checksq")}</span>
+    return `<a class="cl-li" href="#/club/task?id=${t.id}"><span class="itile sm ${t.status === "doing" ? "blue" : "gray"}">${icon(t.status === "doing" ? "clock" : "checksq")}</span>
       <span class="body"><b class="ellipsis">${esc(t.title)}</b><span>${esc(t.clubs?.short_name || "")}</span></span>
       <span class="end">${ui.st(pr)}${due ? `<span class="st ${late ? "red" : "gray"}">Due ${ui.dateShort(due)}</span>` : ""}</span></a>`;
   }

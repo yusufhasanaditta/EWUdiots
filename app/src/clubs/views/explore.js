@@ -37,26 +37,8 @@ export function register(pages, kit) {
     input?.addEventListener("input", () => { q = input.value; const pos = input.selectionStart; kit.ctx.rerender(); const i = kit.$("#ex-q"); if (i) { i.focus(); i.setSelectionRange(pos, pos); } });
     kit.$$("[data-cat]", el).forEach((b) => b.addEventListener("click", () => { cat = b.dataset.cat; kit.ctx.rerender(); }));
     kit.$$("[data-only]", el).forEach((b) => b.addEventListener("click", () => { only = only === b.dataset.only ? "" : b.dataset.only; kit.ctx.rerender(); }));
-    kit.$("#ex-request", el)?.addEventListener("click", requestClub);
+    kit.$("#ex-request", el)?.addEventListener("click", () => kit.go("#/club/register"));
     kit.bindRetry(el);
   };
 
-  /** A student asks for a club that isn't in the list; it waits for the EWUdiots team with their claim. */
-  function requestClub() {
-    ui.sheet("Add your club", `<form id="rq-form" class="stack" novalidate>
-      <p class="small muted">For clubs recognised by EWU's Students' Welfare Department. The EWUdiots team checks every request before the club goes live, and you become its admin.</p>
-      ${ui.field("Club name", ui.input("name", "", 'required maxlength="100" placeholder="EWU … Club"'))}
-      ${ui.field("Category", ui.select("cat", CATEGORIES, "other"))}
-      ${ui.field("Your position", ui.input("pos", "", 'required maxlength="60" placeholder="President, General Secretary…"'))}
-      ${ui.field("How can we confirm it?", ui.area("proof", "", 'maxlength="1000" rows="3" placeholder="Your faculty advisor\'s name and email, the club\'s Facebook page, or anything that shows you run it."'))}
-      <div id="cl-err"></div><button class="btn primary block">${icon("arrow")} Send for review</button></form>`, (m) => {
-      kit.$("#rq-form", m).addEventListener("submit", async (e) => {
-        e.preventDefault(); const f = ui.values(e.target), btn = e.target.querySelector("button.primary");
-        if (String(f.name).trim().length < 3 || String(f.pos).trim().length < 2) return ui.fail(m, "Add the club's name and your position.");
-        kit.ctx.busy(btn, true, "Sending…");
-        try { await api.requestClub(f.name.trim(), f.cat, f.pos.trim(), String(f.proof || "").trim()); kit.ctx.closeModal(); store.invalidate("me:"); kit.toast("Request sent", "success", "We'll message you in the app when it's reviewed."); }
-        catch (err) { kit.ctx.busy(btn, false); ui.fail(m, err.message); }
-      });
-    });
-  }
 }

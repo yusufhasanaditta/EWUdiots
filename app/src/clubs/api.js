@@ -69,6 +69,12 @@ export function createClubApi(sb, me) {
     cancelRequest: async (id) => ok(await from("club_requests").delete().eq("id", id)),
     claim: async (clubId, position, proof) => ok(await rpc("claim_club", { c: clubId, pos: position, prf: proof })),
     requestClub: async (name, category, position, proof) => ok(await rpc("request_club", { nm: name, cat: category, pos: position, prf: proof })),
+    /** Full club registration (board): the application travels with the claim; club_apply cleans it. */
+    applyClub: async (name, category, position, application) => ok(await rpc("club_apply", { nm: name, cat: category, pos: position, app: application })),
+    updateApplication: async (id, application) => ok(await rpc("club_update_application", { claim: id, app: application })),
+    myApplications: async () => (uid() ? ok(await from("club_claims").select("*, clubs(name, slug, status, category, short_name, tagline)").eq("user_id", uid()).order("created_at", { ascending: false })) : []),
+    /** Proposal files: private bucket, applications/<me>/…; only I and the verification team can read them. */
+    uploadApplicationDoc: async (file) => { const path = `applications/${uid()}/${Date.now().toString(36)}-${file.name.replace(/[^\w.-]+/g, "-").slice(-60)}`; ok(await sb.storage.from(PRIVATE_BUCKET).upload(path, file, { contentType: file.type || undefined, upsert: false })); return path; },
 
     /* ── Members, roles, invites, requests ── */
     members: async (clubId) => ok(await rpc("club_member_list", { c: clubId })) || [],
@@ -126,7 +132,7 @@ export function createClubApi(sb, me) {
     forms: async (clubId) => ok(await from("club_forms").select("*").eq("club_id", clubId).order("created_at", { ascending: false })),
     recruitForms: async (clubId) => ok(await from("club_forms").select("id, club_id, kind, title, settings, status, fields, created_at, form_responses(status), clubs(name, short_name, logo_url, cover_url, color)").eq("club_id", clubId).order("created_at", { ascending: false })),
     openForms: async () => ok(await from("club_forms").select("id, club_id, kind, title, settings, status, clubs!inner(slug, name, short_name, logo_url, color)").eq("status", "open").order("created_at", { ascending: false }).limit(60)),
-    form: async (id) => ok(await from("club_forms").select("*, clubs(id, slug, name, short_name, logo_url, color, wings)").eq("id", id).maybeSingle()),
+    form: async (id) => ok(await from("club_forms").select("*, clubs(id, slug, name, short_name, logo_url, cover_url, color, wings)").eq("id", id).maybeSingle()),
     createForm: async (row) => ok(await from("club_forms").insert({ ...row, created_by: uid() }).select().single()),
     updateForm: async (id, patch) => ok(await from("club_forms").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id).select().single()),
     deleteForm: async (id) => ok(await from("club_forms").delete().eq("id", id)),
@@ -198,7 +204,8 @@ export function createClubApi(sb, me) {
     admin: {
       stats: async () => ok(await rpc("admin_club_stats")),
       clubs: async () => ok(await from("clubs").select("*").order("status").order("name")),
-      claims: async () => ok(await from("club_claims").select("*, clubs(name, slug, status)").order("created_at", { ascending: false }).limit(200)),
+      claims: async () => ok(await from("club_claims").select("*, clubs(name, slug, status, short_name, tagline, about, category, logo_url, cover_url, color, contact_email)").order("created_at", { ascending: false }).limit(200)),
+      claimStep: async (id, step, note = "") => ok(await rpc("club_claim_step", { claim: id, st: step, note })),
       reviewClaim: async (id, approve, note = "") => ok(await rpc("review_claim", { claim: id, approve, note })),
       setAdmin: async (clubId, who) => ok(await rpc("admin_set_club_admin", { c: clubId, who })),
       setStatus: async (clubId, status) => ok(await from("clubs").update({ status }).eq("id", clubId)),

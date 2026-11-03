@@ -1,0 +1,335 @@
+/* v2.26 — EWUdiots Club colours from the boards: royal-indigo actions, navy-blue headings, lavender sub-lines, pastel
+   filled tiles with solid icons. Club mode only (body[data-mode="club"][data-mode]); the student side keeps its purple.
+   Every rule starts with body[data-mode="club"][data-mode] so it outranks clubs-v2.css whatever order the minifier picks. */
+
+body[data-mode="club"][data-mode] {
+  --primary: #4318ff; --primary-d: #2f0fd1; --primary-l: #e9e5ff; --primary-ll: #f4f2ff; --grad: #4318ff;
+  --glow: 0 8px 20px rgba(67, 24, 255, .24);
+  --bg: #f6f6fe; --surface-2: #f3f2fd; --surface-3: #ebeafb; --border: #e6e5f6;
+  --text: #15124a; --text-2: #423f75; --text-3: #6763b5;
+  --cl-title: #1f1a9e; --cl-soft: #efedff; --cl-hero: #23198f;
+  --viz-1: #4318ff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body[data-mode="club"][data-mode] {
+    --primary: #8f80ff; --primary-d: #7462ff; --grad: #5a3dff; --text: #f1f0ff; --text-2: #cfcdf3; --text-3: #a9a5e6;
+    --border: #2a2a52; --surface-2: #1a1a38; --surface-3: #24244a; --cl-title: #c9c4ff; --cl-soft: #1f1b4a; --cl-hero: #241c86;
+  }
+}
+:root[data-theme="dark"] body[data-mode="club"][data-mode] {
+  --primary: #8f80ff; --primary-d: #7462ff; --grad: #5a3dff; --text: #f1f0ff; --text-2: #cfcdf3; --text-3: #a9a5e6;
+  --border: #2a2a52; --surface-2: #1a1a38; --surface-3: #24244a; --cl-title: #c9c4ff; --cl-soft: #1f1b4a; --cl-hero: #241c86;
+}
+
+/* Headings in navy-blue, sub-lines in lavender (4.6:1 on white). */
+body[data-mode="club"][data-mode] .main :is(.cl-ph h1, .cl-sec h2, .card-h h2, h2.cl-h, .cl-hd) { color: var(--cl-title); }
+body[data-mode="club"][data-mode] .main .cl-ph h1 { font-size: clamp(24px, 6vw, 32px); font-weight: 800; letter-spacing: -.02em; line-height: 1.15; }
+body[data-mode="club"][data-mode] .main .cl-ph p { color: var(--text-3); font-size: 15px; }
+body[data-mode="club"][data-mode] .main .cl-sec h2 { font-size: 18px; font-weight: 800; }
+body[data-mode="club"][data-mode] .main .cl-sec a { color: var(--primary); font-weight: 600; }
+
+/* Buttons: flat royal indigo; quiet buttons are lavender with indigo text. */
+body[data-mode="club"][data-mode] .btn.primary { background: var(--primary); color: #fff; box-shadow: 0 6px 14px rgba(67, 24, 255, .22); }
+body[data-mode="club"][data-mode] .btn.primary:hover { background: var(--primary-d); filter: none; }
+body[data-mode="club"][data-mode] .btn.soft { background: var(--cl-soft); color: var(--primary); border-color: transparent; }
+body[data-mode="club"][data-mode] .btn.soft.green { background: var(--success-s); color: var(--success-t); }
+body[data-mode="club"][data-mode] .btn.soft.amber { background: var(--warning-s); color: var(--warning-t); }
+body[data-mode="club"][data-mode] .btn.soft.red { background: var(--error-s); color: var(--error-t); }
+body[data-mode="club"][data-mode] .btn.outline { background: var(--surface); color: var(--primary); border: 1.5px solid var(--primary); }
+
+/* Pill tabs: solid indigo when chosen, lavender otherwise. */
+body[data-mode="club"][data-mode] .cl-seg > a, body[data-mode="club"][data-mode] .cl-seg > button { background: var(--cl-soft); border-color: transparent; color: var(--text); font-weight: 600; border-radius: 10px; }
+body[data-mode="club"][data-mode] .cl-seg > [aria-selected="true"], body[data-mode="club"][data-mode] .cl-seg > [aria-pressed="true"] { background: var(--primary); color: #fff; box-shadow: none; }
+body[data-mode="club"][data-mode] .cl-seg > [aria-selected="true"] .n, body[data-mode="club"][data-mode] .cl-seg > [aria-pressed="true"] .n { background: #ef4444; color: #fff; }
+/* A tab row that fills the width (Ongoing / Upcoming / Past). */
+body[data-mode="club"][data-mode] .cl-seg.fill > * { flex: 1 1 0; justify-content: center; }
+
+/* Pastel tiles with solid icons, like the boards' quick actions. */
+body[data-mode="club"][data-mode] .cl-tile { border: 0; box-shadow: none; color: var(--text); font-weight: 600; }
+body[data-mode="club"][data-mode] .cl-tile > .icon { fill: currentColor; fill-opacity: 1; }
+body[data-mode="club"][data-mode] .cl-tile > .icon.ph .ph-l { display: none; }
+body[data-mode="club"][data-mode] .cl-tile > .icon.ph .ph-s { display: inline; }
+body[data-mode="club"][data-mode] .cl-tile.t-purple { background: #ece9ff !important; } body[data-mode="club"][data-mode] .cl-tile.t-blue { background: #e3edff !important; }
+body[data-mode="club"][data-mode] .cl-tile.t-green { background: #e0f7ea !important; } body[data-mode="club"][data-mode] .cl-tile.t-orange { background: #ffeedd !important; }
+body[data-mode="club"][data-mode] .cl-tile.t-pink { background: #ffe6ef !important; } body[data-mode="club"][data-mode] .cl-tile.t-red { background: #ffe5e5 !important; }
+body[data-mode="club"][data-mode] .cl-tile.t-teal { background: #ddf5f7 !important; } body[data-mode="club"][data-mode] .cl-tile.t-amber { background: #fff3d6 !important; }
+:root[data-theme="dark"] body[data-mode="club"][data-mode] .cl-tile { background: var(--surface-2) !important; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body[data-mode="club"][data-mode] .cl-tile { background: var(--surface-2) !important; } }
+
+/* Stat cards: compact, icon on a solid colour square with a white glyph. */
+body[data-mode="club"][data-mode] .cl-stat { border-radius: 14px; box-shadow: none; padding: 12px; }
+body[data-mode="club"][data-mode] .cl-stat .num { color: var(--cl-title); font-size: 22px; }
+body[data-mode="club"][data-mode] .cl-stat .lbl { font-size: 12px; }
+body[data-mode="club"][data-mode] .cards4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+body[data-mode="club"][data-mode] .cards4 .cl-stat { display: flex; align-items: center; gap: 8px; padding: 10px 8px; }
+body[data-mode="club"][data-mode] .cards4 .cl-stat .itile { flex: none; width: 34px; height: 34px; border-radius: 10px; }
+body[data-mode="club"][data-mode] .cards4 .cl-stat .num { font-size: 18px; }
+body[data-mode="club"][data-mode] .cards4 .cl-stat .lbl { font-size: 11px; line-height: 1.2; }
+@media (max-width: 420px) {
+  body[data-mode="club"][data-mode] .cards4 .cl-stat { flex-direction: column; align-items: flex-start; gap: 6px; }
+}
+
+/* Cards and lists: white on a faint lavender page, soft lavender borders. */
+body[data-mode="club"][data-mode] .main .card { border-color: var(--border); box-shadow: 0 1px 2px rgba(31, 26, 158, .04); }
+body[data-mode="club"][data-mode] .cl-hero, body[data-mode="club"][data-mode] .cl-greet { background-color: var(--cl-hero); }
+
+/* Lime "Club" badge with navy text, as on every board. */
+body[data-mode="club"][data-mode] { --lime: #8ee03c; --lime-ink: #10123f; }
+
+/* ── New pieces used by the v2.26 screens ── */
+/* Grid of 4 pastel tiles (club workspace). */
+body[data-mode="club"][data-mode] .cl-tiles.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 8px; }
+body[data-mode="club"][data-mode] .cl-tiles.c4 .cl-tile { min-height: 74px; font-size: 12px; padding: 10px 2px; }
+/* Info banner (pink "private workspace", lavender tips). */
+.cl-note { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--cl-soft, #efedff); margin: 0 0 12px; }
+.cl-note.pink { background: #ffe6f1; } .cl-note.green { background: #e3f8ec; }
+.cl-note .itile { flex: none; }
+.cl-note b { display: block; color: var(--cl-title, inherit); }
+.cl-note span.xs { color: var(--text-2); }
+:root[data-theme="dark"] .cl-note.pink, :root[data-theme="dark"] .cl-note.green { background: var(--surface-2); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cl-note.pink, :root:not([data-theme="light"]) .cl-note.green { background: var(--surface-2); } }
+/* Key/value table (club details). */
+.cl-kv { display: grid; grid-template-columns: minmax(110px, 40%) 1fr; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; font-size: 13px; }
+.cl-kv > dt, .cl-kv > dd { margin: 0; padding: 9px 12px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.cl-kv > dt { background: var(--surface-2); color: var(--text-2); }
+.cl-kv > :nth-last-child(-n+2) { border-bottom: 0; }
+/* Two-column facts (label above value). */
+.cl-facts2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.cl-facts2 > div { min-width: 0; } .cl-facts2 .xs { display: block; color: var(--text-3); } .cl-facts2 b { font-weight: 600; overflow-wrap: anywhere; }
+/* Big choice cards (delivery option, payment method, decision buttons). */
+.cl-choice { display: grid; gap: 8px; }
+.cl-choice.c2 { grid-template-columns: 1fr 1fr; } .cl-choice.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cl-choice.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.cl-choice label { position: relative; display: flex; align-items: center; gap: 10px; padding: 12px; min-height: 56px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; }
+.cl-choice label.col { flex-direction: column; justify-content: center; text-align: center; gap: 6px; font-size: 12px; font-weight: 600; }
+.cl-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.cl-choice label:has(input:checked) { border-color: var(--primary); background: var(--primary-ll); }
+.cl-choice label:has(input:checked)::after { content: ""; position: absolute; top: 6px; right: 6px; width: 18px; height: 18px; border-radius: 50%; background: var(--primary) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center / 11px no-repeat; }
+.cl-choice label:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
+.cl-choice .icon { width: 26px; height: 26px; color: var(--primary); }
+/* Stepper (Cart → Delivery → Payment → Confirm). */
+.cl-stepper { display: flex; justify-content: space-between; margin: 4px 0 16px; counter-reset: s; padding: 0; list-style: none; }
+.cl-stepper li { flex: 1; position: relative; display: grid; justify-items: center; gap: 4px; font-size: 12.5px; color: var(--text-3); font-weight: 600; }
+.cl-stepper li::before { counter-increment: s; content: counter(s); z-index: 1; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-3); color: var(--text-3); font-weight: 800; font-size: 13px; }
+.cl-stepper li + li::after { content: ""; position: absolute; top: 13px; right: 50%; width: 100%; height: 2px; background: var(--surface-3); }
+.cl-stepper li.on, .cl-stepper li.done { color: var(--primary); }
+.cl-stepper li.on::before, .cl-stepper li.done::before { background: var(--primary); color: #fff; }
+.cl-stepper li.done::before { content: "✓"; }
+.cl-stepper li.on::after, .cl-stepper li.done::after { background: var(--primary); }
+/* Kanban: horizontal columns on phones. */
+.cl-kb { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; }
+.cl-kb > section { scroll-snap-align: start; border-radius: 14px; background: var(--surface-2); padding: 8px; min-width: 0; }
+.cl-kb > section > h3 { display: flex; align-items: center; gap: 8px; margin: 2px 4px 8px; padding: 8px 10px; border-radius: 10px; font-size: 15px; background: var(--surface-3); color: var(--cl-title, inherit); }
+.cl-kb > section.doing > h3 { background: #dfe9ff; } .cl-kb > section.review > h3 { background: #ffefd9; color: #9a4d00; } .cl-kb > section.done > h3 { background: #dff6e8; color: #116b3c; }
+.cl-kb h3 .n { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: rgba(127, 127, 127, .16); }
+.cl-kcard { display: grid; gap: 6px; padding: 10px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); margin-bottom: 8px; text-decoration: none !important; color: inherit; }
+.cl-kcard b { font-size: 13.5px; font-weight: 600; }
+.cl-kcard .meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-3); }
+.cl-kcard .meta .cl-stack { margin-left: auto; }
+.cl-kcard .due-late { color: var(--error-t); }
+.cl-lbl { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11.5px; background: var(--primary-ll); color: var(--primary); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-lbl.amber { background: var(--warning-s); color: var(--warning-t); } .cl-lbl.green { background: var(--success-s); color: var(--success-t); } .cl-lbl.pink { background: #ffe6ef; color: #b4235a; }
+/* Progress bar. */
+.cl-bar { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.cl-bar > i { display: block; height: 100%; background: var(--success); border-radius: inherit; }
+/* Photo hero with title (task cover, election banner). */
+.tk-cover { position: relative; border-radius: 18px; overflow: hidden; background: var(--cl-hero, #23198f); color: #fff; min-height: 170px; display: flex; flex-direction: column; justify-content: flex-end; padding: 16px; margin-bottom: 14px; }
+.tk-cover > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.tk-cover::before { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent 30%, rgba(10, 8, 50, .78)); }
+.tk-cover > * { position: relative; }
+.tk-cover h1 { margin: 0; font-size: 24px; color: #fff; }
+.tk-cover .top { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; gap: 8px; }
+/* Toggle grid (permission matrix). */
+.cl-matrix { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; }
+.cl-matrix th, .cl-matrix td { padding: 6px 4px; border-bottom: 1px solid var(--border); text-align: center; }
+.cl-matrix th:first-child, .cl-matrix td:first-child { text-align: left; padding-left: 10px; }
+.cl-matrix thead th { font-size: 11px; font-weight: 600; vertical-align: bottom; background: var(--surface); }
+.cl-matrix thead th .icon { display: block; margin: 0 auto 2px; }
+.cl-matrix tbody tr.grp td { background: var(--primary-ll); color: var(--cl-title); font-weight: 700; font-size: 13.5px; }
+.cl-matrix .switch { transform: scale(.82); }
+.cl-mwrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+/* Timeline with status pills. */
+.cl-tl { list-style: none; margin: 0; padding: 0; }
+.cl-tl li { position: relative; display: grid; grid-template-columns: 24px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; }
+.cl-tl li::before { content: ""; position: absolute; left: 11px; top: 30px; bottom: -10px; width: 2px; background: var(--border); }
+.cl-tl li:last-child::before { display: none; }
+.cl-tl .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface); display: grid; place-items: center; z-index: 1; }
+.cl-tl .done .dot { background: var(--success); border-color: var(--success); color: #fff; }
+.cl-tl .now .dot { border: 6px solid var(--primary); }
+.cl-tl b { color: var(--cl-title); font-weight: 600; font-size: 14px; } .cl-tl .xs { display: block; }
+/* File / resource grid cards. */
+.cl-fgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 480px) { .cl-fgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cl-choice.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cl-fcard { display: grid; gap: 4px; padding: 6px 6px 8px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); min-width: 0; text-decoration: none !important; color: inherit; }
+.cl-fcard .th { aspect-ratio: 16 / 10; border-radius: 8px; overflow: hidden; background: var(--surface-2); display: grid; place-items: center; }
+.cl-fcard .th img { width: 100%; height: 100%; object-fit: cover; }
+.cl-fcard .th .cl-ftype { transform: scale(1.3); }
+.cl-fcard b { font-size: 13px; font-weight: 600; } .cl-fcard .xs { color: var(--text-3); }
+.cl-folder2 { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); min-width: 0; text-decoration: none !important; color: inherit; }
+.cl-folder2 .icon { width: 30px; height: 30px; flex: none; }
+.cl-folder2 b { font-size: 13px; font-weight: 600; display: block; } .cl-folder2 .xs { color: var(--text-3); }
+.cl-folder2 .icon.ph .ph-l { display: none; } .cl-folder2 .icon.ph .ph-s { display: inline; }
+/* Application decision buttons. */
+.cl-decide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cl-decide button { display: grid; justify-items: start; gap: 2px; padding: 12px; border-radius: 12px; border: 1.5px solid; text-align: left; cursor: pointer; font: inherit; min-height: 64px; }
+.cl-decide button b { display: flex; align-items: center; gap: 6px; } .cl-decide button span { font-size: 11.5px; opacity: .85; }
+.cl-decide .ok { background: #e6f8ee; border-color: #8fdcb0; color: #116b3c; }
+.cl-decide .rev { background: #fff3e2; border-color: #f5c27a; color: #9a4d00; }
+.cl-decide .no { background: #ffeaea; border-color: #f4a3a3; color: #b42323; }
+@media (max-width: 480px) { .cl-decide { grid-template-columns: 1fr; } }
+/* Settings rows with a control on the right (privacy). */
+.cl-set { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.cl-set:last-child { border-bottom: 0; }
+.cl-set .body { flex: 1; min-width: 0; } .cl-set .body b { display: block; font-weight: 600; } .cl-set .body .xs { color: var(--text-3); }
+.cl-set .select { width: auto; min-width: 140px; }
+/* Data chips. */
+.cl-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cl-chips > span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: var(--surface-2); font-size: 12.5px; }
+/* Match score box. */
+.cl-match { display: grid; justify-items: center; padding: 6px 10px; border-radius: 10px; background: var(--surface-2); min-width: 58px; }
+.cl-match b { font-size: 16px; color: var(--cl-title); } .cl-match span { font-size: 11px; color: var(--text-3); }
+@media (prefers-reduced-motion: reduce) { .cl-kb { scroll-snap-type: none; } }
+/* Text-style button (remove, view). */
+.linkbtn { border: 0; background: none; padding: 0; color: var(--primary); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; min-height: 24px; min-width: 24px; }
+/* Task facts row (due, priority, project). */
+.cl-tfacts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cl-tfacts > div { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 12px; background: var(--surface-2); min-width: 0; }
+.cl-tfacts > div > .icon { flex: none; width: 24px; height: 24px; color: var(--primary); }
+.cl-tfacts .xs { display: block; color: var(--text-3); } .cl-tfacts b { display: block; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.cl-tfacts .pr-high { color: var(--error-t); } .cl-tfacts .pr-low { color: var(--text-3); } .cl-tfacts .due-late { color: var(--error-t); }
+@media (max-width: 420px) { .cl-tfacts { grid-template-columns: 1fr 1fr; } .cl-tfacts > div:last-child { grid-column: 1 / -1; } }
+/* Project board now has four columns (Review added). */
+body[data-mode="club"][data-mode] .main .cl-board { grid-template-columns: repeat(4, minmax(220px, 1fr)) !important; overflow-x: auto !important; gap: 10px; }
+body[data-mode="club"][data-mode] .cl-col.t-amber { background: #fff4e3; }
+.cl-kcard[hidden] { display: none; }
+/* Resources: icon chips in two rows, featured cards, folder header, PDF viewer. */
+.rs-types > button { border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; min-height: 36px; border-radius: 10px; padding: 0 12px; }
+.rs-types > button.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+.rs-types > button .icon { color: var(--primary); } .rs-types > button.on .icon { color: #fff; }
+.rs-feat { width: 168px; flex: none; text-align: left; cursor: pointer; font: inherit; }
+.cl-fcard.on { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-l); }
+.cl-fcard .row.between { align-items: center; } .cl-fcard .icon-btn { width: 30px; height: 30px; }
+.rs-fic .icon { width: 56px; height: 56px; } .rs-fic .icon.ph .ph-l { display: none; } .rs-fic .icon.ph .ph-s { display: inline; }
+.rs-fic { flex: none; width: 76px; height: 76px; border-radius: 18px; background: #fff6e0; display: grid; place-items: center; }
+.cl-folder2 > span:first-child .icon { width: 34px; height: 34px; }
+.rs-pvbody { background: #1b1b2e; border-radius: 0 0 14px 14px; overflow: hidden; }
+.rs-pvbody > img { display: block; width: 100%; }
+.rs-pvbar { display: flex; align-items: center; gap: 6px; padding: 6px 10px; color: #fff; font-size: 13px; background: #2a2a40; }
+.rs-pvbar .icon-btn { color: #fff; background: transparent; border-color: transparent; }
+.rs-pvpage { overflow: auto; max-height: 70vh; } .rs-pvpage canvas { display: block; margin: 0 auto; background: #fff; }
+.rs-pvbody .muted { color: #c9c8e6 !important; }
+/* Recruitment management (board): cycle card, filters, applicant hero, sections, admin actions. */
+.rv-cycle { display: flex; gap: 12px; align-items: stretch; padding: 10px; }
+.rv-poster { flex: none; width: 128px; min-height: 96px; border-radius: 12px; overflow: hidden; background: var(--cl-hero, #23198f); color: #fff; display: grid; place-items: center; padding: 8px; text-align: left; font-size: 13px; line-height: 1.2; text-transform: uppercase; }
+.rv-poster img { width: 100%; height: 100%; object-fit: cover; margin: -8px; width: calc(100% + 16px); height: calc(100% + 16px); }
+.rv-cycle .grow { display: grid; gap: 4px; align-content: center; } .rv-title { font-size: 15px; color: var(--cl-title); }
+.rv-cside { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 6px; }
+.rv-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 480px) { .rv-filters { grid-template-columns: 1fr 1fr; } .rv-poster { width: 96px; } }
+.rv-search { display: flex; gap: 8px; } .rv-search .btn { flex: none; }
+.ap-hero { border-radius: 18px; padding: 14px; background: var(--cl-hero, #23198f); color: #fff; }
+.ap-hero h1 { margin: 0; font-size: 24px; color: #fff; } .ap-hero p { margin: 3px 0 0; font-size: 13.5px; color: #e4e2ff; } .ap-hero a { color: #fff; } .ap-hero .xs { color: #d6d3ff; }
+.ap-hero .ap-photo { width: 84px; height: 84px; border-radius: 16px; font-size: 28px; flex: none; }
+.ap-match { flex: none; display: grid; justify-items: center; gap: 4px; padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .25); min-width: 104px; }
+.ap-match b { font-size: 28px; color: #7ff0a6; } .ap-match span { font-size: 12px; } .ap-match .cl-bar { width: 100%; background: rgba(255, 255, 255, .25); }
+@media (max-width: 480px) { .ap-hero > .row.nowrap { flex-wrap: wrap; } .ap-match { width: 100%; } }
+.ap-cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; align-items: start; }
+@media (max-width: 720px) { .ap-cols { grid-template-columns: 1fr; } }
+.ap-cols .card h2 { font-size: 16px; margin: 0 0 10px; }
+.ap-acad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ap-acad > div { display: flex; gap: 8px; align-items: center; min-width: 0; } .ap-acad .icon { color: var(--primary); flex: none; } .ap-acad .xs { display: block; color: var(--text-3); } .ap-acad b { font-size: 14px; }
+.ap-quote { margin: 0; padding: 12px; border-radius: 12px; background: var(--surface-2); font-size: 13.5px; color: var(--text-2); }
+.ap-admin { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ap-admin .btn { justify-content: center; }
+@media (max-width: 480px) { .ap-admin { grid-template-columns: 1fr 1fr; } }
+body[data-mode="club"][data-mode] .btn.ok { background: #15803d; color: #fff; border-color: transparent; }
+body[data-mode="club"][data-mode] .btn.danger { background: #dc2626; color: #fff; border-color: transparent; }
+/* Sponsors: 4-up partner cards, medal icons on packages. */
+body[data-mode="club"][data-mode] .cl-prods.sp-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 480px) { body[data-mode="club"][data-mode] .cl-prods.sp-grid { grid-template-columns: 1fr 1fr; } }
+.cl-prods.sp-grid .cl-prod { padding: 10px 6px; gap: 6px; font-size: 12px; }
+.pk-ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; }
+.pk-ic .icon { width: 26px; height: 26px; } .pk-ic .icon.ph .ph-l { display: none; } .pk-ic .icon.ph .ph-s { display: inline; }
+.pk-ic.bronze { color: #b4693e; background: #fbeee4; } .pk-ic.silver { color: #7c8698; background: #eef0f4; } .pk-ic.gold { color: #d99a00; background: #fff4d1; }
+/* Elections: banner with the ballot box, highlighted year. */
+.el-banner { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 18px; background: var(--cl-hero, #23198f); color: #fff; text-decoration: none !important; }
+.el-banner h2 { margin: 0 0 4px; font-size: 22px; line-height: 1.15; color: #fff; }
+.el-banner .xs { color: #d6d3ff; display: block; margin-bottom: 6px; }
+.el-box { flex: none; display: grid; justify-items: center; gap: 2px; width: 92px; padding: 10px 6px; border-radius: 12px; background: #2f3d8f; color: #fff; }
+.el-box .icon { width: 40px; height: 40px; } .el-box b { letter-spacing: .12em; font-size: 15px; }
+.el-dates { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: #fff; }
+body[data-mode="club"][data-mode] .hl { color: #7cc8ff; }
+@media (max-width: 420px) { .el-box { width: 72px; } .el-banner h2 { font-size: 19px; } }
+/* Privacy & data (board): lavender hero with shield and lock, visibility pills per club, connected accounts. */
+.pv-hero { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 16px; background: #ebe8ff; margin-bottom: 4px; }
+.pv-hero h2 { margin: 0 0 4px; font-size: 18px; color: var(--cl-title); } .pv-hero p { margin: 0; font-size: 13px; color: var(--text-2); }
+.pv-shield { flex: none; width: 56px; height: 56px; display: grid; place-items: center; color: var(--primary); }
+.pv-shield .icon, .pv-lock .icon { width: 52px; height: 52px; } .pv-shield .icon.ph .ph-l, .pv-lock .icon.ph .ph-l { display: none; } .pv-shield .icon.ph .ph-s, .pv-lock .icon.ph .ph-s { display: inline; }
+.pv-lock { flex: none; color: #a99cff; } @media (max-width: 420px) { .pv-lock { display: none; } }
+:root[data-theme="dark"] .pv-hero { background: var(--surface-2); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pv-hero { background: var(--surface-2); } }
+.pv-sub { margin: -6px 0 8px; color: var(--text-3); }
+.pv-vis { display: inline-flex; align-items: center; gap: 4px; padding-left: 10px; border-radius: 10px; flex: none; }
+.pv-vis .select { border: 0; background-color: transparent; min-width: 0; width: 136px; font-weight: 600; color: inherit; }
+.pv-vis.t-green { background: var(--success-s); color: var(--success-t); } .pv-vis.t-blue { background: #e3edff; color: #1d4ed8; } .pv-vis.t-red { background: var(--error-s); color: var(--error-t); }
+.pv-brand { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: var(--surface-2); font-weight: 800; color: var(--cl-title); }
+.pv-btn { width: 100%; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; padding-top: 4px; }
+.pv-danger { border-radius: 14px; padding: 12px 14px; background: #fff0f0; border: 1px solid #ffd2d2; color: inherit; text-decoration: none !important; }
+.pv-danger b { color: var(--error-t); }
+:root[data-theme="dark"] .pv-danger { background: var(--surface-2); border-color: var(--border); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pv-danger { background: var(--surface-2); border-color: var(--border); } }
+@media (max-width: 420px) { .cl-set .select { min-width: 120px; } .pv-vis .select { width: 118px; } }
+/* Roles: quick action cards, matrix header icons and row labels. */
+.rl-quick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.rl-quick button { display: grid; justify-items: center; gap: 4px; padding: 12px 6px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); font: inherit; text-align: center; cursor: pointer; color: inherit; }
+.rl-quick .icon { width: 28px; height: 28px; color: var(--primary); } .rl-quick b { font-size: 13px; color: var(--cl-title); } .rl-quick span { font-size: 11.5px; color: var(--text-3); }
+@media (max-width: 480px) { .rl-quick { grid-template-columns: 1fr 1fr; } }
+.cl-matrix tbody th { text-align: left; font-weight: 500; padding: 8px 10px; position: sticky; left: 0; background: var(--surface); min-width: 150px; }
+.cl-matrix thead th:first-child { position: sticky; left: 0; z-index: 1; text-align: left; padding-left: 10px; font-size: 13px; color: var(--cl-title); }
+.cl-matrix thead th { min-width: 74px; padding: 8px 4px; }
+.cl-matrix thead th > span { display: block; } .cl-matrix thead .t-amber { color: #d99a00; } .cl-matrix thead .t-purple { color: var(--primary); } .cl-matrix thead .t-teal { color: #0891b2; } .cl-matrix thead .t-orange { color: #ea580c; } .cl-matrix thead .t-blue { color: #2563eb; } .cl-matrix thead .t-green { color: #16a34a; }
+.cl-matrix tr[hidden] { display: none; }
+.cl-matrix .switch { display: inline-block; vertical-align: middle; }
+.cl-matrix .switch input:disabled { opacity: .45; cursor: not-allowed; }
+/* Club registration: form rows, review cards, checks, identity, decisions. */
+.rg-cm { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 6px; }
+@media (max-width: 480px) { .rg-cm { grid-template-columns: 1fr 1fr; } .rg-cm > :first-child { grid-column: 1 / -1; } }
+.rg-card { display: grid; gap: 10px; } .rg-name, .rg-title { font-size: 17px; color: var(--cl-title); margin: 0; } .rg-card .xs { margin: 2px 0 6px; }
+.rg-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.rg-meta > span { display: flex; align-items: center; gap: 6px; min-width: 0; } .rg-meta .icon { color: var(--primary); flex: none; } .rg-meta .xs { display: block; margin: 0; color: var(--text-3); } .rg-meta b { font-size: 13px; font-weight: 600; }
+.rg-acts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; } .rg-acts .btn { justify-content: center; padding-inline: 4px; }
+@media (max-width: 480px) { .rg-acts { grid-template-columns: 1fr 1fr; } }
+.rg-side { display: grid; justify-items: end; gap: 6px; text-align: right; flex: none; }
+.rg-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 13.5px; }
+.rg-checks li { display: flex; gap: 8px; align-items: flex-start; } .rg-checks .ok .icon { color: var(--success); } .rg-checks .warn .icon { color: var(--warning); }
+.rg-cover { margin-top: 2px; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: var(--cl-hero, #23198f); color: #fff; display: grid; place-items: center; text-align: center; padding: 8px; font-size: 14px; text-transform: uppercase; }
+.rg-cover img { width: 100%; height: 100%; object-fit: cover; }
+.rg-team { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.rg-team .card { display: grid; justify-items: center; gap: 4px; text-align: center; padding: 12px 8px; } .rg-team b { color: var(--primary); font-size: 14px; } .rg-team span { font-size: 13px; }
+.cl-facts2 .rg-strong { color: var(--cl-title); font-weight: 700; } .cl-facts2 .rg-link { color: var(--primary); }
+/* Tiles: solid icon straight on the pastel card (no inner square from v2.22). */
+body[data-mode="club"][data-mode] .cl-tiles.cl-tiles > .cl-tile.cl-tile > .icon { width: 30px; height: 30px; padding: 0; background: none; border-radius: 0; }
+body[data-mode="club"][data-mode] .cl-tiles.cl-tiles > .cl-tile.t-purple > .icon { color: #4318ff; } body[data-mode="club"][data-mode] .cl-tiles.cl-tiles > .cl-tile.t-blue > .icon { color: #2563eb; }
+body[data-mode="club"][data-mode] .cl-tiles.cl-tiles > .cl-tile.t-green > .icon { color: #16a34a; } body[data-mode="club"][data-mode] .cl-tiles.cl-tiles > .cl-tile.t-orange > .icon { color: #ea580c; }
+body[data-mode="club"][data-mode] .cl-tiles.cl-tiles > .cl-tile.t-pink > .icon { color: #e11d74; } body[data-mode="club"][data-mode] .cl-tiles.cl-tiles > .cl-tile.t-red > .icon { color: #e11d48; }
+body[data-mode="club"][data-mode] .cl-tiles.cl-tiles > .cl-tile.t-teal > .icon { color: #0891b2; } body[data-mode="club"][data-mode] .cl-tiles.cl-tiles > .cl-tile.t-amber > .icon { color: #d97706; }
+body[data-mode="club"][data-mode] .cl-tiles.cl-tiles > .cl-tile.cl-tile { border: 0; box-shadow: none; }
+/* Two side-by-side sections on phones: headings shrink instead of breaking words. */
+body[data-mode="club"][data-mode] .cl-row2 .cl-sec h2 { font-size: 15px; overflow-wrap: normal; word-break: normal; hyphens: none; }
+body[data-mode="club"][data-mode] .cl-row2 .cl-sec a { white-space: nowrap; font-size: 12.5px; }
+body[data-mode="club"][data-mode] .cl-row2 .cl-sec { gap: 6px; align-items: baseline; }
+/* Page titles never break inside a word; the action button drops below the title when space runs out. */
+body[data-mode="club"][data-mode] .cl-ph > .min0 { flex: 1 1 230px; }
+body[data-mode="club"][data-mode] .cl-ph h1 { overflow-wrap: normal; word-break: normal; hyphens: manual; }
+.rs-types > button { display: inline-flex; align-items: center; gap: 6px; }
+.rv-poster { overflow-wrap: normal; word-break: normal; font-size: 12px; }
+#mx-q { min-width: 0; } .row.nowrap > .searchbar.grow { min-width: 0; flex: 1 1 0; }
+/* Settings rows: the text keeps room; a select shrinks or drops below instead of squeezing the label. */
+body[data-mode="club"][data-mode] .cl-set { flex-wrap: wrap; }
+body[data-mode="club"][data-mode] .cl-set > .body { flex: 1 1 150px; min-width: 150px; }
+body[data-mode="club"][data-mode] .cl-set > .select { flex: 0 1 180px; width: 180px; min-width: 0; }
+body[data-mode="club"][data-mode] .cl-set > .switch, body[data-mode="club"][data-mode] .cl-set > .pv-vis { flex: none; }
+body[data-mode="club"][data-mode] .main .cl-ph { flex-wrap: wrap; }
+body[data-mode="club"][data-mode] .main .cl-ph > .actions { max-width: none; flex-wrap: wrap; }
+/* Sidebar brand on one line: "EWUdiots" + the lime Club pill fit the 235px sidebar. */
+body[data-mode="club"][data-mode] .sidebar .logo .word { white-space: nowrap; font-size: 19px; }
+body[data-mode="club"][data-mode] .sidebar .logo .word::after { font-size: .78em; }

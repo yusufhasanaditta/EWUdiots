@@ -1,11 +1,11 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Ask EWUdiots answers from your course outlines: next exam, mark split, topics left, books, office hours",
-    "Answers now show where they came from",
-    "New flat look: no gradients, clearer colours and bigger tap areas on phones",
-    "Security: tighter database permissions and safer server checks",
-    "Club home icons, applicant links and other small fixes"
+    "EWUdiots Club has new royal-indigo colours, pastel tiles and solid icons, matching the design boards",
+    "Club Workspace: task board with a Review column, and task pages with files, labels, subtasks and comments",
+    "Register a club with a full application; the team reviews it with quick checks and can ask for changes",
+    "Roles & Permissions: permission matrix, role templates, presets and member access requests",
+    "Resources with folders, file previews and an in-app PDF viewer; recruitment, sponsors, elections and privacy redesigned"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

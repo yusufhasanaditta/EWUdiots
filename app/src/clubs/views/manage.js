@@ -205,34 +205,70 @@ export function register(pages, kit) {
           kit.$$("[data-iv]", el).forEach((b) => b.addEventListener("click", async () => { try { await api.revokeInvite(b.dataset.iv); store.invalidate(`club:invites:${club.id}`); } catch (err) { kit.toast(err.message, "error"); } }));
         } },
       roles: { label: "Positions & roles", icon: "shield", group: "People", perm: "members.promote",
+        // "Roles and Permissions" boards: Role Overview · Permission Matrix · Custom Roles · Access Requests.
         render(club, m) {
           const re = store.use(`club:roles:${club.id}`, () => api.roles(club.id), { ttl: 60e3 });
           const count = (store.peek(`club:members:${club.id}`) || store.use(`club:members:${club.id}`, () => api.members(club.id), { ttl: 30e3 }).value || []).reduce((acc, x) => ((acc[x.role_id] = (acc[x.role_id] || 0) + 1), acc), {});
-          return kit.head("Positions & permissions", "Give members positions such as President, General Secretary, Treasurer or Executive Member. Each position unlocks its tools. You can only change positions below yours, and only give permissions you have.",
-              `<button class="btn primary sm" id="rl-new">${icon("plus", "sm")} Create position</button>`)
-            + ui.view(re, (rows) => `${hierarchy(rows, count)}${ui.sec("All Positions")}<div class="stack">${[...rows].sort((a, b) => a.rank - b.rank || a.sort - b.sort).map((r) => {
-              const locked = r.perms.includes("*") || r.rank <= m.rank;
-              return `<details class="card tight cl-rolecard"><summary class="rl-card">${(([ic, tone]) => `<span class="itile ${tone}">${icon(ic)}</span>`)(RANK_LOOK[r.rank] || RANK_LOOK[7])}<span class="min0 grow"><b>${esc(r.name)}</b>${r.description ? `<span class="d">${esc(r.description)}</span>` : ""}<span class="m"><span>${icon("shield", "sm")} ${r.perms.includes("*") ? "All permissions" : ui.plural(r.perms.length, "Permission")}</span><span>${icon("users", "sm")} ${ui.plural(count[r.id] || 0, "User")}</span></span></span>${ui.st(["Active", "green"])}${locked ? icon("lock", "sm") : icon("chevR", "sm")}</summary>
-                ${locked ? `<p class="small muted mt-s">${r.perms.includes("*") ? "This position can do everything in the club." : "You can't change your own position or ones above it."}</p>` : `<form class="stack mt-s" data-role="${r.id}">${ui.field("Name", ui.input("name", r.name, 'maxlength="40" required'))}${ui.field("Description", ui.input("description", r.description || "", 'maxlength="200"'))}
-                  ${PERM_GROUPS.map(([gname, perms]) => `<fieldset class="cl-perms"><legend>${gname}</legend>${perms.map(([p, l]) => `<label class="cl-opt ${has(m, p) ? "" : "dim"}"><input type="checkbox" data-perm="${p}" ${r.perms.includes(p) ? "checked" : ""} ${has(m, p) ? "" : "disabled"}> <span>${l}</span></label>`).join("")}</fieldset>`).join("")}
-                  <div class="row" style="gap:8px"><button class="btn primary sm">${icon("check", "sm")} Save</button>${!r.is_system && !r.is_default && !count[r.id] ? `<button type="button" class="btn ghost sm" data-delrole="${r.id}" style="color:var(--error)">${icon("trash", "sm")} Delete position</button>` : ""}</div></form>`}</details>`;
-            }).join("")}</div>`);
+          const ar = store.use(`club:access:${club.id}`, () => api.accessRequests(club.id), { ttl: 30e3 });
+          const rt = ["overview", "matrix", "custom", "requests"].includes(kit.param("rt")) ? kit.param("rt") : "overview", base = `#/club/manage?c=${club.id}&tab=roles`;
+          const pending = (ar.value || []).filter((x) => x.status === "pending");
+          return ui.ph("Roles &amp; Permissions", "Manage access control for club features and modules", rt === "custom" ? `<button class="btn primary sm" id="rl-new">${icon("plus", "sm")} Create position</button>` : "")
+            + `<nav class="cl-seg sm" role="tablist">${[["overview", "Role Overview"], ["matrix", "Permission Matrix"], ["custom", "Custom Roles"], ["requests", "Access Requests", pending.length || null]].map(([v, l, n]) => `<a role="tab" href="${base}&rt=${v}" aria-selected="${rt === v}">${l}${n ? ` <span class="n">${n}</span>` : ""}</a>`).join("")}</nav>`
+            + ui.view(re, (rows) => {
+              const sorted = [...rows].sort((a, b) => a.rank - b.rank || a.sort - b.sort);
+              if (rt === "matrix") return matrix(sorted, m);
+              if (rt === "requests") return accessList(ar, true);
+              if (rt === "custom") return `<div class="stack">${sorted.map((r) => {
+                const locked = r.perms.includes("*") || r.rank <= m.rank;
+                return `<details class="card tight cl-rolecard"><summary class="rl-card">${(([ic, tone]) => `<span class="itile ${tone}">${icon(ic)}</span>`)(RANK_LOOK[r.rank] || RANK_LOOK[7])}<span class="min0 grow"><b>${esc(r.name)}</b>${r.description ? `<span class="d">${esc(r.description)}</span>` : ""}<span class="m"><span>${icon("shield", "sm")} ${r.perms.includes("*") ? "All permissions" : ui.plural(r.perms.length, "Permission")}</span><span>${icon("users", "sm")} ${ui.plural(count[r.id] || 0, "User")}</span></span></span>${ui.st(["Active", "green"])}${locked ? icon("lock", "sm") : icon("chevR", "sm")}</summary>
+                  ${locked ? `<p class="small muted mt-s">${r.perms.includes("*") ? "This position can do everything in the club." : "You can't change your own position or ones above it."}</p>` : `<form class="stack mt-s" data-role="${r.id}">${ui.field("Name", ui.input("name", r.name, 'maxlength="40" required'))}${ui.field("Description", ui.input("description", r.description || "", 'maxlength="200"'))}
+                    ${PERM_GROUPS.map(([gname, perms]) => `<fieldset class="cl-perms"><legend>${gname}</legend>${perms.map(([p, l]) => `<label class="cl-opt ${has(m, p) ? "" : "dim"}"><input type="checkbox" data-perm="${p}" ${r.perms.includes(p) ? "checked" : ""} ${has(m, p) ? "" : "disabled"}> <span>${l}</span></label>`).join("")}</fieldset>`).join("")}
+                    <div class="row" style="gap:8px"><button class="btn primary sm">${icon("check", "sm")} Save</button>${!r.is_system && !r.is_default && !count[r.id] ? `<button type="button" class="btn ghost sm" data-delrole="${r.id}" style="color:var(--error)">${icon("trash", "sm")} Delete position</button>` : ""}</div></form>`}</details>`;
+              }).join("")}</div>`;
+              return `${hierarchy(rows, count)}
+                ${ui.sec("Quick Actions")}<div class="rl-quick">${[["rl-new", "userpen", "Create New Role", "Add a custom role with specific permissions"], ["rl-dup", "copy", "Duplicate Role", "Create a role based on an existing role"], ["rl-tpl", "layers", "Role Templates", "Use pre-defined permission templates"], ["rl-pre", "settings", "Permission Presets", "Quickly apply common permission settings"]]
+                  .map(([id, ic, t, d]) => `<button type="button" id="${id}">${icon(ic)}<b>${t}</b><span>${d}</span></button>`).join("")}</div>
+                ${ui.sec("Recent Access Requests", `<a href="${base}&rt=requests">View All</a>`)}${accessList(ar, false)}`;
+            }, { n: 3, h: 90 });
         },
         mount(el, club, m) {
+          const roles = () => store.peek(`club:roles:${club.id}`) || [];
+          const reload = () => store.invalidate(`club:roles:${club.id}`, `club:members:${club.id}`, "me:clubs");
           kit.$$("[data-role]", el).forEach((f) => f.addEventListener("submit", async (e) => {
             e.preventDefault();
             const perms = kit.$$("[data-perm]:checked", f).map((c) => c.dataset.perm);
-            try { await api.updateRole(f.dataset.role, { name: f.name.value.trim(), description: f.description.value.trim(), perms }); store.invalidate(`club:roles:${club.id}`, `club:members:${club.id}`, "me:clubs"); kit.toast("Position saved", "success"); } catch (err) { kit.toast(err.message, "error"); }
+            try { await api.updateRole(f.dataset.role, { name: f.name.value.trim(), description: f.description.value.trim(), perms }); reload(); kit.toast("Position saved", "success"); } catch (err) { kit.toast(err.message, "error"); }
           }));
           kit.$$("[data-delrole]", el).forEach((b) => b.addEventListener("click", async () => { try { await api.deleteRole(b.dataset.delrole); store.invalidate(`club:roles:${club.id}`); } catch (err) { kit.toast(err.message, "error"); } }));
-          kit.$("#rl-new", el)?.addEventListener("click", () => ui.sheet("Create a position", `<form id="rl" class="stack">${ui.field("Name", ui.input("name", "", 'required maxlength="40" placeholder="Head of PR, Media Lead…"'))}${ui.field("Description", ui.input("description", "", 'maxlength="200"'))}
-            ${ui.field("Seniority", ui.select("rank", [[3, "Officer (like President)"], [4, "Executive (like Executive Member)"], [5, "Team role (like Community Lead)"], [6, "Senior member"], [7, "Member"]].filter(([rk]) => rk > m.rank), 4))}
-            ${PERM_GROUPS.map(([gname, perms]) => `<fieldset class="cl-perms"><legend>${gname}</legend>${perms.filter(([p]) => has(m, p)).map(([p, l]) => `<label class="cl-opt"><input type="checkbox" data-perm="${p}"> <span>${l}</span></label>`).join("")}</fieldset>`).join("")}
+          // Permission matrix: each switch saves that role at once.
+          kit.$$("[data-mx]", el).forEach((c) => c.addEventListener("change", async () => {
+            const [rid, p] = c.dataset.mx.split("|"), r = roles().find((x) => x.id === rid); if (!r) return;
+            const perms = c.checked ? [...new Set([...r.perms, p])] : r.perms.filter((x) => x !== p);
+            try { await api.updateRole(rid, { perms }); reload(); kit.toast(`${r.name}: ${c.checked ? "allowed" : "removed"}`, "success"); } catch (err) { c.checked = !c.checked; kit.toast(err.message, "error"); }
+          }));
+          kit.$("#mx-q", el)?.addEventListener("input", (e) => { const q = e.target.value.trim().toLowerCase(); kit.$$("[data-mxrow]", el).forEach((tr) => { tr.hidden = !!q && !tr.dataset.mxrow.includes(q); }); });
+          kit.$("#mx-mod", el)?.addEventListener("change", (e) => { const g = e.target.value; kit.$$("[data-mxg]", el).forEach((tr) => { tr.hidden = !!g && tr.dataset.mxg !== g; }); });
+          // Create (optionally from a role, a template or a preset).
+          const create = (pre = {}) => ui.sheet(pre.title || "Create a position", `<form id="rl" class="stack">${ui.field("Name", ui.input("name", pre.name || "", 'required maxlength="40" placeholder="Head of PR, Media Lead…"'))}${ui.field("Description", ui.input("description", pre.description || "", 'maxlength="200"'))}
+            ${ui.field("Seniority", ui.select("rank", [[3, "Officer (like President)"], [4, "Executive (like Executive Member)"], [5, "Team role (like Community Lead)"], [6, "Senior member"], [7, "Member"]].filter(([rk]) => rk > m.rank), Math.max(pre.rank || 4, m.rank + 1)))}
+            ${PERM_GROUPS.map(([gname, perms]) => `<fieldset class="cl-perms"><legend>${gname}</legend>${perms.filter(([p]) => has(m, p)).map(([p, l]) => `<label class="cl-opt"><input type="checkbox" data-perm="${p}" ${(pre.perms || []).includes(p) ? "checked" : ""}> <span>${l}</span></label>`).join("")}</fieldset>`).join("")}
             <div id="cl-err"></div><button class="btn primary block">${icon("plus")} Create</button></form>`, (s) => kit.$("#rl", s).addEventListener("submit", async (e) => {
-            e.preventDefault(); const f = ui.values(e.target), perms = kit.$$("[data-perm]:checked", s).map((c) => c.dataset.perm);
-            try { await api.addRole({ club_id: club.id, name: f.name.trim(), description: f.description || "", rank: Number(f.rank), perms, color: ["blue", "blue", "teal", "pink", "green", "gray"][Number(f.rank) - 2] || "gray", sort: 50 }); kit.ctx.closeModal(); store.invalidate(`club:roles:${club.id}`); }
-            catch (err) { ui.fail(s, /duplicate|already/i.test(err.message) ? "A position with that name exists." : err.message); }
-          })));
+            e.preventDefault(); const f = ui.values(e.target), perms = kit.$$("[data-perm]:checked", s).map((c) => c.dataset.perm), btn = e.submitter; kit.ctx.busy(btn, true);
+            try { await api.addRole({ club_id: club.id, name: f.name.trim(), description: f.description || "", rank: Number(f.rank), perms, color: ["blue", "blue", "teal", "pink", "green", "gray"][Number(f.rank) - 2] || "gray", sort: 50 }); kit.ctx.closeModal(); store.invalidate(`club:roles:${club.id}`); kit.toast("Position created", "success"); }
+            catch (err) { ui.fail(s, /duplicate|already/i.test(err.message) ? "A position with that name exists." : err.message); } finally { kit.ctx.busy(btn, false); }
+          }));
+          kit.$("#rl-new", el)?.addEventListener("click", () => create());
+          kit.$("#rl-dup", el)?.addEventListener("click", () => ui.sheet("Duplicate Role", `<form id="dp" class="stack">${ui.field("Copy which position?", ui.select("r", roles().filter((r) => !r.perms.includes("*")).map((r) => [r.id, r.name])))}<button class="btn primary block">Next</button></form>`,
+            (s) => kit.$("#dp", s).addEventListener("submit", (e) => { e.preventDefault(); const r = roles().find((x) => x.id === ui.values(e.target).r); kit.ctx.closeModal(); if (r) create({ title: "Duplicate Role", name: `${r.name} (copy)`.slice(0, 40), description: r.description, rank: r.rank, perms: r.perms }); })));
+          kit.$("#rl-tpl", el)?.addEventListener("click", () => ui.sheet("Role Templates", `<div class="cl-list">${TEMPLATES.map(([n, d, rk], i) => `<button class="cl-li" data-tpl="${i}"><span class="itile sm purple">${icon("layers")}</span><span class="body"><b>${n}</b><span>${d}</span></span>${icon("chevR", "sm")}</button>`).join("")}</div>`,
+            (s) => kit.$$("[data-tpl]", s).forEach((b) => b.addEventListener("click", () => { const [n, d, rk, perms] = TEMPLATES[b.dataset.tpl]; kit.ctx.closeModal(); create({ title: "From a template", name: n, description: d, rank: rk, perms }); }))));
+          kit.$("#rl-pre", el)?.addEventListener("click", () => ui.sheet("Permission Presets", `<form id="pr" class="stack">${ui.field("Position", ui.select("r", roles().filter((r) => !r.perms.includes("*") && r.rank > m.rank).map((r) => [r.id, r.name])))}
+            ${ui.field("Preset", ui.select("p", PRESETS.map(([n], i) => [i, n])))}<p class="xs">The position's permissions are replaced by the preset (only permissions you hold are given).</p><div id="cl-err"></div><button class="btn primary block">Apply preset</button></form>`,
+            (s) => kit.$("#pr", s).addEventListener("submit", async (e) => { e.preventDefault(); const f = ui.values(e.target), r = roles().find((x) => x.id === f.r); if (!r) return ui.fail(s, "There's no position below yours to change.");
+              const perms = PRESETS[f.p][1].filter((p) => has(m, p)); try { await api.updateRole(r.id, { perms }); kit.ctx.closeModal(); reload(); kit.toast(`${PRESETS[f.p][0]} applied to ${r.name}`, "success"); } catch (err) { ui.fail(s, err.message); } })));
+          kit.$$("[data-acc]", el).forEach((b) => b.addEventListener("click", async () => { kit.ctx.busy(b, true);
+            try { await api.decideAccess(b.dataset.acc, b.dataset.ok === "1"); store.invalidate(`club:access:${club.id}`, `club:members:${club.id}`); kit.toast(b.dataset.ok === "1" ? "Access given" : "Request declined", "success"); }
+            catch (err) { kit.toast(err.message, "error"); } finally { kit.ctx.busy(b, false); } }));
         } }
     };
   }
@@ -240,6 +276,34 @@ export function register(pages, kit) {
   /** Positions this person may hand out, grouped by seniority (perms.assignableRoles; the database checks again). */
   // "Roles and Permissions" board: people per level, then the hierarchy as a pyramid (top = most access).
   const RANK_LOOK = { 1: ["cap", "teal"], 2: ["crown", "purple"], 3: ["shield", "purple"], 4: ["users", "orange"], 5: ["user", "blue"], 6: ["cap", "green"], 7: ["user", "amber"] };
+  /** Permission matrix: permission groups down the side, positions across; you can switch only what you could give. */
+  function matrix(roles, m) {
+    return `<div class="row" style="gap:8px;margin-bottom:10px;flex-wrap:wrap"><select class="select" id="mx-mod" aria-label="Module" style="flex:1 1 150px;width:auto"><option value="">All Modules</option>${PERM_GROUPS.map(([g]) => `<option value="${esc(g)}">${esc(g)}</option>`).join("")}</select>
+        <div class="searchbar cl-search" style="flex:1 1 180px">${icon("search")}<input class="input" id="mx-q" type="search" placeholder="Search features…" autocomplete="off"></div></div>
+      <div class="cl-mwrap"><table class="cl-matrix"><thead><tr><th scope="col">Module / Feature</th>${roles.map((r) => `<th scope="col"><span class="t-${(RANK_LOOK[r.rank] || RANK_LOOK[7])[1]}">${icon((RANK_LOOK[r.rank] || RANK_LOOK[7])[0], "sm")}</span>${esc(r.name)}</th>`).join("")}</tr></thead>
+        <tbody>${PERM_GROUPS.map(([g, perms]) => `<tr class="grp" data-mxg="${esc(g)}"><td colspan="${roles.length + 1}">${esc(g)}</td></tr>${perms.map(([p, l]) => `<tr data-mxg="${esc(g)}" data-mxrow="${esc(`${l} ${p} ${g}`.toLowerCase())}"><th scope="row">${esc(l)}</th>${roles.map((r) => {
+          const all = r.perms.includes("*"), on = all || r.perms.includes(p), can = !all && r.rank > m.rank && has(m, p);
+          return `<td><span class="switch"><input type="checkbox" ${on ? "checked" : ""} ${can ? `data-mx="${r.id}|${p}"` : "disabled"} aria-label="${esc(r.name)}: ${esc(l)}"><span></span></span></td>`; }).join("")}</tr>`).join("")}`).join("")}</tbody></table></div>
+      <p class="xs mt-s">Switches you can't change belong to your own position, positions above it, or permissions you don't hold yourself.</p>`;
+  }
+  /** Access requests with Approve / Reject (all = the full tab, otherwise the latest four that are waiting). */
+  function accessList(ar, all) {
+    return ui.view(ar, (rows) => {
+      const list = all ? rows : rows.filter((x) => x.status === "pending").slice(0, 4);
+      return list.length ? `<div class="cl-list">${list.map((x) => `<div class="cl-li">${ui.ava(x.name)}<span class="body"><b>${esc(x.name)}</b><span>Requesting ${esc(x.club_roles?.name || "a position")}${x.reason ? ` · ${esc(x.reason)}` : ""}</span><span class="xs">${ui.ago(x.created_at)}</span></span>
+          ${x.status === "pending" ? `<button class="btn sm soft green" data-acc="${x.id}" data-ok="1">Approve</button><button class="btn sm soft red" data-acc="${x.id}" data-ok="0">Reject</button>` : ui.st(x.status === "approved" ? ["Approved", "green"] : ["Rejected", "red"])}</div>`).join("")}</div>`
+        : `<p class="small muted">${all ? "No access requests yet. Members ask for a position from their club workspace (My panel)." : "No requests waiting."}</p>`;
+    }, { n: 2, h: 56 });
+  }
+  // [name, description, rank, permissions] — starting points for common committee jobs.
+  const TEMPLATES = [["Media Lead", "Posts, photos and the resource library", 4, ["posts.write", "posts.publish_public", "resources.manage", "docs.manage"]],
+    ["Event Coordinator", "Plans events and checks people in", 4, ["events.manage", "events.checkin", "forms.create", "forms.view_responses", "attendance.take"]],
+    ["Finance Officer", "Keeps the finance book and verifies payments", 4, ["finance.view", "finance.edit", "payments.verify"]],
+    ["Recruitment Lead", "Runs recruitment forms and scores applicants", 4, ["forms.create", "forms.view_responses", "recruitment.evaluate", "members.approve"]],
+    ["Moderator", "Keeps chats and comments friendly", 5, ["comments.moderate", "chat.manage"]]];
+  // [name, permissions] — replaces a position's permissions in one go.
+  const PRESETS = [["Read only (no tools)", []], ["Content team", ["posts.write", "comments.moderate", "resources.manage"]], ["Events team", ["events.manage", "events.checkin", "attendance.take"]],
+    ["Workspace team", ["tasks.manage", "projects.manage", "meetings.manage", "docs.manage"]], ["Full executive", ["posts.write", "events.manage", "events.checkin", "tasks.manage", "projects.manage", "meetings.manage", "polls.create", "resources.manage", "analytics.view"]]];
   function hierarchy(roles, count) {
     const LEVELS = [[2, "crown", "Club Admin", "Full control over club settings and members", "amber"], [3, "crown", "Officers", "President, Vice President, General Secretary, Treasurer", "pink"],
       [4, "users", "Executive", "Manage assigned modules and activities", "purple"], [5, "shield", "Community Lead", "Keep chats friendly, run the merch store", "blue"],

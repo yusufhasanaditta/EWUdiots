@@ -1,6 +1,6 @@
 /* EWUdiots Club: project task board (pure). Columns follow club_tasks.status; position orders cards in a column. */
 
-export const COLUMNS = [["todo", "To do", "red"], ["doing", "In progress", "blue"], ["done", "Completed", "green"]];
+export const COLUMNS = [["todo", "To do", "red"], ["doing", "In progress", "blue"], ["review", "Review", "amber"], ["done", "Completed", "green"]];
 export const PRIORITY = { high: ["High", "red"], medium: ["Medium", "amber"], low: ["Low", "gray"] };
 
 /** Cards of one column in board order. */
@@ -23,7 +23,7 @@ export function move(tasks, id, status, beforeId = null) {
 export function stats(tasks) {
   const n = (s) => tasks.filter((t) => t.status === s).length;
   const done = n("done");
-  return { total: tasks.length, todo: n("todo"), doing: n("doing"), done, pct: tasks.length ? Math.round((done / tasks.length) * 100) : 0 };
+  return { total: tasks.length, todo: n("todo"), doing: n("doing"), review: n("review"), done, pct: tasks.length ? Math.round((done / tasks.length) * 100) : 0 };
 }
 /** Checklist "2/4". */
 export const checklist = (t) => { const c = Array.isArray(t.checklist) ? t.checklist : []; return c.length ? `${c.filter((x) => x.done).length}/${c.length}` : ""; };

@@ -15,6 +15,8 @@ import { createCart } from "./cart.js";
 import * as charts from "./charts.js";
 import { has, canManage, featureOn } from "./perms.js";
 import { register as home } from "./views/home.js";
+import { register as workspace } from "./views/workspace.js";
+import { register as registration } from "./views/register.js";
 import { register as feed } from "./views/feed.js";
 import { register as explore } from "./views/explore.js";
 import { register as profile } from "./views/profile.js";
@@ -110,7 +112,7 @@ export function install(ctx) {
     bindRetry: (el) => { ctx.$$("[data-cl-retry]", el).forEach((b) => b.addEventListener("click", () => store.clear())); charts.bindTips(el); }
   };
 
-  const views = { home, feed, explore, profile, events, eventx, form, mine, space, manage, cert, messages, notifications, members, meetings, projects, resources, polls, recruit, finance, analytics, shop, merch, sponsors, collab, help, privacy, more, platform, tickets };
+  const views = { home, workspace, registration, feed, explore, profile, events, eventx, form, mine, space, manage, cert, messages, notifications, members, meetings, projects, resources, polls, recruit, finance, analytics, shop, merch, sponsors, collab, help, privacy, more, platform, tickets };
   Object.values(views).forEach((register) => register(ctx.pages, kit));
   ctx.pages[PREFIX] = ctx.pages["club/home"]; // #/club → home
   // An admin can switch the whole club area off (Admin → Settings → Features).

@@ -137,13 +137,15 @@ export function register(pages, kit) {
     const runners = kit.myClubs().filter((m) => m.rank <= 3 && kit.can(m.club_id, "elections.manage"));
     return `${ui.ph("Club Elections", "Manage elections, nominations, voting, and executive transitions", runners.length ? `<button class="btn primary" id="el-new">${icon("plus")} New Election</button>` : "")}
       ${ui.seg([["polls", "Polls"], ["elections", "Elections"]], "elections", (v) => (v === "elections" ? "#/club/elections" : "#/club/polls"), "sm")}
-      <nav class="cl-seg">${[["ongoing", "Ongoing"], ["upcoming", "Upcoming"], ["past", "Past Elections"]].map(([v, l]) => `<button data-et="${v}" aria-pressed="${etab === v}">${l}</button>`).join("")}</nav>
+      <nav class="cl-seg fill">${[["ongoing", "Ongoing"], ["upcoming", "Upcoming"], ["past", "Past Elections"]].map(([v, l]) => `<button data-et="${v}" aria-pressed="${etab === v}">${l}</button>`).join("")}</nav>
       ${ui.view(ee, (rows) => {
         const group = (e) => { const ph = phase(e); return ["results", "applied", "cancelled"].includes(ph) ? "past" : ph === "upcoming" || ph === "draft" ? "upcoming" : "ongoing"; };
         const list = rows.filter((e) => group(e) === etab);
-        return list.length ? `<div class="stack">${list.map((e) => { const ph = phase(e);
-          return `<a class="cl-banner" href="#/club/election?id=${e.id}" style="min-height:140px"><h2>${esc(e.title)}</h2><p style="opacity:.9">${esc(e.clubs?.name || "")}</p>
-            <div class="row" style="gap:8px">${ui.st(ph === "voting" ? ["Voting Live", "green"] : [ph[0].toUpperCase() + ph.slice(1), ph === "results" || ph === "applied" ? "blue" : "amber"], ph === "voting" ? "checkc" : "")}<span class="st gray">${icon("calendar")} ${ui.dateShort(e.voting_start)} – ${ui.dateShort(e.voting_end)}</span></div></a>`; }).join("")}</div>`
+        // Board: a banner per election with the ballot box; the first one also gets the four quick actions.
+        return list.length ? `<div class="stack">${list.map((e, i) => { const ph = phase(e), go = (t) => `#/club/election?id=${e.id}&t=${t}`;
+          return `<a class="el-banner" href="${go("overview")}"><span class="el-box" aria-hidden="true">${icon("ballot")}<b>VOTE</b></span><span class="min0"><h2>${titleHtml(e.title)}</h2><span class="xs">${esc(e.clubs?.name || "")}</span>
+            <span class="row" style="gap:8px">${ui.st(ph === "voting" ? ["Voting Live", "green"] : [ph[0].toUpperCase() + ph.slice(1), ph === "results" || ph === "applied" ? "blue" : "amber"], ph === "voting" ? "checkc" : "")}<span class="el-dates">${icon("calendar", "sm")} ${ui.dateShort(e.voting_start)} – ${ui.dateShort(e.voting_end)}</span></span></span></a>
+            ${i === 0 && etab === "ongoing" ? `<div class="cl-tiles c4">${ui.tile("info", "blue", "Election Info", go("overview"))}${ui.tile("briefcase", "purple", "Positions", go("overview"))}${ui.tile("users", "purple", "Candidates", go("candidates"))}${ui.tile("checksq", "blue", ph === "voting" ? "Vote Now" : "Results", go(ph === "voting" ? "vote" : "results"))}</div>` : ""}`; }).join("")}</div>`
           : ui.emptyBox("ballot", "No elections here", runners.length ? "Run your committee election with New Election." : "Your clubs' elections appear here.");
       }, { n: 2, h: 140 })}`;
   };
@@ -175,10 +177,15 @@ export function register(pages, kit) {
     }));
   }
 
-  let ctab = "overview", pos = "";
+  let ctab = "overview", pos = "", lastT = "";
+  /** "Executive Committee Election 2026" → last two words highlighted, like the boards. */
+  const titleHtml = (t) => { const w = String(t).split(" "); return w.length > 2 ? `${esc(w.slice(0, -2).join(" "))} <span class="hl">${esc(w.slice(-2).join(" "))}</span>` : esc(t); };
+  const POS_ICON = [[/president/i, "crown", "amber"], [/vice/i, "star", "pink"], [/secretary/i, "file", "blue"], [/treasur|finance/i, "wallet", "orange"], [/event|program/i, "calendar", "blue"], [/./, "briefcase", "purple"]];
+  const posIcon = (n) => { const [, ic, tone] = POS_ICON.find(([re]) => re.test(n)); return `<span class="itile sm ${tone}">${icon(ic)}</span>`; };
   pages["club/election"] = () => {
     const g = kit.gate("this election"); if (g) return g;
     const id = kit.param("id"), ee = store.use(`club:election:${id}`, () => api.election(id), { ttl: 30e3 });
+    const t = kit.param("t"); if (t && `${id}:${t}` !== lastT) { ctab = t; lastT = `${id}:${t}`; }
     return kit.back("#/club/elections", "Elections") + ui.view(ee, (e) => {
       if (!e) return ui.emptyBox("lock", "Election not found", "");
       const ph = phase(e), manage = kit.can(e.club_id, "elections.manage") && (kit.membership(e.club_id)?.rank <= 3 || kit.isPlatform());
@@ -189,9 +196,10 @@ export function register(pages, kit) {
       if (!pos || !positions.some((p) => p.id === pos)) pos = positions[0]?.id || "";
       const approved = cands.filter((c) => c.status === "approved");
       const tabs = [["overview", "Overview"], ["candidates", "Candidates"], ["vote", "Vote"], ["results", "Results"], ["rules", "Rules & Guidelines"], ...(manage ? [["manage", "Manage"]] : [])];
-      return `<section class="cl-banner" style="min-height:150px"><h2>${esc(e.title)}</h2><p style="opacity:.9">${esc(e.clubs?.name || "")}${e.term_label ? ` · Term ${esc(e.term_label)}` : ""}</p>
+      const members = store.use("clubs:counts", api.counts, { ttl: 60e3 }).value?.[e.club_id]?.members || 0, voters = re.length ? Math.max(0, ...re.map((r) => r.voters)) : null;
+      return `<section class="cl-banner" style="min-height:150px"><h2>${titleHtml(e.title)}</h2><p style="opacity:.9">${esc(e.clubs?.name || "")}${e.term_label ? ` · Term ${esc(e.term_label)}` : ""}</p>
           <div class="row" style="gap:8px"><span class="st gray">${icon("calendar")} ${ui.dateShort(e.voting_start)} – ${ui.dateShort(e.voting_end)}</span>${ph === "voting" ? ui.st(["Voting Live", "green"], "checkc") : ui.st([ph[0].toUpperCase() + ph.slice(1), "amber"])}</div></section>
-        <div class="cl-stats mt">${ui.stat("briefcase", "purple", positions.length, "Positions")}${ui.stat("users", "blue", approved.length, "Candidates")}${ui.stat("checkc", "green", voted.size, "Your votes")}${ui.stat("ballot", "amber", re.length ? Math.max(0, ...re.map((r) => r.voters)) : "–", "Voters (top position)")}</div>
+        <div class="cards4 mt">${ui.stat("briefcase", "purple", positions.length, "Positions")}${ui.stat("users", "blue", approved.length, "Candidates")}${ui.stat("checkc", "green", re.length ? re.reduce((n, r) => n + r.votes, 0) : "–", "Total Votes")}${ui.stat("chart", "pink", voters != null && members ? `${Math.round((voters / members) * 100)}%` : "–", "Voter Turnout")}</div>
         <nav class="cl-seg sm">${tabs.map(([v, l]) => `<button data-ct="${v}" aria-pressed="${ctab === v}">${l}</button>`).join("")}</nav>
         ${ctab === "rules" ? `<section class="card"><h2>Election Rules & Guidelines</h2><p style="color:var(--text-2)">${ui.rich(e.rules || "No rules written yet.")}</p></section>`
           : ctab === "results" ? results(positions, cands, re, ph, manage)
@@ -207,7 +215,7 @@ export function register(pages, kit) {
       ${myCands.length ? `<div class="alert blue mt-s"><span class="a-ic">${icon("info")}</span><div class="grow"><b>Your nomination${myCands.length > 1 ? "s" : ""}</b><p>${myCands.map((c) => `${esc(c.name)}: ${c.status}`).join(" · ")}</p></div></div>` : ""}
       ${ui.sec("Election Timeline")}<section class="card"><div class="cl-vtl">${PHASES.map(([k, label, a, b]) => { const i = ORDER.indexOf(k), done = at > i || ph === "applied", now = ph === k;
         return `<div><span class="dot ${done ? "done" : now ? "now" : ""}">${done ? icon("check") : ""}</span><span><b>${label}</b><span class="xs">${e[a] ? ui.dateShort(e[a]) : ""}${e[b] ? ` – ${ui.dateShort(e[b])}` : ""}</span></span>${ui.st(done ? ["Completed", "green"] : now ? ["Ongoing", "blue"] : ["Upcoming", "gray"])}</div>`; }).join("")}</div></section>
-      ${ui.sec("Available Positions")}<div class="cl-list">${positions.map((p) => `<button class="cl-li" data-pos="${p.id}"><span class="itile sm purple">${icon("crown")}</span><span class="body"><b>${esc(p.name)}</b><span>${ui.plural(p.seats, "position")}</span></span><span class="end">${ui.plural(cands.filter((c) => c.position_id === p.id && c.status === "approved").length, "candidate")}</span>${icon("chevR", "sm")}</button>`).join("") || `<p class="small muted" style="padding:12px">No positions yet.</p>`}</div>`;
+      ${ui.sec("Available Positions")}<div class="cl-list">${positions.map((p) => `<button class="cl-li" data-pos="${p.id}">${posIcon(p.name)}<span class="body"><b>${esc(p.name)}</b><span>${ui.plural(p.seats, "position")}</span></span><span class="end">${ui.plural(cands.filter((c) => c.position_id === p.id && c.status === "approved").length, "candidate")}</span>${icon("chevR", "sm")}</button>`).join("") || `<p class="small muted" style="padding:12px">No positions yet.</p>`}</div>`;
   }
   function candidatesTab(e, ph, positions, approved, voted, voting) {
     const p = positions.find((x) => x.id === pos);
