@@ -40,11 +40,32 @@ export function register(pages, kit) {
         ${re.loading && !re.value ? ui.skeleton(5, 70) : tab === "analytics" ? analytics(form, rows) : tab === "interviews" ? interviews(form, rows) : list(form, rows, max)}`;
     }, { n: 3, h: 120 });
   };
+  // "Club Recruitment" board: totals across every cycle, a create button and the cycles as cards.
+  let order = "new";
   function pickForm() {
     const clubs = kit.clubsWith("forms.view_responses");
     if (!clubs.length) return ui.emptyBox("lock", "For recruitment teams", "");
-    const fe = store.use(`me:recforms:${clubs.map((c) => c.club_id).join(",")}`, async () => (await Promise.all(clubs.map((c) => api.forms(c.club_id)))).flat(), { ttl: 60e3 });
-    return ui.ph("Recruitment", "Applications for your clubs") + ui.view(fe, (forms) => (forms.length ? `<div class="cl-list">${forms.map((f) => `<a class="cl-li" href="#/club/recruit?form=${f.id}"><span class="itile purple">${icon("userpen")}</span><span class="body"><b>${esc(f.title)}</b><span>${esc(f.kind)} · ${esc(f.status)}</span></span>${icon("chevR", "sm")}</a>`).join("")}</div>` : ui.emptyBox("edit", "No forms yet", "Create a recruitment form in Manage → Forms.")));
+    const fe = store.use(`me:recforms:${clubs.map((c) => c.club_id).join(",")}`, async () => (await Promise.all(clubs.map((c) => api.recruitForms(c.club_id)))).flat(), { ttl: 60e3 });
+    const maker = kit.clubsWith("forms.create")[0];
+    const create = maker ? `#/club/manage?c=${maker.club_id}&tab=forms&new=1` : "";
+    return ui.ph("Club Recruitment", "Create, manage, and track your recruitment cycles") + ui.view(fe, (forms) => {
+      const all = forms.flatMap((f) => f.form_responses || []), n = (s) => all.filter((r) => r.status === s).length;
+      const list = [...forms].sort((a, b) => (order === "new" ? 1 : -1) * (new Date(b.created_at) - new Date(a.created_at)) || 0);
+      if (order === "most") list.sort((a, b) => (b.form_responses?.length || 0) - (a.form_responses?.length || 0));
+      const ST = { open: ["Active", "blue"], closed: ["Closed", "gray"], draft: ["Draft", "amber"] };
+      return `<div class="cl-stats">${ui.stat("users", "blue", all.length, "Total Applications")}${ui.stat("clock", "green", n("pending"), "Under Review")}${ui.stat("file", "red", n("shortlisted") + n("interview"), "Shortlisted")}${ui.stat("checkc", "green", n("accepted"), "Selected")}</div>
+        ${create ? `<a class="btn primary block mt" href="${create}">${icon("plus")} Create New Recruitment</a>` : ""}
+        <div class="row between mt" style="align-items:center"><h2 class="cl-gh" style="margin:0">Recruitment Cycles</h2>${ui.select("rc-order", [["new", "Latest First"], ["old", "Oldest First"], ["most", "Most Applications"]], order)}</div>
+        ${list.length ? `<div class="rc-cycles">${list.map((f) => {
+          const c = f.clubs || {}, q = (f.fields || []).filter((x) => x.type !== "section").length, secs = (f.fields || []).filter((x) => x.type === "section").length || 1;
+          return `<a class="rc-cycle" href="#/club/recruit?form=${f.id}"><span class="rc-art">${c.cover_url ? `<img src="${esc(c.cover_url)}" alt="" loading="lazy">` : ui.logo(c, "lg")}</span>
+            <span class="min0 rc-body"><b>${esc(f.title)} ${ui.st(f.status === "closed" && (f.form_responses || []).some((r) => r.status === "accepted") ? ["Completed", "green"] : ST[f.status] || ST.draft)}</b>
+              <span>${icon("calendar", "sm")} ${ui.dateShort(f.created_at)}${f.settings?.deadline ? ` - ${ui.dateShort(f.settings.deadline)}` : ""}</span>
+              <span>${icon("users", "sm")} ${esc(c.short_name || c.name || "")} · ${esc(f.kind[0].toUpperCase() + f.kind.slice(1))}</span>
+              <span>${icon("file", "sm")} ${ui.plural(secs, "Section")} · ${ui.plural(q, "Question")}</span></span>
+            <span class="rc-n"><b>${(f.form_responses || []).length}</b><span>Applications</span></span>${icon("chevR", "sm")}</a>`; }).join("")}</div>`
+          : ui.emptyBox("edit", "No recruitment yet", create ? "Create one with the button above." : "Ask your club admin to create a recruitment form.")}`;
+    });
   }
   function list(form, rows, max) {
     const statusFor = tab === "shortlist" ? "shortlisted" : st;
@@ -83,6 +104,7 @@ export function register(pages, kit) {
   pages["club/recruit"].mount = (el) => {
     kit.bindRetry(el);
     const fid = kit.param("form"); tab = kit.param("t") || "applications";
+    kit.$('select[name="rc-order"]', el)?.addEventListener("change", (e) => { order = e.target.value; ctx.rerender(); });
     const form = store.peek(`club:form:${fid}`), rows = store.peek(`club:resp:${fid}`) || []; if (!form) return;
     const reload = () => store.invalidate(`club:resp:${fid}`);
     const input = kit.$("#rc-q", el);

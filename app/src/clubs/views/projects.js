@@ -79,7 +79,7 @@ export function register(pages, kit) {
       const manage = kit.can(p.club_id, "projects.manage"), onTeam = p.team.includes(kit.me()?.id), edit = manage || onTeam || kit.can(p.club_id, "tasks.manage");
       return `${kit.back(`#/club/projects?c=${p.club_id}`, "Projects")}
         <section class="cl-cover-lg" style="background:linear-gradient(135deg, ${esc(p.color)}, #160d4a)">${p.cover_url ? `<img src="${esc(p.cover_url)}" alt="">` : ""}${manage ? `<div class="tools"><button class="btn sm white" id="pj-edit">${icon("edit", "sm")} Edit Project</button></div>` : ""}
-          <h1>${esc(p.title)}</h1><p>${ui.st(PSTATUS[p.status])} Organized by ${esc(p.clubs?.name || "")}${p.due ? ` · Due ${ui.dateLong(p.due)}` : ""}</p></section>
+          <h1>${esc(p.title)} ${ui.st(PSTATUS[p.status])}</h1><p>Organized by ${esc(p.clubs?.name || "")}${p.due ? ` · Due ${ui.dateLong(p.due)}` : ""}</p></section>
         ${ui.seg([["overview", "Overview"], ["tasks", "Tasks"], ["team", "Team"], ["files", "Files"]], t, (v) => `#/club/project?id=${id}&tab=${v}`, "mt")}
         ${t === "overview" ? `<section class="card"><h2>About</h2><p style="color:var(--text-2)">${p.description ? ui.rich(p.description) : "<i>No description yet.</i>"}</p></section>${progressRow(tasks, s, team)}`
           : t === "team" ? `<div class="cl-list">${team.map((x) => `<a class="cl-li" href="#/club/member?c=${p.club_id}&u=${x.user_id}">${ui.ava(x.display_name, x.photo_url)}<span class="body"><b>${esc(x.display_name)}</b><span>${esc(x.title || x.role_name)}</span></span><span class="end">${tasks.filter((k) => k.assignee === x.user_id && k.status !== "done").length} open tasks</span></a>`).join("") || `<p class="small muted" style="padding:12px">No team yet.</p>`}</div>`

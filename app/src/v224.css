@@ -1,0 +1,54 @@
+/* v2.24 — second pass over the club boards: Member Management, Roles & Permissions, Recruitment, Projects, Help Centre. */
+
+/* Member profile: six facts in a 3 × 2 grid (one row squeezed every letter onto its own line). */
+.cl-facts:has(> .cl-fact:nth-child(4)) { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 8px; }
+.cl-facts:has(> .cl-fact:nth-child(4)) > .cl-fact:nth-child(3n + 1) { border-left: 0; }
+.cl-facts:has(> .cl-fact:nth-child(4)) > .cl-fact:nth-child(n + 4) { border-top: 1px solid var(--border); padding-top: 10px; }
+.cl-facts .cl-fact b { overflow-wrap: anywhere; }
+
+/* Roles: the pyramid's triangles took the white icon colour, so they were invisible. */
+.cl-pyramid .lv { --tc: #64748b; }
+.cl-pyramid .t-amber { --tc: #d97706; } .cl-pyramid .t-pink { --tc: #db2777; } .cl-pyramid .t-purple { --tc: var(--primary); }
+.cl-pyramid .t-blue { --tc: #2563eb; } .cl-pyramid .t-green { --tc: #16a34a; }
+.cl-pyramid .lv > .tri { background: var(--tc); }
+
+/* Roles: board-style cards — icon tile, name, description, permissions and users, Active. */
+.cl-rolecard > summary.rl-card { display: flex; align-items: flex-start; gap: 12px; list-style: none; cursor: pointer; }
+.cl-rolecard > summary.rl-card::-webkit-details-marker { display: none; }
+.rl-card .itile { width: 48px; height: 48px; border-radius: 14px; flex: none; }
+.rl-card .itile .icon { width: 24px; height: 24px; }
+.rl-card b { display: block; font-size: 16px; color: var(--heading, #1b1464); }
+.rl-card .d { display: block; font-size: 12.5px; color: var(--text-2); margin-top: 2px; line-height: 1.35; }
+.cl-rolecard .rl-card .m { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px; font-size: 12px; color: var(--text-2); align-items: center; }
+.cl-rolecard .rl-card .m > span { display: inline-flex; align-items: center; gap: 4px; }
+.rl-card .m .icon, .rl-card .m span .icon { color: var(--primary); vertical-align: -3px; }
+.rl-card > .st, .rl-card > .pill { flex: none; align-self: flex-start; }
+.rl-card > .icon { flex: none; margin-top: 4px; color: var(--text-3); }
+.itile.amber { background: #fef3c7; color: #d97706; }
+:root[data-theme="dark"] .itile.amber { background: rgba(217, 119, 6, .18); color: #fbbf24; }
+
+/* Club Recruitment overview: recruitment cycle cards. */
+.rc-cycles { display: grid; gap: 10px; margin-top: 10px; }
+.rc-cycle { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px; border-radius: 16px;
+  background: var(--surface); border: 1px solid var(--border); color: inherit; text-decoration: none; box-shadow: var(--sh-sm, none); }
+.rc-cycle:hover { border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); }
+.rc-art { width: 84px; height: 84px; border-radius: 12px; overflow: hidden; display: grid; place-items: center; background: linear-gradient(140deg, #1b1464, #5b3df5); }
+.rc-art img { width: 100%; height: 100%; object-fit: cover; }
+.rc-body { display: grid; gap: 3px; }
+.rc-body b { font-size: 15px; color: var(--heading, #1b1464); line-height: 1.3; }
+.rc-body > span { font-size: 12.5px; color: var(--text-2); display: flex; gap: 6px; align-items: center; }
+.rc-body > span .icon { color: var(--primary); flex: none; }
+.rc-n { text-align: center; padding-left: 10px; border-left: 1px solid var(--border); }
+.rc-n b { display: block; font-size: 20px; color: var(--heading, #1b1464); } .rc-n span { font-size: 11.5px; color: var(--text-3); }
+.rc-cycle > .icon { color: var(--primary); }
+@media (max-width: 420px) {
+  .rc-cycle { grid-template-columns: 64px minmax(0, 1fr) auto; } .rc-art { width: 64px; height: 64px; }
+  .rc-cycle > .icon { display: none; } .rc-n { padding-left: 8px; } .rc-n b { font-size: 17px; }
+}
+
+/* Project header: status pill sits beside the title, as on the board. */
+.cl-cover-lg h1 .st, .cl-cover-lg h1 .pill { font-size: 12px; vertical-align: middle; margin-left: 6px; }
+
+/* Help Centre topics: names wrap on word breaks; two columns on narrow phones. */
+.cl-folders.c3 .cl-folder b { white-space: normal; overflow-wrap: normal; word-break: normal; line-height: 1.25; }
+@media (max-width: 430px) { .cl-folders.c3.c3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

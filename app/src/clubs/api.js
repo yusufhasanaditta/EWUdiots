@@ -124,6 +124,7 @@ export function createClubApi(sb, me) {
 
     /* ── Forms ── */
     forms: async (clubId) => ok(await from("club_forms").select("*").eq("club_id", clubId).order("created_at", { ascending: false })),
+    recruitForms: async (clubId) => ok(await from("club_forms").select("id, club_id, kind, title, settings, status, fields, created_at, form_responses(status), clubs(name, short_name, logo_url, cover_url, color)").eq("club_id", clubId).order("created_at", { ascending: false })),
     openForms: async () => ok(await from("club_forms").select("id, club_id, kind, title, settings, status, clubs!inner(slug, name, short_name, logo_url, color)").eq("status", "open").order("created_at", { ascending: false }).limit(60)),
     form: async (id) => ok(await from("club_forms").select("*, clubs(id, slug, name, short_name, logo_url, color, wings)").eq("id", id).maybeSingle()),
     createForm: async (row) => ok(await from("club_forms").insert({ ...row, created_by: uid() }).select().single()),

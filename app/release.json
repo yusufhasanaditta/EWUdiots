@@ -1,10 +1,10 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "New: Course outline. Upload the PDF or photos on any course to get topics, marks, grading and exam dates",
-    "Tick off topics; send exam dates to Exams and the mark split to the Marks estimator",
-    "Completed courses show every finished semester, including your first; add courses and grades yourself",
-    "Club pages: action beside the title, number tiles in one row, scanner beside manual check-in"
+    "Club Recruitment overview: totals, a create button and every recruitment cycle with its applications",
+    "Roles & Permissions: role cards with permission and user counts; the role hierarchy shows its colours again",
+    "Member profile details are readable again (they were squeezed into one row)",
+    "Help Centre topics no longer cut words; project status sits beside the title"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"
