@@ -4,6 +4,7 @@
 export const CAL_SOURCE = "https://www.ewubd.edu/academic-calendar";
 const NAMED = { nbsp: " ", quot: '"', ldquo: '"', rdquo: '"', rsquo: "'", lsquo: "'", apos: "'", ndash: "–", mdash: "—", hellip: "…", lt: "<", gt: ">", amp: "&" };
 const decode = (s) => s.replace(/&(#\d+|#x[\da-f]+|[a-z]+);/gi, (m, e) => (e[0] === "#" ? String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : Number(e.slice(1))) : NAMED[e.toLowerCase()] ?? " "));
+export const pageText = (h) => text(h);
 const text = (h) => decode(String(h).replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")).replace(/[ \t\r]+/g, " ").replace(/\s*\n\s*/g, "\n").trim();
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 const TERM_START = { spring: 0, summer: 4, fall: 8 }; // first month of each semester (0-based)

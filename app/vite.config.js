@@ -5,6 +5,7 @@ import { gunzipSync } from "node:zlib";
 import { fetchNotices, parseNotices, NOTICE_SOURCE } from "./src/notices.js";
 import { fetchNews, parseNews, NEWS_SOURCE } from "./src/news.js";
 import { fetchCalendar, parseCalendarPage, parseFinals, CAL_SOURCE } from "./src/acadcal.js";
+import { fetchFlowchart, parseFlowchart, FLOWCHARTS } from "./src/flowchart.js";
 
 /* /api/notices and /api/news outside Vercel (vite dev + preview), same data as api/*.js.
    Tests set NOTICES_FIXTURE / NEWS_FIXTURE to saved pages so they don't depend on ewubd.edu. */
@@ -19,6 +20,16 @@ const ewuApi = () => {
   const cache = {};
   const handle = async (req, res, next) => {
     const path = req.url.split("?")[0], f = feeds[path];
+    if (path === "/api/flowchart") { // FLOWCHART_FIXTURE: a saved program page (tests)
+      const p = new URLSearchParams(req.url.split("?")[1] || "").get("p") || "";
+      res.setHeader("content-type", "application/json");
+      if (!Object.hasOwn(FLOWCHARTS, p)) { res.statusCode = 400; return res.end(JSON.stringify({ error: "Unknown program" })); }
+      try {
+        const fx = process.env.FLOWCHART_FIXTURE;
+        cache[req.url] = cache[req.url] || (fx ? { key: p, name: FLOWCHARTS[p].name, source: FLOWCHARTS[p].url, semesters: parseFlowchart(readFileSync(fx, "utf8")) } : await fetchFlowchart(p));
+        return res.end(JSON.stringify(cache[req.url]));
+      } catch (e) { res.statusCode = 502; return res.end(JSON.stringify({ error: String(e.message), semesters: [] })); }
+    }
     if (!f) return next();
     res.setHeader("content-type", "application/json");
     try {

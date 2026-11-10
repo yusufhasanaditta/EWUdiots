@@ -194,5 +194,5 @@ export function install(ctx) {
     const list = upcoming(3); if (!list.length) return "";
     return `<section class="card mt"><div class="card-h"><h2><span class="itile sm red">${icon("calendar")}</span> EWU calendar</h2><a class="see" href="#/calendar">Open</a></div>${list.map((e) => { const [ic, tone] = LOOK[e.kind] || LOOK.other; return `<a class="lrow" href="#/calendar"><span class="itile ${tone}">${icon(ic)}</span><span class="body"><b class="ellipsis">${esc(e.title)}</b><span>${span(e)} · ${inDays(e.start)}</span></span></a>`; }).join("")}</section>`;
   };
-  return { isOff, offReason, runs: (day) => rules().runs(day), classesOn, semInfo, sessionsFor, breaks, upcoming, myFinals, reminderItems, homeCard, refresh, on, short, ready: () => Boolean(data) };
+  return { allEvents: events, isOff, offReason, runs: (day) => rules().runs(day), classesOn, semInfo, sessionsFor, breaks, upcoming, myFinals, reminderItems, homeCard, refresh, on, short, ready: () => Boolean(data) };
 }

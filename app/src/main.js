@@ -16,6 +16,7 @@ import "./v223.css";
 import "./v224.css";
 import "./v225.css";
 import "./v226.css";
+import "./v227.css";
 import { start as startDropdowns } from "./dropdown.js";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";
@@ -44,6 +45,7 @@ import { install as installInsights } from "./ui-insights.js";
 import { install as installAttendance } from "./ui-attendance.js";
 import { install as installSecurity } from "./ui-security.js";
 import { install as installClubs } from "./clubs/index.js";
+import { install as installMotion } from "./motion.js";
 import { createContent, FEATURES } from "./content.js";
 import { applyBrand } from "./theme.js";
 import { snapshot, stamp, merge } from "./syncmerge.js";
@@ -61,7 +63,7 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 /* ───────────── State ───────────── */
 const KEY = "ewudiots.v2";
 const blank = () => ({
-  profile: null, routine: [], routineSem: "", grades: [], tasks: [], attendance: {}, marks: {},
+  profile: null, routine: [], routineSem: "", dropped: [], grades: [], tasks: [], attendance: {}, marks: {},
   faculty: {}, payments: { schedule: [], fees: {} }, degree: [], rules: {}, recommended: [],
   planner: { courses: [], pins: {}, offered: null, offeredSem: "", filters: { noEarly: false, hideFull: true, daysOff: [] }, saved: [] },
   localReviews: {}, theme: "auto", cover: {}, settings: { remindMin: 10, notify: false, alarms: { on: true, offsets: [10], perCourse: {}, ring: true } }, demo: false, lastSync: null, updatedAt: 0,
@@ -102,6 +104,7 @@ const loadDirectory = () => (dirP = dirP || fetch("/data/faculty.json").then((r)
 addEventListener("error", (e) => { const t = e.target; if (t.tagName === "IMG" && t.closest(".face")) t.remove(); }, true);
 let study = null; // study-mode API, installed at boot (src/study.js)
 let clubs = null, charts = null, attendanceUi = null, campus = null, idcard = null, notices = null, community = null, people = null, events = null, acal = null, materials = null;
+const motion = installMotion();
 const content = createContent(cloud); // admin-managed posts, settings, overrides // campus map + ID card APIs (src/ui-map.js, src/ui-idcard.js)
 async function pushNow() {
   if (!C.user) return false;
@@ -314,6 +317,7 @@ function renderNav(route) {
     ? `<button class="fab" id="fab" type="button" aria-label="Quick add"><span class="fab-btn">${icon("plus")}</span></button>`
     : `<a href="#/${id}" ${active === id || (id === "more" && !B.some((b) => b[0] === active)) ? 'aria-current="page"' : ""}>${icon(ic)}<span>${l}</span></a>`).join("");
   $("#fab").addEventListener("click", quickAdd);
+  motion.nav();
 }
 const roleLabel = () => ({ student: "Student", faculty: "Faculty member", alumni: "Alumni" }[S.role] || "Student");
 function quickAdd() {
@@ -436,6 +440,7 @@ function route({ animate = false } = {}) {
     target.innerHTML = `<div class="${changed && !viewTx ? "page-in" : ""}" data-page="${id}">${html}</div>`;
     if (!ok) { target.querySelector("[data-reload]")?.addEventListener("click", () => location.reload()); return; }
     try { (pages[id].mount || (() => {}))(target); } catch (e) { console.error(e); }
+    motion.enhance(target, id, changed);
   };
   // Background tabs throttle animation frames, so a transition there could hold taps for seconds; skip it.
   const viewTx = animate && changed && document.startViewTransition && !prefersReduced() && !modalOpen() && lastPainted !== null && document.visibilityState === "visible";
@@ -709,7 +714,7 @@ async function restoreOrBackup(user) {
 /* ───────────── Boot ───────────── */
 const ctx = {
   get S() { return S; }, resetState, pages, save, rerender, route: () => currentRoute, go, qparam, toast, openModal, closeModal, modalHead, confirmModal, modalOpen, busy,
-  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, get events() { return events; }, get acal() { return acal; }, get attendance() { return attendanceUi; }, get charts() { return charts; }, get materials() { return materials; }, get sync() { return sync; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
+  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, get events() { return events; }, get acal() { return acal; }, motion, get attendance() { return attendanceUi; }, get charts() { return charts; }, get materials() { return materials; }, get sync() { return sync; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
   afterSignIn: () => signInDone, LETTER, toMin, fmt12, fmtShort, dayIdx, expand, overlaps, toneFor, colorFor, HEX, TONES, gradePoint, cgpaOf, fmtMoney, fmtCountdown, daysUntil, fmtDate, firstName, initials, myAvatar, greeting,
   nextClass, nextPayment, markAttendance, facultyIndex, facBy, facName, offered, sectionBlocks, roomData, freeRoomsAt, baseRoom, enableNotifications, taskLine, duePill, TASK_IC, inbox, loadDemo, onSignedIn,
   isDark, applyTheme, palette, roleLabel, navFor, nextSemesterGuess, DAY_NAMES, WEEK, SLOTS, GRADES, NON_GPA, DEMO, cleanDegree, parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey

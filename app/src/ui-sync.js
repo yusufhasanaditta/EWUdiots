@@ -215,7 +215,10 @@ export function install(ctx) {
     const pf = Object.fromEntries(Object.entries(p.profile).filter(([, v]) => v !== "" && v !== undefined));
     ["cgpa", "creditsDone", "creditsTotal"].forEach((k) => { if (pf[k] !== undefined) pf[k] = Number(pf[k]) || undefined; });
     St.profile = Object.assign({ name: "Student", id: "", creditsTotal: 140, semester: ctx.currentSemester() }, St.profile || {}, pf, { source: p.source });
-    if (p.routine.length) { St.routine = p.routine; St.routineSem = p.sem || ctx.currentSemester(); }
+    if (p.routine.length) {
+      const sem = p.sem || ctx.currentSemester(), gone = new Set((St.dropped || []).filter((d) => d.sem === sem).map((d) => d.code));
+      St.routine = p.routine.filter((r) => !gone.has(r.code)); St.routineSem = sem; // courses dropped in EWUdiots stay dropped
+    }
     // Every semester's classes (course history, faculty per course) and the portal's semester dates (attendance).
     if (p.history && Object.keys(p.history).length) St.history = { ...(St.history || {}), ...Object.fromEntries(Object.entries(p.history).map(([sem, rows]) => [sem, rows.map(({ id, keep, ...r }) => r)])) };
     if (p.semDates && Object.keys(p.semDates).length) St.semDates = { ...(St.semDates || {}), ...p.semDates };

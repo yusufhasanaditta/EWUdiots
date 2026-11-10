@@ -4,6 +4,7 @@
 import { confetti, chime, ambient, ambientOn } from "./art.js";
 import { degreeStatus, roadmap, nextSem, latestGrades } from "./degreeplan.js";
 import { createOutline } from "./ui-outline.js";
+import { install as installSemesters } from "./ui-semesters.js";
 
 export const studyDefaults = () => ({
   sessions: [], days: {}, goal: 120, xp: 0, ev: {}, cards: [], prep: {}, notes: {}, links: {},
@@ -27,6 +28,7 @@ const TIPS = [
 
 export function install(ctx) {
   const { pages, icon, esc, uid, $, $$, toast, openModal, closeModal, modalHead, confirmModal } = ctx;
+  const semUi = installSemesters(ctx);
   const S = () => ctx.S;
   // Same object every call (S itself may be replaced on restore/clear, so look it up each time).
   const st = () => { const s = ctx.S; if (!s.study || !Array.isArray(s.study.cards) || !s.study.days) s.study = Object.assign(studyDefaults(), s.study || {}); return s.study; };
@@ -530,7 +532,7 @@ export function install(ctx) {
   function plan12(St, rows, curCodes, plan) {
     const cur = St.routineSem || ctx.currentSemester(), own = (St.plan12 = St.plan12 || {});
     const auto = Object.fromEntries(plan.map((p) => [p.sem, p.courses.map((c) => ({ code: c.code, title: c.title, cr: c.cr }))]));
-    const cr = (code) => Number((St.curriculum || []).find((c) => c.code === code)?.cr) || 3;
+    const cr = semUi.crOf;
     let sem = firstSem(St, rows);
     const out = [];
     for (let i = 0; i < 12; i++, sem = nextSem(sem)) {
@@ -541,12 +543,7 @@ export function install(ctx) {
         : own[sem] ? own[sem].map((c) => ({ code: c, cr: cr(c), title: (St.curriculum || []).find((x) => x.code === c)?.title || "" })) : auto[sem] || [];
       out.push({ n: i + 1, sem, state, courses, mine: !!own[sem] });
     }
-    return `<div class="row between mt wrap" style="gap:8px"><p class="small muted" style="margin:0">Four years, three semesters a year. Done semesters come from your grades; future ones from your curriculum.</p>
-        <button class="btn sm primary" id="p12-auto">${icon("sparkle", "sm")} Auto-plan</button></div>
-      <div class="plan12 mt">${out.map((s) => `<section class="card ${s.state}"><h3><span>${s.n}. ${esc(s.sem)}</span><span class="xs">${s.state === "done" ? "Done" : s.state === "now" ? "Now" : s.mine ? "Your plan" : s.courses.length ? "Auto" : "Free"}</span></h3>
-          ${s.courses.length ? s.courses.map((c) => `<div class="pc"><span><b>${esc(c.code)}</b>${c.title ? ` <span class="xs">${esc(c.title)}</span>` : ""}</span><span class="xs num">${c.g ? esc(c.g) : c.cr !== "" ? `${c.cr} cr` : ""}</span></div>`).join("") : `<p class="xs">${s.state === "done" ? "No courses synced for this semester." : "Nothing planned."}</p>`}
-          ${s.state === "done" ? `<button class="btn sm ghost mt-s" data-addsem="${esc(s.sem)}">${icon(s.courses.length ? "edit" : "plus", "sm")} ${s.courses.length ? "Edit" : "Add courses"}</button>` : ""}
-          ${s.state === "next" ? `<button class="btn sm ghost mt-s" data-p12="${esc(s.sem)}">${icon("edit", "sm")} Edit</button>` : ""}</section>`).join("")}</div>`;
+    return `${Object.keys(own).length ? `<div class="row between mt wrap" style="gap:8px"><p class="small muted" style="margin:0">Some future semesters use your own plan.</p><button class="btn sm ghost" id="p12-auto">${icon("sparkle", "sm")} Reset to auto-plan</button></div>` : ""}${semUi.render(out)}`;
   }
   function editPlan12(sem) {
     const St = S(), own = (St.plan12 = St.plan12 || {}), cur = own[sem] || [];
@@ -584,7 +581,7 @@ export function install(ctx) {
     const doneCard = (r) => { const p = pastCourse(r.code); return `<a class="ccard done" href="#/course?c=${encodeURIComponent(r.code)}" style="--cc:${ctx.colorFor(r.code)}"><div class="row between nowrap"><h3>${esc(r.code)}</h3><span class="grade-chip g-${esc(r.g ? r.g.replace("+", "p").replace("-", "m") : "na")}">${esc(r.g || "Pending")}</span></div><div class="t">${esc(r.title || p?.title || "")}</div><p class="xs mt-s">${r.cr !== "" ? `${r.cr} credits` : "Credits after grade sync"}${p?.faculty ? ` · ${esc(ctx.facName(p.faculty))}` : ""}${p?.sec ? ` · Sec ${esc(p.sec)}` : ""}</p></a>`; };
     const leftCard = (c, needs) => `<div class="ccard left" style="--cc:${ctx.colorFor(c.code)}"><div class="row between nowrap"><h3>${esc(c.code)}</h3><span class="pill">${c.cr} cr</span></div><div class="t">${esc(c.title || "")}</div>${needs?.length ? `<p class="xs mt-s">${icon("lock", "sm")} Needs ${needs.map(esc).join(", ")}</p>` : `<p class="xs mt-s" style="color:var(--success-t)">${icon("checkc", "sm")} You can take it next</p>`}</div>`;
     let body = "";
-    if (coTab === "ongoing") body = cur.length ? `<div class="grid g2 mt">${cur.map(card).join("")}</div>` : `<div class="card mt">${ctx.empty("icon:book", "No courses this semester", "Sync your class schedule to see your courses.", `<a class="btn primary" href="#/sync">Sync portal</a>`)}</div>`;
+    if (coTab === "ongoing") body = (cur.length ? `<div class="grid g2 mt">${cur.map(card).join("")}</div>` : `<div class="card mt">${ctx.empty("icon:book", "No courses this semester", "Sync your class schedule to see your courses.", `<a class="btn primary" href="#/sync">Sync portal</a>`)}</div>`) + semUi.semesterTools();
     else if (coTab === "completed") {
       const rows = pastRows(St, ds);
       const bySem = {}; rows.forEach((r) => (bySem[r.sem || "Earlier"] = bySem[r.sem || "Earlier"] || []).push(r));
@@ -610,7 +607,7 @@ export function install(ctx) {
     return `${ctx.demoBanner()}${ctx.head("My Courses", "Everything you've done, what's on now, and what's left until graduation.", `<span class="pill" style="padding:8px 12px">${esc(St.routineSem || ctx.currentSemester())}</span>`)}
       <section class="deg-hero fx-rise"><i class="sheen" aria-hidden="true"></i><div class="ring lg" style="--p:${pct}"><div><b>${pct}%</b><span>of degree</span></div></div>
         <div class="deg-stats">${[["Credits earned", `${earned} / ${total}`], ["Courses done", ds.done.length], ["This semester", cur.length], [St.curriculum?.length ? "Courses left" : "Credits left", St.curriculum?.length ? ds.left.length : leftCr], ["Graduation", gradSem || "—"]].map(([l, v]) => `<div><span>${l}</span><b class="num">${esc(String(v))}</b></div>`).join("")}</div></section>
-      <div class="mt">${ctx.seg([["ongoing", "This semester"], ["completed", "Completed"], ["left", "Still to take"], ["roadmap", "Road map"], ["plan12", "12-semester plan"]], coTab, "data-co")}</div>
+      <div class="mt">${ctx.seg([["ongoing", "This semester"], ["plan12", "Semesters"], ["completed", "Completed"], ["left", "Still to take"], ["roadmap", "Road map"]], coTab, "data-co")}</div>
       ${body}
       <div class="row mt"><a class="btn outline" href="#/marks">${icon("percent")} Marks &amp; Attendance Estimator</a><a class="btn outline" href="#/planner">${icon("calcheck")} Advising planner</a></div>`;
   };
@@ -620,6 +617,7 @@ export function install(ctx) {
     $$("[data-p12]", el).forEach((b) => b.addEventListener("click", () => editPlan12(b.dataset.p12)));
     $$("[data-addsem]", el).forEach((b) => b.addEventListener("click", () => addSemester(b.dataset.addsem)));
     $("#co-per", el)?.addEventListener("change", (e) => { S().settings.perSem = Number(e.target.value); ctx.save(); ctx.rerender(); });
+    semUi.mount(el, { addSemester, editPlan12 }); semUi.mountTools(el);
   };
   const safeUrl = (u) => (/^https?:\/\/[^\s"'<>]+$/i.test(u) ? u : "");
   let chTab = "overview";

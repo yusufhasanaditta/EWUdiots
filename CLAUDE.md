@@ -38,12 +38,14 @@ Capacitor, backed by Supabase (Postgres + Auth + Storage + Realtime), hosted on 
 
 ## Design rules (see DESIGN.md)
 
-- Use the tokens; flat colour only — no gradient backgrounds, gradient text or glow blobs.
+- Use the tokens. Premium look: gradients, glow, aurora blobs and 3D are allowed on surfaces as DESIGN.md §2/§6 say;
+  never gradient text or blobs behind reading text.
 - SVG icons from the icon set, never emoji as icons. One primary action per section.
 - Touch targets ≥ 44×44px on phones, 24×24px minimum anywhere; visible `:focus-visible` rings.
 - Never disable zoom (`user-scalable=no`, `maximum-scale=1`), never block paste, never `transition: all`.
 - Every async button shows a busy state (`ctx.busy(btn, true)`) until the request ends.
-- Honour `prefers-reduced-motion`; animate transform/opacity only.
+- Honour `prefers-reduced-motion`; animate transform/opacity only. Reuse `motion.js` patterns (reveal, sliding
+  indicator, tilt, coverflow) instead of writing new animation code.
 - After UI changes: render the screen (club-shots or the Playwright MCP in `.mcp.json`), screenshot phone (393px) and
   desktop (1366px), and fix overflow, overlapping text, clipped buttons and horizontal scroll before finishing.
 
