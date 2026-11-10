@@ -34,8 +34,7 @@ export function install() {
   };
 
   function segs(root, page) {
-    if (document.body.dataset.mode === "club") return; // club screens have their own tab style
-    root.querySelectorAll(".seg").forEach((seg, i) => {
+    root.querySelectorAll(".seg, .cl-seg").forEach((seg, i) => {
       showChosen(seg);
       thumb(seg, `seg|${page}|${i}`, ':scope > [aria-selected="true"], :scope > [aria-current="page"], :scope > [aria-pressed="true"]');
     });
@@ -66,10 +65,12 @@ export function install() {
 
   /* 3D tilt: follows the pointer on desktop. Hero cards opt in with data-tilt. */
   function tilt(root) {
-    if (still() || !fine) return;
+    if (still()) return;
     root.querySelectorAll("[data-tilt]").forEach((el) => {
       if (el._tilt) return; el._tilt = true;
-      el.addEventListener("animationend", () => { el.style.animation = "none"; }, { once: true }); // the rise-in would hold transform
+      // The rise-in animation would hold transform; drop it once it ends so tilt can move the card.
+      el.addEventListener("animationend", (e) => { if (e.target === el) el.style.animation = "none"; });
+      if (!fine) return hello(el);
       el.addEventListener("pointermove", (e) => {
         const r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
         el.classList.add("is-tilting"); el.style.setProperty("--ry", (x * 8).toFixed(2) + "deg"); el.style.setProperty("--rx", (y * -6).toFixed(2) + "deg");
@@ -77,6 +78,18 @@ export function install() {
       });
       el.addEventListener("pointerleave", () => { el.classList.remove("is-tilting"); el.style.setProperty("--ry", "0deg"); el.style.setProperty("--rx", "0deg"); });
     });
+  }
+
+  /* Phones have no hover: a gentle one-time tilt when the card comes into view shows it's 3D. */
+  function hello(el) {
+    if (!("IntersectionObserver" in window)) return;
+    const once = new IntersectionObserver((en) => {
+      if (!en[0].isIntersecting) return;
+      once.disconnect();
+      setTimeout(() => { el.style.setProperty("--ry", "-8deg"); el.style.setProperty("--rx", "5deg"); }, 450);
+      setTimeout(() => { el.style.setProperty("--ry", "0deg"); el.style.setProperty("--rx", "0deg"); }, 1250);
+    }, { threshold: 0.6 });
+    once.observe(el);
   }
 
   /* Big numbers count up from 0 the first time a screen opens: <b data-count="3.54">3.54</b>. */
@@ -94,7 +107,8 @@ export function install() {
      Returns goto(i) to centre a slide. */
   function coverflow(track, onCenter, start = 0) {
     const slides = [...track.children];
-    let raf = 0, best = -1;
+    let raf = 0, best = -1, focus = start;
+    const flat = () => track.scrollWidth <= track.clientWidth + 2; // every slide fits: no 3D, the highlight moves instead
     const paint = () => {
       raf = 0;
       const mid = track.scrollLeft + track.clientWidth / 2;
@@ -102,17 +116,23 @@ export function install() {
       slides.forEach((s, i) => {
         const d = (s.offsetLeft + s.offsetWidth / 2 - mid) / s.offsetWidth;
         if (Math.abs(d) < bd) { bd = Math.abs(d); b = i; }
-        if (reduce()) return;
+        if (reduce() || flat()) { ["--ry", "--s", "--o"].forEach((p) => s.style.removeProperty(p)); return; }
         const k = Math.max(-1.5, Math.min(1.5, d));
         s.style.setProperty("--ry", (k * -28).toFixed(2) + "deg");
         s.style.setProperty("--s", (1 - Math.min(Math.abs(k), 1) * 0.12).toFixed(3));
         s.style.setProperty("--o", (1 - Math.min(Math.abs(k), 1) * 0.4).toFixed(3));
       });
+      if (flat()) b = focus;
       slides.forEach((s, i) => s.classList.toggle("is-center", i === b));
       if (b !== best) { const first = best < 0; best = b; if (!first) onCenter?.(b); }
     };
-    const goto = (i, smooth = true) => { const s = slides[Math.max(0, Math.min(slides.length - 1, i))]; if (s) track.scrollTo({ left: s.offsetLeft - (track.clientWidth - s.offsetWidth) / 2, behavior: smooth && !reduce() ? "smooth" : "auto" }); };
+    const goto = (i, smooth = true) => {
+      i = Math.max(0, Math.min(slides.length - 1, i));
+      if (flat()) { focus = i; return paint(); }
+      const s = slides[i]; track.scrollTo({ left: s.offsetLeft - (track.clientWidth - s.offsetWidth) / 2, behavior: smooth && !reduce() ? "smooth" : "auto" });
+    };
     track.addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(paint); }, { passive: true });
+    addEventListener("resize", () => { if (!raf) raf = requestAnimationFrame(paint); });
     goto(start, false); best = start; paint();
     return goto;
   }
@@ -125,6 +145,19 @@ export function install() {
       thumb(document.getElementById("bottom-nav"), "bnav", ':scope > a[aria-current="page"]', "mo-pill");
       thumb(document.getElementById("side-nav"), "side", ':scope > a[aria-current="page"]', "mo-pill");
     },
-    segs, coverflow
+    /* App shell, once: the phone top bar hides while scrolling down and returns on the way up; an invalid form
+       field shakes so it's easy to spot. */
+    chrome() {
+      const bar = document.querySelector(".topbar");
+      let lastY = scrollY;
+      addEventListener("scroll", () => {
+        const y = scrollY;
+        if (bar && innerWidth <= 960 && !reduce() && y > 120 && y > lastY + 6) bar.classList.add("bar-hide");
+        else if (bar && (y < lastY - 6 || y < 120)) bar.classList.remove("bar-hide");
+        lastY = y;
+      }, { passive: true });
+      document.addEventListener("invalid", (e) => { const f = e.target; if (reduce() || !f.classList) return; f.classList.remove("shake"); void f.offsetWidth; f.classList.add("shake"); }, true);
+    },
+    segs, coverflow, tilt, still
   };
 }

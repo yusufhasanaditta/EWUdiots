@@ -1,11 +1,10 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "A fresh premium look: gradients, smooth animations, 3D cards and sliding tabs across the app",
-    "New Semesters view: swipe through your 12 semesters next to EWU's official course plan",
-    "See which official courses are done, this semester, planned or still to catch up",
-    "Drop a course: see today's refund, credit change and graduation effect, with undo",
-    "Courses you drop stay dropped after a portal sync; email your advisor in one tap"
+    "New floating tab bar with a sliding highlight; the top bar tucks away while you scroll",
+    "Smoother everywhere: cards slide in, tabs glide, hero cards tilt in 3D, including EWUdiots Club",
+    "Form fields you missed give a little shake so you can spot them",
+    "New website: flip-board headline and swipeable 3D feature cards"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

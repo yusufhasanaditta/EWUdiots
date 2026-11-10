@@ -66,9 +66,61 @@ if (liquid && !matchMedia("(prefers-reduced-motion: reduce)").matches) addEventL
 }, { passive: true });
 fetch("/data/faculty.json").then((r) => r.json()).then((j) => { const s = $("#stat-fac"); if (s && j.count) s.textContent = String(j.count); }).catch(() => {});
 
-// Sticky header shadow after scrolling.
+// Sticky header: shadow after scrolling; on phones it hides while scrolling down and returns on the way up.
 const top = $(".top");
-addEventListener("scroll", () => top && top.classList.toggle("scrolled", scrollY > 8), { passive: true });
+let lastY = scrollY;
+addEventListener("scroll", () => {
+  if (!top) return;
+  const y = scrollY;
+  top.classList.toggle("scrolled", y > 8);
+  if (innerWidth < 768 && y > 120 && y > lastY + 6) top.classList.add("hide");
+  else if (y < lastY - 6 || y < 120) top.classList.remove("hide");
+  lastY = y;
+}, { passive: true });
+
+/* Hero (from the Language Hub project): a split-flap word synced with a 3D coverflow of feature cards. The cards
+   advance on their own until the visitor touches them; course codes float at three depths and the headline lifts
+   away on scroll. motion.js is the same motion layer the app uses. */
+import { install as installMotion } from "./motion.js";
+const motion = installMotion();
+const hero = $("[data-hero]");
+if (hero) {
+  const reduce = motion.still();
+  const flap = hero.querySelector("[data-flap]"), track = hero.querySelector("[data-track]"), dotsBox = hero.querySelector("[data-dots]");
+  const words = flap.dataset.words.split("|"), colors = flap.dataset.colors.split("|");
+  const [top0, bot0, flyTop, flyBot] = flap.querySelectorAll(".flap-face");
+  const face = (el, i) => { el.textContent = words[i]; el.style.setProperty("--c", colors[i]); };
+  let cur = 0, busy = false, queued = null, took = false;
+  const show = (i) => { face(top0, i); face(bot0, i); hero.style.setProperty("--tone", colors[i]); };
+  function flipTo(i) {
+    if (i === cur) return;
+    if (busy) { queued = i; return; }
+    if (reduce) { cur = i; return show(i); }
+    busy = true;
+    face(flyTop, cur); face(top0, i); face(flyBot, i); // old top half falls, the new bottom half swings down
+    flap.classList.remove("is-flipping"); void flap.offsetWidth; flap.classList.add("is-flipping");
+    hero.style.setProperty("--tone", colors[i]);
+    setTimeout(() => { face(bot0, i); flap.classList.remove("is-flipping"); cur = i; busy = false; if (queued !== null) { const q = queued; queued = null; flipTo(q); } }, 620);
+  }
+  const dots = words.map((w, i) => { const d = Object.assign(document.createElement("button"), { type: "button" }); d.setAttribute("aria-label", w); d.addEventListener("click", () => { took = true; go(i); }); dotsBox.append(d); return d; });
+  const center = (i) => { dots.forEach((d, k) => d.classList.toggle("is-on", k === i)); flipTo(i); };
+  // Start on the second card so a neighbour peeks out on both sides ("swipe me").
+  const first = innerWidth < 1180 ? 1 : 0;
+  cur = first; show(first); dots[first].classList.add("is-on");
+  const go = motion.coverflow(track, center, first);
+  ["pointerdown", "wheel", "keydown", "touchstart"].forEach((ev) => track.addEventListener(ev, () => { took = true; }, { passive: true }));
+  if (!reduce) {
+    setInterval(() => { if (!took && !document.hidden && scrollY < hero.offsetHeight) go((cur + 1) % words.length); }, 3200);
+    let ticking = false;
+    const onScroll = () => { ticking = false; hero.style.setProperty("--p", Math.min(1, Math.max(0, scrollY / (hero.offsetHeight * 0.8))).toFixed(3)); };
+    addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
+    if (matchMedia("(hover: hover)").matches) hero.addEventListener("pointermove", (e) => {
+      const r = hero.getBoundingClientRect();
+      hero.style.setProperty("--mx", ((e.clientX - r.left) / r.width - 0.5).toFixed(3)); hero.style.setProperty("--my", ((e.clientY - r.top) / r.height - 0.5).toFixed(3));
+    });
+  }
+}
+motion.tilt(document);
 
 if ("serviceWorker" in navigator && import.meta.env.PROD) navigator.serviceWorker.register("/sw.js").catch(() => {});
 

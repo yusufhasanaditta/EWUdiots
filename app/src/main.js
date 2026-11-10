@@ -17,6 +17,7 @@ import "./v224.css";
 import "./v225.css";
 import "./v226.css";
 import "./v227.css";
+import "./v228.css";
 import { start as startDropdowns } from "./dropdown.js";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";
@@ -105,6 +106,7 @@ addEventListener("error", (e) => { const t = e.target; if (t.tagName === "IMG" &
 let study = null; // study-mode API, installed at boot (src/study.js)
 let clubs = null, charts = null, attendanceUi = null, campus = null, idcard = null, notices = null, community = null, people = null, events = null, acal = null, materials = null;
 const motion = installMotion();
+motion.chrome();
 const content = createContent(cloud); // admin-managed posts, settings, overrides // campus map + ID card APIs (src/ui-map.js, src/ui-idcard.js)
 async function pushNow() {
   if (!C.user) return false;
@@ -305,7 +307,7 @@ function renderNav(route) {
   const p = S.profile;
   $("#side-user").innerHTML = `${myAvatar("sm")}<div class="grow min0"><b class="ellipsis">${esc(p?.name || "Set up profile")}</b><span class="ellipsis" style="display:block">${esc(p ? (p.program || p.department || roleLabel()) : "Tap to start")}</span></div>${icon("chevR", "sm")}`;
   // EWUdiots Club (#/club/…) has its own navigation; everything else uses the app's.
-  if (clubs?.owns(route)) return clubs.renderNav(route);
+  if (clubs?.owns(route)) { clubs.renderNav(route); return motion.nav(); }
   clubs?.leave();
   const active = SUB[route] || route;
   const dueSoon = S.tasks.filter((t) => !t.done && new Date(t.due) - Date.now() < 3 * 864e5 && new Date(t.due) > Date.now()).length;

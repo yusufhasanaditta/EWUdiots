@@ -17,6 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Caveat:wght@600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/src/site.css">
+  <link rel="stylesheet" href="/src/site-motion.css">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -63,35 +64,51 @@
   </header>
 
   <main>
-    <section class="hero">
+    <section class="hero hero2" data-hero>
       <div class="liquid" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-      <div class="wrap">
-        <div>
-          <a class="chip" href="#campus"><b>NEW</b> <span data-cms="hero_chip">3D campus map, live EWU notices &amp; ID pass</span> <svg class="i inline"><use href="#i-arrow"/></svg></a>
-          <h1><span data-cms="hero_title">Your whole EWU life,</span> <span class="hl"><span data-cms="hero_highlight">in one app.</span><svg viewBox="0 0 300 16" preserveAspectRatio="none" aria-hidden="true"><path d="M4 11c70-8 180-10 292-4" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg></span></h1>
-          <p class="lead" data-cms="hero_lead">Sync your portal once and EWUdiots builds your routine, CGPA and fee reminders. Find any room in a 3D campus, see official notices the moment they're posted, and look up every teacher.</p>
-          <div class="cta">
-            <a class="btn primary lg" href="/app.html"><svg class="i"><use href="#i-globe"/></svg> Open the web app</a>
-            <a class="btn lg" href="/download/android" download><svg class="i"><use href="#i-play"/></svg> Download for Android</a>
-          </div>
-          <ul class="trust">
-            <li><svg class="i"><use href="#i-checkc"/></svg> Free for every student</li>
-            <li><svg class="i"><use href="#i-checkc"/></svg> Portal password never stored</li>
-            <li><svg class="i"><use href="#i-checkc"/></svg> Works offline</li>
-          </ul>
-          <div class="stats" aria-label="EWUdiots in numbers">
-            <div><b id="stat-fac">400+</b><span>faculty profiles with photos</span></div>
-            <div><b>8</b><span>campus blocks mapped in 3D</span></div>
-            <div><b id="stat-notice">Live</b><span>official EWU notices</span></div>
-          </div>
+      <div class="sky" aria-hidden="true">
+        <span style="--x:5%;--y:12%;--fs:26px;--d:1;--dl:0s">CSE207</span>
+        <span style="--x:86%;--y:9%;--fs:44px;--d:3;--dl:-3s">A+</span>
+        <span style="--x:78%;--y:40%;--fs:22px;--d:2;--dl:-6s">AB2-702</span>
+        <span style="--x:9%;--y:46%;--fs:38px;--d:3;--dl:-2s">3.54</span>
+        <span style="--x:44%;--y:3%;--fs:18px;--d:1;--dl:-8s">MAT205</span>
+        <span style="--x:64%;--y:20%;--fs:20px;--d:2;--dl:-5s">ST 08:30</span>
+        <span style="--x:22%;--y:26%;--fs:16px;--d:1;--dl:-9s">Fall 2026</span>
+      </div>
+      <div class="wrap hero2-in" data-hero-fade>
+        <a class="chip" href="#campus"><b>NEW</b> <span data-cms="hero_chip">3D campus map, live EWU notices &amp; ID pass</span> <svg class="i inline"><use href="#i-arrow"/></svg></a>
+        <h1><span data-cms="hero_title">Your whole EWU life,</span> <span class="hl"><span data-cms="hero_highlight">in one app.</span><svg viewBox="0 0 300 16" preserveAspectRatio="none" aria-hidden="true"><path d="M4 11c70-8 180-10 292-4" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg></span></h1>
+        <p class="flap-row"><span>Start with your</span>
+          <span class="flap" data-flap data-words="Routine|CGPA|3D Campus|Notices|Faculty" data-colors="#7c3aed|#16a34a|#0891b2|#ea580c|#db2777" aria-hidden="true">
+            <span class="flap-size"><span>Routine</span><span>CGPA</span><span>3D Campus</span><span>Notices</span><span>Faculty</span></span>
+            <span class="flap-face flap-top">Routine</span><span class="flap-face flap-bot">Routine</span><span class="flap-face flap-top fly-top"></span><span class="flap-face flap-bot fly-bot"></span>
+          </span><span class="sr-only">routine, CGPA, 3D campus, notices or faculty directory</span></p>
+        <p class="lead" data-cms="hero_lead">Sync your portal once and EWUdiots builds your routine, CGPA and fee reminders. Find any room in a 3D campus, see official notices the moment they're posted, and look up every teacher.</p>
+      </div>
+      <div class="cf" data-cf aria-roledescription="carousel" aria-label="What EWUdiots does">
+        <div class="cf-track" data-track>
+          <a class="cf-card" href="/app.html#/routine" style="--tone:#7c3aed"><span class="cf-top"><span class="cf-tag">Routine</span><span class="cf-n">01</span></span><svg class="cf-glyph" aria-hidden="true"><use href="#i-clock"/></svg><span class="cf-shot"><img src="/screens/phone-home.webp" alt="" width="390" height="844"></span><span class="cf-bottom"><b>Your week, sorted</b><small>Next class, room and an alarm before it</small><span class="cf-cta">Open routine <svg class="i"><use href="#i-arrow"/></svg></span></span><span class="cf-shine" aria-hidden="true"></span></a>
+          <a class="cf-card" href="/app.html#/grades" style="--tone:#16a34a"><span class="cf-top"><span class="cf-tag">CGPA</span><span class="cf-n">02</span></span><svg class="cf-glyph" aria-hidden="true"><use href="#i-chart"/></svg><span class="cf-shot"><img src="/screens/phone-cgpa.webp" alt="" width="390" height="844"></span><span class="cf-bottom"><b>Every grade, every trend</b><small>EWU scale, retakes and what-if</small><span class="cf-cta">See your CGPA <svg class="i"><use href="#i-arrow"/></svg></span></span><span class="cf-shine" aria-hidden="true"></span></a>
+          <a class="cf-card" href="/app.html#/map" style="--tone:#0891b2"><span class="cf-top"><span class="cf-tag">3D Campus</span><span class="cf-n">03</span></span><svg class="cf-glyph" aria-hidden="true"><use href="#i-map"/></svg><span class="cf-shot"><img src="/screens/phone-map.webp" alt="" width="390" height="844"></span><span class="cf-bottom"><b>Type a room, walk there</b><small>Turn-by-turn in 3D, with walking time</small><span class="cf-cta">Open the map <svg class="i"><use href="#i-arrow"/></svg></span></span><span class="cf-shine" aria-hidden="true"></span></a>
+          <a class="cf-card" href="/app.html#/notices" style="--tone:#ea580c"><span class="cf-top"><span class="cf-tag">Notices</span><span class="cf-n">04</span></span><svg class="cf-glyph" aria-hidden="true"><use href="#i-mega"/></svg><span class="cf-shot"><img src="/screens/phone-notices.webp" alt="" width="390" height="844"></span><span class="cf-bottom"><b>Official notices, live</b><small>Sorted, with an alert when one lands</small><span class="cf-cta">Read notices <svg class="i"><use href="#i-arrow"/></svg></span></span><span class="cf-shine" aria-hidden="true"></span></a>
+          <a class="cf-card" href="/app.html#/faculty" style="--tone:#db2777"><span class="cf-top"><span class="cf-tag">Faculty</span><span class="cf-n">05</span></span><svg class="cf-glyph" aria-hidden="true"><use href="#i-users"/></svg><span class="cf-shot"><img src="/screens/phone-faculty.webp" alt="" width="390" height="844"></span><span class="cf-bottom"><b>Every teacher, one search</b><small>Photo, office room and email</small><span class="cf-cta">Find a teacher <svg class="i"><use href="#i-arrow"/></svg></span></span><span class="cf-shine" aria-hidden="true"></span></a>
         </div>
-        <div class="devices" aria-hidden="true">
-          <svg class="orbits" viewBox="0 0 600 600"><circle cx="300" cy="300" r="210"/><circle cx="300" cy="300" r="270"/><g class="o1"><circle cx="300" cy="90" r="7"/></g><g class="o2"><circle cx="570" cy="300" r="5"/></g><g class="o3"><circle cx="300" cy="570" r="6"/></g></svg>
-          <div class="phone p2"><img src="/screens/phone-map.webp" alt="" width="390" height="844"></div>
-          <div class="phone p1"><img src="/screens/phone-home.webp" alt="" width="390" height="844" fetchpriority="high"></div>
-          <div class="float f1"><span class="fi violet"><svg class="i"><use href="#i-clock"/></svg></span><div><b>CSE207 in 12 min</b><small>AB2-702 · 3 min walk</small></div></div>
-          <div class="float f2"><span class="fi orange"><svg class="i"><use href="#i-mega"/></svg></span><div><b>New EWU notice</b><small>Pre-advising for Spring 2027</small></div></div>
-          <div class="float f3"><span class="fi lime"><svg class="i"><use href="#i-chart"/></svg></span><div><b>CGPA 3.54</b><small>Target 3.70 reachable</small></div></div>
+        <div class="cf-dots" data-dots></div>
+      </div>
+      <div class="wrap hero2-foot">
+        <div class="cta">
+          <a class="btn primary lg" href="/app.html"><svg class="i"><use href="#i-globe"/></svg> Open the web app</a>
+          <a class="btn lg" href="/download/android" download><svg class="i"><use href="#i-play"/></svg> Download for Android</a>
+        </div>
+        <ul class="trust">
+          <li><svg class="i"><use href="#i-checkc"/></svg> Free for every student</li>
+          <li><svg class="i"><use href="#i-checkc"/></svg> Portal password never stored</li>
+          <li><svg class="i"><use href="#i-checkc"/></svg> Works offline</li>
+        </ul>
+        <div class="stats" aria-label="EWUdiots in numbers">
+          <div><b id="stat-fac">400+</b><span>faculty profiles with photos</span></div>
+          <div><b>8</b><span>campus blocks mapped in 3D</span></div>
+          <div><b id="stat-notice">Live</b><span>official EWU notices</span></div>
         </div>
       </div>
       <div class="marquee" aria-label="What's inside"><div class="mq-track"><div class="mq"><span>Sign in to the EWU portal</span><span>Academic calendar & holidays</span><span>Scholarship planner</span><span>Google Classroom import</span><span>Course materials by section</span><span>CGPA analytics</span><span>Class alarms</span><span>3D campus map</span><span>Live EWU notices</span><span>Events & clubs</span><span>Alumni mentors</span></div><div class="mq" aria-hidden="true"><span>Sign in to the EWU portal</span><span>Academic calendar & holidays</span><span>Scholarship planner</span><span>Google Classroom import</span><span>Course materials by section</span><span>CGPA analytics</span><span>Class alarms</span><span>3D campus map</span><span>Live EWU notices</span><span>Events & clubs</span><span>Alumni mentors</span></div></div></div>
@@ -125,7 +142,7 @@
               <li><svg class="i"><use href="#i-check"/></svg> "Only 10 min between classes" warnings on your home screen</li>
             </ul>
           </div>
-          <div class="spot-art"><div class="browser"><div class="bar"><i></i><i></i><i></i><span>ewudiots · Campus Map</span></div><img src="/screens/desk-map.webp" alt="EWUdiots 3D campus map with a route to room 805 in Block A" width="1440" height="900" loading="lazy"></div></div>
+          <div class="spot-art" data-tilt><div class="browser"><div class="bar"><i></i><i></i><i></i><span>ewudiots · Campus Map</span></div><img src="/screens/desk-map.webp" alt="EWUdiots 3D campus map with a route to room 805 in Block A" width="1440" height="900" loading="lazy"></div></div>
         </article>
 
         <article class="spot flip reveal">
@@ -139,7 +156,7 @@
               <li><svg class="i"><use href="#i-check"/></svg> Anonymous reviews from verified EWU students only</li>
             </ul>
           </div>
-          <div class="spot-art"><div class="phone"><img src="/screens/phone-faculty.webp" alt="Faculty directory with photos" width="390" height="844" loading="lazy"></div></div>
+          <div class="spot-art" data-tilt><div class="phone"><img src="/screens/phone-faculty.webp" alt="Faculty directory with photos" width="390" height="844" loading="lazy"></div></div>
         </article>
 
         <article class="spot reveal">
@@ -153,7 +170,7 @@
               <li><svg class="i"><use href="#i-check"/></svg> QR code for your student ID</li>
             </ul>
           </div>
-          <div class="spot-art"><div class="phone"><img src="/screens/phone-idcard.webp" alt="3D student pass" width="390" height="844" loading="lazy"></div></div>
+          <div class="spot-art" data-tilt><div class="phone"><img src="/screens/phone-idcard.webp" alt="3D student pass" width="390" height="844" loading="lazy"></div></div>
         </article>
 
         <article class="spot flip reveal">
@@ -167,7 +184,7 @@
               <li><svg class="i"><use href="#i-check"/></svg> Export to Google Calendar (.ics)</li>
             </ul>
           </div>
-          <div class="spot-art"><div class="browser"><div class="bar"><i></i><i></i><i></i><span>ewudiots · Routine</span></div><img src="/screens/desk-routine.webp" alt="Weekly routine calendar" width="1440" height="900" loading="lazy"></div></div>
+          <div class="spot-art" data-tilt><div class="browser"><div class="bar"><i></i><i></i><i></i><span>ewudiots · Routine</span></div><img src="/screens/desk-routine.webp" alt="Weekly routine calendar" width="1440" height="900" loading="lazy"></div></div>
         </article>
 
         <div class="bento">

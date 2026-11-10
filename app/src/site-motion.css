@@ -1,0 +1,133 @@
+/* Website motion (v2.28, from the Language Hub project): split-flap hero word synced with a 3D coverflow of feature
+   cards, floating course codes at three depths, headline that lifts away on scroll, slide-in reveals with stagger,
+   3D tilt on mockups, a header that hides while scrolling down on phones, and animated FAQ answers.
+   Transform/opacity only; everything is still under prefers-reduced-motion. */
+:root { --ease-o: cubic-bezier(.22, 1, .36, 1); --spring-o: cubic-bezier(.34, 1.4, .64, 1); }
+.sr-only { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@property --tone { syntax: "<color>"; inherits: true; initial-value: #7c3aed; }
+
+/* ── Hero ─────────────────────────────────────────────────────────────────── */
+.hero2 { --p: 0; --mx: 0; --my: 0; --tone: #7c3aed; padding: 40px 0 28px; isolation: isolate; transition: --tone 1s var(--ease-o); }
+.hero2 .wrap.hero2-in, .hero2 .wrap.hero2-foot { display: block; text-align: center; }
+.hero2-in { opacity: calc(1 - var(--p) * 1.4); transform: translateY(calc(var(--p) * -60px)) scale(calc(1 - var(--p) * .05)); }
+.hero2 h1 { margin-top: 18px; text-wrap: balance; }
+.hero2 .lead { margin: 18px auto 0; }
+.hero2-foot .cta { justify-content: center; }
+.hero2-foot .trust { justify-content: center; }
+.hero2-foot .stats { margin: 26px auto 0; }
+
+/* Floating course codes and grades: drift, lean toward the pointer, lift on scroll */
+.sky { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.sky span {
+  position: absolute; left: var(--x); top: var(--y); font-size: var(--fs); font-weight: 900; letter-spacing: -.03em; line-height: 1; white-space: nowrap;
+  color: color-mix(in srgb, var(--tone) 70%, var(--text));
+  opacity: calc(.07 + var(--d) * .04 - var(--p) * .12);
+  translate: calc(var(--mx) * var(--d) * -36px) calc(var(--my) * var(--d) * -26px + var(--p) * var(--d) * -200px);
+  animation: skyDrift 14s ease-in-out var(--dl) infinite alternate; transition: translate .4s var(--ease-o);
+}
+@keyframes skyDrift { from { transform: translate(0, 0) rotate(-6deg); } to { transform: translate(14px, -22px) rotate(7deg); } }
+
+/* Split-flap board */
+.flap-row { margin: 18px 0 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; font-size: clamp(18px, 2.4vw, 24px); font-weight: 700; color: var(--text-2); }
+.flap { position: relative; display: inline-grid; perspective: 700px; font-size: clamp(24px, 3.4vw, 36px); font-weight: 900; letter-spacing: -.02em; line-height: 1.25; }
+.flap-size { display: grid; visibility: hidden; padding: .12em .55em; }
+.flap-size > span { grid-area: 1 / 1; white-space: nowrap; }
+.flap-face {
+  position: absolute; inset: 0; display: grid; place-items: center; white-space: nowrap; padding: .12em .55em; border-radius: .28em; color: #fff;
+  background: linear-gradient(180deg, #2e1d4f 0%, #201339 49.5%, #180e2c 50.5%, #110920 100%);
+  border: 2px solid color-mix(in srgb, var(--c, #7c3aed) 65%, transparent); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09);
+  backface-visibility: hidden;
+}
+.flap-face::after { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 1px); height: 2px; background: rgba(0, 0, 0, .6); }
+.flap::after { content: ""; position: absolute; left: 12%; right: 12%; bottom: -12px; height: 18px; z-index: -1; border-radius: 50%; background: var(--tone); filter: blur(16px); opacity: .5; }
+.flap-top { clip-path: inset(0 0 50% 0); } .flap-bot { clip-path: inset(50% 0 0 0); }
+.fly-top, .fly-bot { visibility: hidden; }
+.flap.is-flipping .fly-top { visibility: visible; transform-origin: 50% 50%; animation: flapTop .31s cubic-bezier(.55, 0, .9, .45) both; }
+.flap.is-flipping .fly-bot { visibility: visible; transform-origin: 50% 50%; animation: flapBot .32s cubic-bezier(.1, .6, .4, 1.25) .3s both; }
+@keyframes flapTop { from { transform: rotateX(0); filter: brightness(1); } to { transform: rotateX(-90deg); filter: brightness(.5); } }
+@keyframes flapBot { from { transform: rotateX(90deg); filter: brightness(1.6); } to { transform: rotateX(0); filter: brightness(1); } }
+
+/* 3D coverflow of feature cards */
+.cf { position: relative; margin-top: 26px; perspective: 1100px; }
+.cf-track {
+  display: flex; gap: 16px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none;
+  padding: 18px max(16px, calc(50% - 125px)) 28px; transform-style: preserve-3d;
+}
+.cf-track::-webkit-scrollbar { display: none; }
+.cf-card {
+  --ry: 0deg; --s: 1; --o: 1;
+  position: relative; flex: 0 0 250px; aspect-ratio: 3 / 4; scroll-snap-align: center; overflow: hidden; isolation: isolate;
+  display: flex; flex-direction: column; justify-content: space-between; padding: 18px; border-radius: 28px; color: #fff; text-decoration: none;
+  background: radial-gradient(120% 80% at 100% 0%, rgba(255, 255, 255, .22), transparent 55%),
+    linear-gradient(160deg, color-mix(in srgb, var(--tone) 78%, #fff) 0%, var(--tone) 45%, color-mix(in srgb, var(--tone) 55%, #12081f) 100%);
+  box-shadow: 0 22px 44px -14px color-mix(in srgb, var(--tone) 65%, transparent), 0 2px 6px rgba(0, 0, 0, .08);
+  transform: rotateY(var(--ry)) scale(var(--s)); opacity: var(--o); transition: transform .45s var(--ease-o), opacity .45s var(--ease-o); will-change: transform;
+}
+.cf-card:hover { text-decoration: none; }
+.cf-card:focus-visible { outline: 3px solid var(--tone); outline-offset: 4px; }
+.cf-top { display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2; }
+.cf-tag { padding: 4px 11px; border-radius: 999px; background: rgba(255, 255, 255, .22); font-weight: 800; font-size: 12.5px; letter-spacing: .02em; }
+.cf-n { font-size: 13px; font-weight: 800; opacity: .8; font-variant-numeric: tabular-nums; }
+.cf-glyph { position: absolute; left: -26px; top: 56px; width: 170px; height: 170px; z-index: -1; fill: none; stroke: rgba(255, 255, 255, .16); stroke-width: 1.6; transition: transform .6s var(--ease-o); }
+.cf-shot {
+  position: absolute; right: -14px; top: 54px; width: 50%; height: 40%; border-radius: 20px; overflow: hidden; z-index: 0;
+  border: 4px solid rgba(255, 255, 255, .28); box-shadow: 0 18px 30px -10px rgba(0, 0, 0, .45); rotate: 9deg; transition: transform .6s var(--ease-o);
+}
+.cf-shot img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+.cf-card::before { content: ""; position: absolute; inset: auto 0 0 0; height: 62%; z-index: 1; pointer-events: none; background: linear-gradient(to top, color-mix(in srgb, var(--tone) 55%, #12081f) 20%, transparent); }
+.cf-bottom { position: relative; z-index: 2; display: grid; gap: 3px; text-shadow: 0 1px 12px rgba(0, 0, 0, .25); }
+.cf-bottom b { font-size: 20px; font-weight: 900; line-height: 1.12; letter-spacing: -.02em; }
+.cf-bottom small { font-size: 12.5px; opacity: .9; line-height: 1.35; }
+.cf-cta { margin-top: 10px; justify-self: start; display: inline-flex; align-items: center; gap: 4px; min-height: 38px; padding: 6px 13px; border-radius: 999px; background: #fff; text-shadow: none;
+  color: color-mix(in srgb, var(--tone) 75%, #000); font-weight: 800; font-size: 13px; transition: gap .25s var(--ease-o); }
+.cf-cta .i { width: 16px; height: 16px; }
+.cf-shine { position: absolute; inset: 0; z-index: 3; pointer-events: none; background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .28) 45%, transparent 60%); transform: translateX(-120%); transition: transform 1s var(--ease-o); }
+.cf-card.is-center .cf-shine, .cf-card:hover .cf-shine { transform: translateX(120%); }
+.cf-card.is-center .cf-glyph, .cf-card:hover .cf-glyph { transform: translateY(-8px) rotate(-8deg); }
+.cf-card.is-center .cf-shot, .cf-card:hover .cf-shot { transform: translateY(-8px) rotate(-4deg); }
+.cf-card:hover .cf-cta { gap: 8px; }
+.cf-dots { display: flex; justify-content: center; gap: 8px; }
+.cf-dots button { position: relative; width: 8px; height: 8px; padding: 0; border: 0; border-radius: 999px; background: var(--border); cursor: pointer; transition: transform .35s var(--ease-o), background .2s; }
+.cf-dots button::before { content: ""; position: absolute; inset: -18px -6px; }
+.cf-dots button.is-on { background: var(--tone); transform: scaleX(3); }
+@media (min-width: 1180px) { /* all five fit: no scrolling, the highlight follows the board instead */
+  .cf-track { justify-content: center; overflow: visible; padding-inline: 0; }
+  .cf-card { flex-basis: 214px; }
+  .cf-dots { display: none; }
+  .cf-card:hover { transform: translateY(-10px) rotateX(6deg) rotateY(-8deg); }
+  .cf-card.is-center { transform: translateY(-14px) scale(1.04); }
+}
+
+/* ── Everywhere else ──────────────────────────────────────────────────────── */
+/* Reveals slide in from the side for card groups, up for everything else */
+.js-reveal .bento .reveal, .js-reveal .dl-grid4 .reveal, .js-reveal .steps .reveal { transform: translateX(36px); }
+.js-reveal .spot.flip.reveal { transform: translateX(-30px); }
+.js-reveal .reveal { transition: opacity .7s var(--ease-o), transform .7s var(--ease-o); }
+.js-reveal .reveal.in { transform: none; }
+.faq details { transition: border-color .2s, box-shadow .2s; }
+.faq details[open] { border-color: color-mix(in srgb, var(--primary) 40%, transparent); box-shadow: 0 8px 24px rgba(42, 14, 74, .07); }
+.faq summary::after { transition: transform .3s var(--spring-o); }
+.faq details[open] p { animation: faqIn .35s var(--ease-o); }
+@keyframes faqIn { from { opacity: 0; transform: translateY(-6px); } }
+
+/* 3D tilt on feature mockups (site.js sets --rx/--ry) */
+.spot-art[data-tilt] { perspective: 1000px; }
+.spot-art[data-tilt] > * { transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .6s var(--ease-o); }
+.spot-art[data-tilt].is-tilting > * { transition-duration: .1s; }
+.spot-art[data-tilt] .phone { animation: floatY 6s ease-in-out infinite; }
+@keyframes floatY { 50% { translate: 0 -8px; } }
+.dl2-qr { animation: floatY 6s ease-in-out 1s infinite; }
+
+/* Header hides while scrolling down on phones, comes back on the way up */
+.top { transition: transform .35s var(--ease-o), border-color .25s, box-shadow .25s; }
+@media (max-width: 767px) { .top.hide { transform: translateY(-100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero2-in { opacity: 1; transform: none; }
+  .sky span { animation: none; translate: none; }
+  .cf-card { transform: none !important; opacity: 1 !important; transition: none; }
+  .flap.is-flipping .fly-top, .flap.is-flipping .fly-bot { animation: none; visibility: hidden; }
+  .spot-art[data-tilt] > *, .spot-art[data-tilt] .phone, .dl2-qr { transform: none !important; animation: none; }
+  .faq details[open] p { animation: none; }
+  .top { transition: none; }
+}

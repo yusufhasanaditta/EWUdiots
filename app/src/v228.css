@@ -1,0 +1,38 @@
+/* v2.28 — Language Hub motion, round two: floating pill tab bar on phones, a top bar that hides while scrolling
+   down, the sliding indicator on EWUdiots Club tabs, shaking invalid fields and animated <details>. */
+
+/* ── Floating pill tab bar (phones) ───────────────────────────────────────── */
+@media (max-width: 960px) {
+  .bottom-nav {
+    left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); padding: 6px; border-radius: 26px; isolation: isolate;
+    border: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 86%, transparent);
+    backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: 0 2px 6px rgba(15, 23, 42, .05), 0 22px 48px -14px rgba(76, 29, 149, .34);
+  }
+  .bottom-nav a, .bottom-nav button { min-height: 54px; border-radius: 20px; }
+  .bottom-nav a:active { transform: scale(.92); }
+  .bottom-nav .mo-pill { border-radius: 20px; background: color-mix(in srgb, var(--primary) 13%, transparent); }
+  .fab span.fab-btn { margin-top: -34px; border-color: color-mix(in srgb, var(--surface) 92%, transparent); }
+  .main { padding-bottom: calc(126px + env(safe-area-inset-bottom)); }
+  .topbar { transition: transform .35s cubic-bezier(.22, 1, .36, 1); }
+  .topbar.bar-hide { transform: translateY(-100%); }
+}
+
+/* ── EWUdiots Club tabs: the chosen pill slides (thumb under the chosen tab, over the others) ── */
+body[data-mode="club"][data-mode] .cl-seg.mo-has-thumb { position: relative; isolation: isolate; }
+body[data-mode="club"][data-mode] .cl-seg.mo-has-thumb > [aria-selected="true"], body[data-mode="club"][data-mode] .cl-seg.mo-has-thumb > [aria-pressed="true"] { position: relative; z-index: 1; background: transparent; box-shadow: none; border-color: transparent; }
+body[data-mode="club"][data-mode] .cl-seg > .mo-thumb { z-index: 0; border-radius: 12px; background: var(--grad); box-shadow: var(--glow); }
+body[data-mode="club"][data-mode] .cl-seg.sm > .mo-thumb { border-radius: 10px; }
+body[data-mode="club"][data-mode] #side-nav > .mo-pill { background: var(--primary-l); }
+
+/* ── Small things that make it feel alive ─────────────────────────────────── */
+.shake { animation: shake .4s; }
+@keyframes shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+details[open] > :not(summary) { animation: detIn .35s cubic-bezier(.22, 1, .36, 1); }
+@keyframes detIn { from { opacity: 0; transform: translateY(-6px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar, .bottom-nav a { transition: none; }
+  .topbar.bar-hide { transform: none; }
+  .shake, details[open] > :not(summary) { animation: none; }
+}
