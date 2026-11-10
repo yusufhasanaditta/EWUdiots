@@ -1,10 +1,10 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "New floating tab bar with a sliding highlight; the top bar tucks away while you scroll",
-    "Smoother everywhere: cards slide in, tabs glide, hero cards tilt in 3D, including EWUdiots Club",
-    "Form fields you missed give a little shake so you can spot them",
-    "New website: flip-board headline and swipeable 3D feature cards"
+    "Easier to tap: buttons, chips, links and dropdowns are bigger on phones",
+    "The next-class countdown on Home is now easy to read",
+    "Card headers no longer squeeze titles on small screens",
+    "Security fix in the build tools"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

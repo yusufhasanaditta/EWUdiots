@@ -1,0 +1,19 @@
+/* v2.29 — friendlier on phones (from scripts/ux-audit.mjs): every tap target at least 44px, readable countdown,
+   card headers that wrap instead of squeezing the title. */
+
+/* Card headers: the title keeps its width; actions wrap under it when there's no room. */
+.card-h { flex-wrap: wrap; }
+
+/* The next-class countdown sits on the violet card: white reads; violet-on-violet didn't. */
+.next-card .cd .countdown { color: #fff; }
+
+@media (max-width: 960px) {
+  /* Small buttons, chips, dropdowns and list rows: 44px tall, same look. */
+  .btn.sm, .chip, .dd-btn.sm, .select.sm, .geo-row, .seg > button, .seg > a, .cl-seg > a, .cl-seg > button { min-height: 44px; }
+  .bm, button.add, .icon-only.sm { min-width: 44px; min-height: 44px; }
+  /* Text links that sit in a line ("View all", notice titles, inline buttons) get an invisible 44px hit area. */
+  .see, .lnk, .nb-title { position: relative; }
+  .see::after, .lnk::after, .nb-title::after { content: ""; position: absolute; inset: -12px -6px; }
+}
+input.check { min-width: 24px; min-height: 24px; }
+@media (max-width: 960px) { .cv-acc i { width: 44px; height: 44px; } }

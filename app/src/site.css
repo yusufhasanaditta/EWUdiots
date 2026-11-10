@@ -328,3 +328,8 @@ img { max-width: 100%; height: auto; display: block; }
 .mq span::before { content: "✦"; color: #8b5cf6; margin-right: 8px; }
 @keyframes mq { to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) { .orbits g, .mq-track { animation: none; } }
+
+/* v2.29: 44px tap targets on phones for header, footer and inline links (site + legal pages). */
+@media (max-width: 767px) {
+  .top .btn.sm, .brand, .more, .foot nav a, .dl-how summary { min-height: 44px; display: inline-flex; align-items: center; }
+}
