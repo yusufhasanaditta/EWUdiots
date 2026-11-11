@@ -1,13 +1,13 @@
 {
   "name": "ewudiots",
   "private": true,
-  "version": "2.29.0",
+  "version": "2.30.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/*.test.js",
+    "test": "node --test tests/*.test.js tests/*.test.ts",
     "test:ext": "vite build --mode test && node scripts/ext-e2e.mjs",
     "test:app": "vite build --mode test && node scripts/e2e.mjs",
     "shots": "vite build --mode test && node scripts/shots.mjs",
@@ -19,7 +19,8 @@
     "test:insights": "vite build --mode test && node scripts/insights-probe.mjs",
     "test:clubs": "node scripts/clubs-e2e.mjs",
     "test:clubs-rls": "node scripts/clubs-rls-check.mjs",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc -p ."
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
@@ -40,11 +41,13 @@
     "@eslint/js": "^9.39.5",
     "@phosphor-icons/core": "^2.1.1",
     "@tesseract.js-data/eng": "^1.0.0",
+    "@types/node": "^24.19.2",
     "eslint": "^9.39.5",
     "globals": "^15.15.0",
     "pdfjs-dist": "^4.10.38",
     "puppeteer-core": "^25.12.0",
     "sharp": "^0.35.5",
+    "typescript": "5.9",
     "vite": "^8.3.5"
   },
   "overrides": {

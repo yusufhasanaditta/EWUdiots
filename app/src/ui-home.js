@@ -1,5 +1,6 @@
 /* Home dashboard, onboarding (welcome → login → role → profile), notifications, More, Profile & settings, Help, About. */
 import { CLUBS } from "./campus-data.js";
+import { tideHtml, clockHtml, fillOf, nearness, hands } from "./tide.ts";
 
 export function install(ctx) {
   const { pages, icon, esc, $, $$, toast, openModal, closeModal, confirmModal, busy } = ctx;
@@ -28,11 +29,12 @@ export function install(ctx) {
       ["map", "map", "purple", "Campus Map", "Find any room"], ["vault", "vault", "yellow", "Vault", "Notes, past papers"], ["rooms", "building", "blue", "Free Rooms", "Find empty classrooms"], ["fees", "wallet", "orange", "Fees", "Payments & installments"]];
     const prof = nc ? ctx.facName(nc.faculty) : "";
     const ncAt = nc ? (() => { const t = new Date(); t.setSeconds(0, 0); return t.getTime() + nc.mins * 6e4; })() : 0;
-    const ncCard = nc ? `<a class="next-card" data-at="${ncAt}" data-live="${nc.live ? 1 : 0}" href="#/course?c=${encodeURIComponent(nc.code)}" aria-live="polite"><span class="fluid" aria-hidden="true"><i></i><i></i><i></i></span>
+    const ncStart = nc ? (nc.live ? ncAt - (nc.e - nc.s) * 6e4 : ncAt) : 0;
+    const ncCard = nc ? `<a class="next-card${nc.live ? " is-live" : ""}" data-at="${ncAt}" data-start="${ncStart}" data-live="${nc.live ? 1 : 0}" href="#/course?c=${encodeURIComponent(nc.code)}" aria-live="polite"><span class="fluid" aria-hidden="true"><i></i><i></i><i></i></span>${nc.live ? tideHtml(fillOf(Date.now(), ncStart, ncAt), { id: "nc-tide", bubbles: 11, cls: "on-violet" }) : ""}
         <div class="top"><span class="row" style="gap:8px">${icon("school", "sm")} ${nc.live ? "Happening now" : "Next Class"} ${icon("chevR", "sm")}</span>${nc.live ? "" : `<span class="starts">Starts in</span>`}</div>
         <h2>${esc(nc.code)}</h2><div class="t">${esc(nc.title || (nc.lab ? "Lab session" : ""))}</div>
         ${nc.live ? `<div class="cd"><div class="ring sm" style="--p:${Math.round(100 * (1 - nc.mins / (nc.e - nc.s)))};--rc:var(--accent);background:conic-gradient(var(--accent) calc(var(--p)*1%), rgba(255,255,255,.25) 0)"><div><b style="color:#fff">${nc.mins}</b><span style="color:#fff">min left</span></div></div></div>` :
-          `<div class="cd">${nc.mins < 1440 ? `<b>${nc.mins < 60 ? nc.mins : Math.floor(nc.mins / 60)}</b><span>${nc.mins < 60 ? "min" : `h ${nc.mins % 60}m`}</span>` : `<b style="font-size:26px">${ctx.DAY_NAMES[nc.day]}</b><span>${ctx.fmt12(nc.s)}</span>`}</div>`}
+          `<div class="cd">${nc.mins < 1440 ? `${clockHtml(new Date(), new Date(ncAt))}<div class="cd-t"><b>${nc.mins < 60 ? nc.mins : Math.floor(nc.mins / 60)}</b><span>${nc.mins < 60 ? "min" : `h ${nc.mins % 60}m`}</span></div>` : `<b style="font-size:26px">${ctx.DAY_NAMES[nc.day]}</b><span>${ctx.fmt12(nc.s)}</span>`}</div>`}
         <div class="meta"><span>${icon("room")} ${esc(nc.room || "TBA")}</span><span>${icon("clock")} ${ctx.fmt12(nc.s)} – ${ctx.fmt12(nc.e)}</span>${prof ? `<span>${icon("user")} ${esc(prof)}</span>` : ""}</div></a>`
       : `<div class="next-card"><div class="top">${icon("school", "sm")} No classes yet</div><h2>Add your routine</h2><div class="t">Sync your Class Schedule to see your next class here.</div><div class="row mt"><a class="btn white sm" href="#/sync">${icon("sync")} Sync portal</a></div></div>`;
 
@@ -107,13 +109,22 @@ export function install(ctx) {
     clearInterval(cdTimer);
     const card = $(".m-only .next-card[data-at], .next-card[data-at]", el);
     if (card) {
-      const at = Number(card.dataset.at), live = card.dataset.live === "1", cd = $(".cd", card);
+      const at = Number(card.dataset.at), start = Number(card.dataset.start), live = card.dataset.live === "1", cd = $(".cd", card);
+      const cdt = $(".cd-t", card), clock = $(".cclock", card), tide = $("#nc-tide", card);
       const tick = () => {
         if (!document.body.contains(card)) return clearInterval(cdTimer);
-        const left = Math.max(0, Math.round((at - Date.now()) / 1000));
+        const now = Date.now(), left = Math.max(0, Math.round((at - now) / 1000));
         if (!left) { clearInterval(cdTimer); return ctx.rerender(); }
         const h = Math.floor(left / 3600), m = Math.floor((left % 3600) / 60), s = left % 60, two = (n) => String(n).padStart(2, "0");
-        if (!live && cd) cd.innerHTML = `<b class="countdown">${h ? `${h}:${two(m)}` : m}:${two(s)}</b><span>${h ? "hours" : "min"} left</span>`;
+        if (live) { if (tide) tide.style.setProperty("--fill", fillOf(now, start, at).toFixed(4)); return; }
+        const text = `<b class="countdown">${h ? `${h}:${two(m)}` : m}:${two(s)}</b><span>${h ? "hours" : "min"} left</span>`;
+        if (cdt) cdt.innerHTML = text; else if (cd) cd.innerHTML = text;
+        if (clock) {
+          const a = hands(new Date(now)), near = nearness(now, start);
+          clock.style.setProperty("--near", near.toFixed(4));
+          [["h", a.h], ["m", a.m], ["s", a.s]].forEach(([k, deg]) => { const l = clock.querySelector(`.cc-${k}`); if (l) l.style.transform = `rotate(${deg}deg)`; });
+          card.classList.toggle("is-soon", left <= 300); // last five minutes: the card pulses
+        }
       };
       if (live || at - Date.now() < 864e5) { tick(); cdTimer = setInterval(tick, 1000); }
     }

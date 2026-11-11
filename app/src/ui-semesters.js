@@ -2,7 +2,7 @@
    flowchart for their program (/api/flowchart), and the "Drop a course" sheet: refund steps from the academic calendar,
    what the drop changes, and recording it in the student's EWUdiots account (with undo). */
 import { programKey } from "./flowchart.js";
-import { dropTiers, dropWindow, dropImpact } from "./drop.js";
+import { dropTiers, dropWindow, dropImpact } from "./drop.ts";
 import { latestGrades, nextSem } from "./degreeplan.js";
 import { iso } from "./semplan.js";
 

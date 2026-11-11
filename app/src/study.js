@@ -5,6 +5,7 @@ import { confetti, chime, ambient, ambientOn } from "./art.js";
 import { degreeStatus, roadmap, nextSem, latestGrades } from "./degreeplan.js";
 import { createOutline } from "./ui-outline.js";
 import { install as installSemesters } from "./ui-semesters.js";
+import { tideHtml } from "./tide.ts";
 
 export const studyDefaults = () => ({
   sessions: [], days: {}, goal: 120, xp: 0, ev: {}, cards: [], prep: {}, notes: {}, links: {},
@@ -160,6 +161,7 @@ export function install(ctx) {
     if (time && t) {
       time.textContent = mmss(sec);
       const ring = $("#fx-ring"); ring && ring.setAttribute("stroke-dashoffset", String(RING * (1 - (t.dur - sec) / t.dur)));
+      $("#fx-tide")?.style.setProperty("--fill", ((t.dur - sec) / t.dur).toFixed(4)); // the liquid rises as the session runs
     }
   }
   setInterval(() => { const t = st().timer; if (t && t.endAt && Date.now() >= t.endAt) complete(); paintTimer(); }, 1000);
@@ -190,7 +192,7 @@ export function install(ctx) {
     const custom = !P.some((x) => x[0] === p);
     return headHtml + tabs + `<div class="split mt">
       <section class="card" aria-label="Focus timer">
-        <div class="timer-ring"><svg viewBox="0 0 220 220" aria-hidden="true"><defs><linearGradient id="fx-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#6d28d9"/></linearGradient></defs>
+        <div class="timer-ring">${tideHtml(t.dur ? (t.dur - sec) / t.dur : 0, { id: "fx-tide", cls: "round", bubbles: 8, seed: 3 })}<svg viewBox="0 0 220 220" aria-hidden="true"><defs><linearGradient id="fx-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#6d28d9"/></linearGradient></defs>
           <circle class="track" r="96" cx="110" cy="110"/><circle class="prog" id="fx-ring" r="96" cx="110" cy="110" stroke-dasharray="${RING}" stroke-dashoffset="${RING * (1 - (t.dur - sec) / t.dur)}"/></svg>
           <div class="center"><span class="itile purple">${icon(t.kind === "focus" ? "book" : "coffee")}</span><b id="fx-time" class="num" role="timer" aria-live="off">${mmss(sec)}</b><span>${t.kind === "focus" ? "Focus Session" : "Break"}${t.course ? ` · ${esc(t.course)}` : ""}</span></div></div>
         <div class="row center mt-s"><label class="sr-only" for="fx-course">Course</label><select class="select sm" id="fx-course" ${running ? "disabled" : ""}><option value="">General study</option>${courses.map((c) => `<option value="${esc(c.code)}" ${t.course === c.code ? "selected" : ""}>${esc(c.code)}${c.title ? " · " + esc(c.title) : ""}</option>`).join("")}</select>

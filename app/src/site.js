@@ -81,7 +81,7 @@ addEventListener("scroll", () => {
 /* Hero (from the Language Hub project): a split-flap word synced with a 3D coverflow of feature cards. The cards
    advance on their own until the visitor touches them; course codes float at three depths and the headline lifts
    away on scroll. motion.js is the same motion layer the app uses. */
-import { install as installMotion } from "./motion.js";
+import { install as installMotion } from "./motion.ts";
 const motion = installMotion();
 const hero = $("[data-hero]");
 if (hero) {
@@ -157,3 +157,8 @@ if (qrBox) { const q = qrcode(0, "M"); q.addData(location.origin + "/download/an
 fetch("/version.json", { cache: "no-store" }).then((r) => r.json()).then((j) => { const v = document.getElementById("dl-ver"); if (v && j.version) v.textContent = `Version ${j.version}`; }).catch(() => {});
 // Never leave content hidden: anything near the screen that the scroll animation hasn't shown within 2.5 s appears anyway.
 setTimeout(() => document.querySelectorAll(".reveal:not(.in)").forEach((el) => { if (el.getBoundingClientRect().top < innerHeight * 1.5) el.classList.add("in"); }), 2500);
+
+// The app's rising-bubble liquid at the bottom of the QR card (same component as the class card).
+import { tideHtml } from "./tide.ts";
+import "./tide.css";
+document.querySelector(".dl2-qr")?.insertAdjacentHTML("afterbegin", tideHtml(0.2, { bubbles: 9, seed: 11, cls: "site-tide" }));

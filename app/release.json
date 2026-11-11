@@ -1,10 +1,11 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Easier to tap: buttons, chips, links and dropdowns are bigger on phones",
-    "The next-class countdown on Home is now easy to read",
-    "Card headers no longer squeeze titles on small screens",
-    "Security fix in the build tools"
+    "Class in progress? The Next Class card fills with bubbling liquid as the class goes on",
+    "Before class, a live clock counts down to the start and the card glows in the last 5 minutes",
+    "Focus timer fills with rising bubbles as your session runs",
+    "Progress bars grow in, ticked boxes pop and your streak flame flickers",
+    "Under the hood: core parts now use TypeScript for fewer bugs"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

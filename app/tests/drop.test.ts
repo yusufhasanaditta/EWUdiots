@@ -1,7 +1,7 @@
 // Dropping a course: refund steps from the academic calendar and what a drop changes (fictional data).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { dropTiers, dropWindow, dropImpact } from "../src/drop.js";
+import { dropTiers, dropWindow, dropImpact } from "../src/drop.ts";
 
 const EVENTS = [
   { start: "2026-11-26", end: "", title: "Last day of Withdrawal of Course(s)/Semester" },
@@ -18,11 +18,11 @@ test("reads the refund steps in date order", () => {
 
 test("finds the step in force today", () => {
   const t = dropTiers(EVENTS);
-  assert.equal(dropWindow(t, "2026-09-01").tier.refund, 100);
+  assert.equal(dropWindow(t, "2026-09-01").tier?.refund, 100);
   const w = dropWindow(t, "2026-11-10");
-  assert.equal(w.tier.refund, 50); assert.equal(w.daysLeft, 9); assert.equal(w.next.grade, "W");
-  assert.equal(dropWindow(t, "2026-11-19").tier.refund, 50); // the last day still counts
-  assert.equal(dropWindow(t, "2026-11-20").tier.grade, "W");
+  assert.equal(w.tier?.refund, 50); assert.equal(w.daysLeft, 9); assert.equal(w.next?.grade, "W");
+  assert.equal(dropWindow(t, "2026-11-19").tier?.refund, 50); // the last day still counts
+  assert.equal(dropWindow(t, "2026-11-20").tier?.grade, "W");
   assert.equal(dropWindow(t, "2026-12-01").closed, true);
   assert.equal(dropWindow([], "2026-12-01").closed, false); // no calendar yet: unknown, not closed
 });

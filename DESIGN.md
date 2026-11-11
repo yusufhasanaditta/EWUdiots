@@ -89,6 +89,10 @@ Animate `transform` and `opacity` only (blobs may also blur). Everything stops u
 | Shake | form errors | ±5px twice, 400ms |
 | Count up | big numbers | 0 → value in 700ms on first view |
 | Aurora | hero surfaces | blobs drift 18–26s, alternate |
+| Tide | class in progress, focus timer, website QR card | `tide.ts`: liquid rises with time (`--fill`), two waves, bubbles |
+| Start clock | next class within 24 h | `tide.ts`: live hands, arc closes over the last hour, start-minute dot; card breathes in the last 5 min |
+| Bar grow | every `.bar` | fill grows from 0, one light sweep |
+| Flicker / pop | streak flame, ticked boxes | flame flickers; checkbox pops on tick |
 
 ## 7. Do / don't
 

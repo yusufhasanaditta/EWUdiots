@@ -7,7 +7,9 @@ Capacitor, backed by Supabase (Postgres + Auth + Storage + Realtime), hosted on 
 ## Commands (run from `app/`)
 
 - `npm run dev` · `npm run build` · `npm run lint`
-- `npm test` — unit tests (`tests/*.test.js`, node:test). Must pass before every commit.
+- `npm run typecheck` — TypeScript check of every `.ts` file (strict). Must pass before every commit.
+- `npm test` — unit tests (`tests/*.test.js` and `tests/*.test.ts`, node:test; Node runs `.ts` directly). Must pass before every commit.
+- `node scripts/ux-audit.mjs [routes…]` — every screen at phone + desktop: small tap targets, overflow, unlabelled controls, JS errors.
 - `npm run test:app` — browser check of every page, no JS errors.
 - `npm run test:clubs` — club end-to-end against the live database (can be flaky on invites; rerun before blaming code).
 - `npm run test:clubs-rls` — row-level security checks for clubs.
@@ -21,6 +23,9 @@ Capacitor, backed by Supabase (Postgres + Auth + Storage + Realtime), hosted on 
 - Clubs: `src/clubs/index.js` builds `kit` (`ui`, `icon`, `esc`, `api`, `store`, `charts`, permission helpers).
   Data goes through `src/clubs/api.js` only; cache with `store.use(key, loader, { ttl })` and `store.invalidate`.
 - Pure logic (parsers, the assistant's matchers, merging) lives in its own module with no DOM access, so it can be tested.
+- TypeScript, step by step: new modules are `.ts` (strict, erasable syntax only: no `enum`/`namespace`), imported with the
+  `.ts` extension. Typed so far: `drop.ts`, `motion.ts`, `tide.ts`. Move a `.js` file to `.ts` when you change it a lot;
+  Vercel `api/` handlers and what they import stay `.js`.
 - CSS: base `styles.css`, `mobile.css`, `clubs/clubs*.css`, then one file per release (`v2NN.css`, imported last in
   `main.js`). The minifier may reorder same-specificity rules: if a newer rule must beat an older one, make it more specific.
 - Database changes are numbered migrations in `supabase/migrations/NNNN_name.sql`; every table has RLS.
@@ -71,7 +76,7 @@ Capacitor, backed by Supabase (Postgres + Auth + Storage + Realtime), hosted on 
 ## Release checklist
 
 1. Bump `app/package.json` (`npm version X.Y.Z --no-git-tag-version`) and write `app/release.json` notes (each < 120 chars).
-2. `npm test`, `npm run test:app`, `npm run test:clubs` pass.
+2. `npm run typecheck`, `npm test`, `npm run test:app`, `npm run test:clubs` pass.
 3. Commit (trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`); never commit `UI Design/`, `.secrets/` or `.shots/`.
 4. Push, wait for the `android.yml` run (`gh run watch`), then `npx vercel deploy --prod --yes` from `app/` (retry on
    network errors) and confirm `https://ewudiots.vercel.app/version.json` shows the new version.

@@ -131,3 +131,7 @@
   .faq details[open] p { animation: none; }
   .top { transition: none; }
 }
+
+/* Rising-bubble liquid (src/tide.ts) at the bottom of the QR card, below its short caption. */
+.dl2-qr { position: relative; overflow: hidden; isolation: isolate; }
+.dl2-qr > .site-tide { z-index: -1; }

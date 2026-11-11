@@ -1,0 +1,67 @@
+/* Tide (liquid + bubbles that fill as time passes) and the class start clock — markup from src/tide.ts.
+   Shared by the app and the website. Transform/opacity only; still under prefers-reduced-motion. */
+
+/* ── Tide ─────────────────────────────────────────────────────────────────── */
+.tide { --liquid: color-mix(in srgb, var(--primary, #7c3aed) 22%, transparent); --foam: color-mix(in srgb, var(--primary, #7c3aed) 30%, transparent);
+  position: absolute; inset: 0; z-index: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.tide.on-violet { --liquid: rgba(255, 255, 255, .13); --foam: rgba(255, 255, 255, .2); }
+.tide-body { position: absolute; left: 0; right: 0; bottom: 0; height: 100%; background: var(--liquid);
+  transform: translateY(calc((1 - var(--fill, 0)) * 100%)); transition: transform 1.2s cubic-bezier(.22, 1, .36, 1); }
+.tide .wave { position: absolute; left: 0; bottom: 100%; width: 200%; max-width: none; height: 14px; fill: var(--liquid); animation: tideWave 5s linear infinite; }
+.tide .wave.w2 { fill: var(--foam); height: 10px; opacity: .7; animation-duration: 8s; animation-direction: reverse; }
+@keyframes tideWave { to { transform: translateX(-50%); } }
+.tide-bub { position: absolute; inset: 0; overflow: hidden; container-type: size; }
+.tide-bub i { position: absolute; bottom: -14px; left: var(--x); width: var(--s); height: var(--s); border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, .95), rgba(255, 255, 255, .25) 60%, rgba(255, 255, 255, .05));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .5); animation: tideRise var(--d) ease-in var(--dl) infinite; }
+@keyframes tideRise {
+  0% { transform: translate(0, 0) scale(.5); opacity: 0; }
+  12% { opacity: .9; }
+  50% { transform: translate(5px, -50cqh) scale(.85); }
+  100% { transform: translate(-4px, calc(-100cqh - 10px)) scale(1); opacity: 0; }
+}
+/* Inside a round timer ring: a disc just inside the stroke (the ring's own rotate must not turn the waves). */
+.timer-ring .tide.round { inset: 10.5%; border-radius: 50%; }
+.timer-ring .tide svg { width: 200%; max-width: none; height: 14px; transform: none; }
+.timer-ring .center { position: absolute; z-index: 1; }
+
+/* Next-class card: content above the liquid. */
+.next-card > .tide.tide { position: absolute; z-index: 0; } /* fx.css makes card children relative; the tide stays a layer */
+
+/* ── Start clock ──────────────────────────────────────────────────────────── */
+.next-card .cd:has(.cclock) { display: flex; align-items: center; gap: 12px; }
+.cd-t { display: grid; justify-items: end; }
+.cclock { width: 76px; height: 76px; flex: none; overflow: visible; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .25)); }
+.cc-face { fill: rgba(255, 255, 255, .12); stroke: rgba(255, 255, 255, .2); stroke-width: 1; }
+.cc-track { fill: none; stroke: rgba(255, 255, 255, .14); stroke-width: 4; }
+.cc-arc { fill: none; stroke: var(--accent, #a3e635); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: calc(100 - var(--near, 0) * 100); transition: stroke-dashoffset 1s linear; }
+.cc-ticks line { stroke: rgba(255, 255, 255, .55); stroke-width: 1.6; stroke-linecap: round; }
+.cc-h, .cc-m, .cc-s { transform-origin: 50px 50px; stroke-linecap: round; transition: transform .35s cubic-bezier(.34, 1.56, .64, 1); }
+.cc-h { stroke: #fff; stroke-width: 4; }
+.cc-m { stroke: #fff; stroke-width: 2.6; }
+.cc-s { stroke: var(--accent, #a3e635); stroke-width: 1.4; }
+.cc-pin { fill: var(--accent, #a3e635); }
+.cc-start { fill: var(--accent, #a3e635); animation: ccBlink 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes ccBlink { 50% { opacity: .35; transform: scale(.7); } }
+/* Last five minutes: the card breathes so it catches the eye. */
+.next-card.is-soon { animation: ncSoon 1.6s ease-in-out infinite; }
+@keyframes ncSoon { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent, #a3e635) 45%, transparent), var(--glow, none); } }
+
+/* ── Small creative touches across the app ─────────────────────────────────── */
+/* Progress bars grow in and a light passes over them once. */
+.bar > span { position: relative; overflow: hidden; transform-origin: left center; animation: barGrow 1s cubic-bezier(.22, 1, .36, 1) both; }
+.bar > span::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, .55) 50%, transparent 80%); transform: translateX(-100%); animation: barSheen 1.4s cubic-bezier(.22, 1, .36, 1) .7s both; }
+@keyframes barGrow { from { transform: scaleX(0); } }
+@keyframes barSheen { to { transform: translateX(100%); } }
+/* Ticking a box pops it. */
+input.check:checked { animation: checkPop .45s cubic-bezier(.34, 1.56, .64, 1); }
+@keyframes checkPop { 40% { transform: scale(1.3); } }
+/* The streak flame flickers. */
+.streak-chip .icon { transform-origin: 50% 90%; animation: flame 1.8s ease-in-out infinite; }
+@keyframes flame { 0%, 100% { transform: scale(1) rotate(-2deg); } 30% { transform: scale(1.08, 1.14) rotate(3deg); } 60% { transform: scale(.96, 1.04) rotate(-3deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .tide .wave, .tide-bub i, .cc-start, .next-card.is-soon, .bar > span, .bar > span::after, input.check:checked, .streak-chip .icon { animation: none; }
+  .tide-bub { display: none; }
+  .tide-body, .cc-arc, .cc-h, .cc-m, .cc-s { transition: none; }
+}

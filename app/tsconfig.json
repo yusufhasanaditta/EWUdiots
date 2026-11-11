@@ -1,0 +1,20 @@
+{
+  // TypeScript, step by step: .ts files are type-checked strictly (npm run typecheck); .js files keep working as they are.
+  // Only erasable syntax, so Node runs the .ts tests directly and Vite builds them with no extra step.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": false,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}
