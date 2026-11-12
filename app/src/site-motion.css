@@ -135,3 +135,9 @@
 /* Rising-bubble liquid (src/tide.ts) at the bottom of the QR card, below its short caption. */
 .dl2-qr { position: relative; overflow: hidden; isolation: isolate; }
 .dl2-qr > .site-tide { z-index: -1; }
+
+/* Emil Kowalski's rules: quick presses (0.97), hover lifts only on devices that really hover. */
+html .btn { transition: transform 160ms cubic-bezier(.23, 1, .32, 1), box-shadow 200ms ease, background 150ms ease; }
+html .btn:active { transform: scale(.97); transition-duration: 100ms; }
+@media (hover: none) { html .btn:hover, html .tile:hover, html .ncard:hover, html .ncard:hover .nimg img, html .cf-card:hover { transform: none; } }
+.tile .ic.ki svg { width: 28px; height: 28px; stroke: none; fill: initial; }

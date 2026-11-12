@@ -20,6 +20,7 @@ import "./v227.css";
 import "./v228.css";
 import "./v229.css";
 import "./tide.css";
+import "./v230.css";
 import { start as startDropdowns } from "./dropdown.js";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";
@@ -49,6 +50,7 @@ import { install as installAttendance } from "./ui-attendance.js";
 import { install as installSecurity } from "./ui-security.js";
 import { install as installClubs } from "./clubs/index.js";
 import { install as installMotion } from "./motion.ts";
+import { kubaiPlaceholder, hydrate as hydrateIcons } from "./kicons.ts";
 import { createContent, FEATURES } from "./content.js";
 import { applyBrand } from "./theme.js";
 import { snapshot, stamp, merge } from "./syncmerge.js";
@@ -414,7 +416,8 @@ function palette() {
     draw(); q.focus();
   });
 }
-document.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); if (!modalOpen()) palette(); } });
+// Opened from the keyboard: no slide-in (a shortcut is used many times a day; motion would only slow it).
+document.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); if (!modalOpen()) { palette(); $("#modal").classList.add("instant"); } } });
 
 /* ───────────── Router ───────────── */
 const pages = {};
@@ -445,6 +448,7 @@ function route({ animate = false } = {}) {
     if (!ok) { target.querySelector("[data-reload]")?.addEventListener("click", () => location.reload()); return; }
     try { (pages[id].mount || (() => {}))(target); } catch (e) { console.error(e); }
     motion.enhance(target, id, changed);
+    hydrateIcons(target);
   };
   // Background tabs throttle animation frames, so a transition there could hold taps for seconds; skip it.
   const viewTx = animate && changed && document.startViewTransition && !prefersReduced() && !modalOpen() && lastPainted !== null && document.visibilityState === "visible";
@@ -718,7 +722,9 @@ async function restoreOrBackup(user) {
 /* ───────────── Boot ───────────── */
 const ctx = {
   get S() { return S; }, resetState, pages, save, rerender, route: () => currentRoute, go, qparam, toast, openModal, closeModal, modalHead, confirmModal, modalOpen, busy,
-  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, get events() { return events; }, get acal() { return acal; }, motion, get attendance() { return attendanceUi; }, get charts() { return charts; }, get materials() { return materials; }, get sync() { return sync; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
+  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, get events() { return events; }, get acal() { return acal; }, motion,
+  // Feature-tile icon: an animated Kubai icon when there is one for this name, else the Phosphor icon.
+  tileIcon: (ic, tone) => { const k = kubaiPlaceholder(ic, tone); return `<span class="itile ${tone}${k ? " ki" : ""}">${k || icon(ic)}</span>`; }, get attendance() { return attendanceUi; }, get charts() { return charts; }, get materials() { return materials; }, get sync() { return sync; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
   afterSignIn: () => signInDone, LETTER, toMin, fmt12, fmtShort, dayIdx, expand, overlaps, toneFor, colorFor, HEX, TONES, gradePoint, cgpaOf, fmtMoney, fmtCountdown, daysUntil, fmtDate, firstName, initials, myAvatar, greeting,
   nextClass, nextPayment, markAttendance, facultyIndex, facBy, facName, offered, sectionBlocks, roomData, freeRoomsAt, baseRoom, enableNotifications, taskLine, duePill, TASK_IC, inbox, loadDemo, onSignedIn,
   isDark, applyTheme, palette, roleLabel, navFor, nextSemesterGuess, DAY_NAMES, WEEK, SLOTS, GRADES, NON_GPA, DEMO, cleanDegree, parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey

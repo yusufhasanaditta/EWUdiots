@@ -162,3 +162,13 @@ setTimeout(() => document.querySelectorAll(".reveal:not(.in)").forEach((el) => {
 import { tideHtml } from "./tide.ts";
 import "./tide.css";
 document.querySelector(".dl2-qr")?.insertAdjacentHTML("afterbegin", tideHtml(0.2, { bubbles: 9, seed: 11, cls: "site-tide" }));
+
+// Feature grid: the same animated Kubai icons as the app's tiles (hovering a tile animates its icon).
+import { kubaiPlaceholder, hydrate as hydrateIcons } from "./kicons.ts";
+document.querySelectorAll(".bento .tile").forEach((tile) => {
+  const ic = tile.querySelector(".ic"), name = ic?.querySelector("use")?.getAttribute("href")?.replace("#i-", "") || "";
+  const tone = { "t-purple": "purple", "t-blue": "blue", "t-orange": "orange", "t-green": "green", "t-pink": "pink", "t-teal": "teal", "t-yellow": "yellow", "t-red": "red" }[[...(ic?.classList || [])].find((c) => c.startsWith("t-")) || ""] || "purple";
+  const k = ic && kubaiPlaceholder(name, tone, 28);
+  if (k) { ic.innerHTML = k; ic.classList.add("ki"); tile.setAttribute("data-kubai-trigger", ""); }
+});
+hydrateIcons(document);

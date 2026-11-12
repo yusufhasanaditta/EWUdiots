@@ -49,8 +49,11 @@ Capacitor, backed by Supabase (Postgres + Auth + Storage + Realtime), hosted on 
 - Touch targets ≥ 44×44px on phones, 24×24px minimum anywhere; visible `:focus-visible` rings.
 - Never disable zoom (`user-scalable=no`, `maximum-scale=1`), never block paste, never `transition: all`.
 - Every async button shows a busy state (`ctx.busy(btn, true)`) until the request ends.
-- Honour `prefers-reduced-motion`; animate transform/opacity only. Reuse `motion.js` patterns (reveal, sliding
-  indicator, tilt, coverflow) instead of writing new animation code.
+- Honour `prefers-reduced-motion`; animate transform/opacity only. Reuse `motion.ts` / `tide.ts` patterns (reveal, sliding
+  indicator, tilt, coverflow, tide, start clock) instead of writing new animation code.
+- Motion follows Emil Kowalski's skills in `.claude/skills/` (`emil-design-eng`, `animate`, `review-animations`,
+  `improve-animations`, `mobile-native`): use `animate` when adding motion and `review-animations` before finishing.
+- Feature-tile icons: `ctx.tileIcon(ic, tone)` (animated Kubai Icons, `src/kicons.ts`; add new names to its import list).
 - After UI changes: render the screen (club-shots or the Playwright MCP in `.mcp.json`), screenshot phone (393px) and
   desktop (1366px), and fix overflow, overlapping text, clipped buttons and horizontal scroll before finishing.
 

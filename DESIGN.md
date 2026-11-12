@@ -72,6 +72,11 @@ and scale to .88 away from the centre. One radius per nesting level.
 
 ## 6. Motion (from Language Hub)
 
+Rules from Emil Kowalski (`.claude/skills/emil-design-eng`): frequent UI under 300ms; strong ease-out
+(`--ease-out-strong` `cubic-bezier(.23,1,.32,1)`), never `ease-in` for UI; presses scale to .97 in ~100–160ms; hover motion
+only under `@media (hover: hover)`; nothing animates from `scale(0)`; keyboard-opened UI (Ctrl+K) appears instantly;
+reduced motion keeps short fades. Review new motion with the `review-animations` skill.
+
 Curves: `--out` `cubic-bezier(.16,1,.3,1)` for entrances, `--spring` (linear() spring) for presses and indicators,
 `--spring-soft` for sheets. Durations: presses 120ms, indicators 450ms, entrances 550–700ms, ambient 12–26s.
 Animate `transform` and `opacity` only (blobs may also blur). Everything stops under `prefers-reduced-motion`.
@@ -96,7 +101,9 @@ Animate `transform` and `opacity` only (blobs may also blur). Everything stops u
 
 ## 7. Do / don't
 
-- Do: SVG icons from the icon set (Phosphor), never emoji as icons. Real data or honest empty states.
+- Do: SVG icons from the icon set (Phosphor) for buttons, navigation and inline use; feature tiles (Home quick access,
+  More, desktop shortcuts, the website feature grid) use animated Kubai Icons via `ctx.tileIcon(ic, tone)` / `src/kicons.ts`.
+  Never emoji as icons. Real data or honest empty states.
 - Do: 44×44px touch targets on phones, 24×24px anywhere; visible `:focus-visible` rings.
 - Do: busy state on every async button (`ctx.busy(btn, true)`), loading text ends with "…".
 - Do: gradients, glow, blobs and 3D where section 2 and 6 allow them — premium, not noisy.

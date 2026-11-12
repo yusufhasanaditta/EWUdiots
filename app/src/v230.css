@@ -1,0 +1,50 @@
+/* v2.31 — motion tuned to Emil Kowalski's rules (.claude/skills/emil-design-eng, review-animations):
+   frequent UI stays under 300ms with a strong ease-out; presses are 0.97 and quick; hover lifts only where a real
+   pointer hovers (on phones a tap left cards "stuck" lifted); keyboard-opened search appears instantly; functional
+   data (progress bars) gets a short grow, not a show; reduced motion keeps gentle fades instead of nothing.
+   Selectors start with `html` so they beat the older rules whatever order the minifier puts them in. */
+:root {
+  --ease-out-strong: cubic-bezier(.23, 1, .32, 1);
+  --ease-in-out-strong: cubic-bezier(.77, 0, .175, 1);
+  --ease-drawer: cubic-bezier(.32, .72, 0, 1);
+}
+
+/* Presses: instant feedback, quick release. */
+html .btn, html .chip, html .qtile, html .mtile, html .dtile, html .icon-btn, html .lcard, html .seg button, html .fab-btn, html .news-card, html .alum, html .news-mini {
+  transition: transform 160ms var(--ease-out-strong), box-shadow 200ms var(--ease-out-strong), background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+html .btn:active, html .chip:active, html .icon-btn:active, html .seg button:active, html .qtile:active, html .mtile:active, html .dtile:active, html .lcard:active { transform: scale(.97); transition-duration: 100ms; }
+
+/* Tabs, nav pill: seen dozens of times a day, so fast. */
+html .mo-thumb, html .mo-pill { transition: transform 260ms var(--ease-out-strong); }
+
+/* Screen changes and first-screen entrances: quicker, smaller travel. */
+::view-transition-new(root) { animation-duration: .28s; animation-timing-function: var(--ease-out-strong); }
+html [data-page] > .grid > *, html [data-page] > .card, html [data-page] .mtiles > *, html [data-page] .qgrid > *, html [data-page] .dtiles > *, html .fx-rise { animation-duration: .4s; animation-timing-function: var(--ease-out-strong); }
+html .rv { transform: translateY(12px); transition: opacity 400ms var(--ease-out-strong), transform 400ms var(--ease-out-strong); transition-delay: calc(var(--rv, 0) * 50ms); }
+html .rv.rv-in { transform: none; }
+
+/* Sheets use the iOS drawer curve; toasts arrive quickly. Search opened from the keyboard appears at once. */
+html .scrim.open .modal { animation-duration: .36s; animation-timing-function: var(--ease-drawer); }
+html .scrim.open .modal.instant { animation: none; }
+html .toast { animation-duration: .3s; animation-timing-function: var(--ease-out-strong); }
+
+/* Progress bars are data you read many times a day: a short grow, no light show. */
+html .bar > span { animation-duration: .45s; animation-timing-function: var(--ease-out-strong); }
+html .bar > span::after { display: none; }
+
+/* Hover lifts only on devices that really hover. */
+@media (hover: none) {
+  html a.card:hover, html .mtile:hover, html .dtile:hover, html .lcard:hover, html .news-card:hover, html .alum:hover, html .qtile:hover .itile,
+  html .news-card:hover .nc-img img, html .cl-tile:hover, html a.cl-card:hover, html .choice:hover, html .ev-card:hover, html .cg-cell:hover, html .kpi:hover { transform: none; }
+}
+
+/* Reduced motion: no movement, but keep short fades so changes still read as changes. */
+@media (prefers-reduced-motion: reduce) {
+  html .scrim.open .modal, html .toast { animation: fadeOnly .2s ease both; }
+  html .rv { opacity: 1; transform: none; }
+}
+@keyframes fadeOnly { from { opacity: 0; } }
+
+/* Animated Kubai icons on feature tiles (src/kicons.ts): full colour, a little larger than line icons. */
+html .itile.ki svg { width: 28px; height: 28px; color: inherit; stroke: none; }
