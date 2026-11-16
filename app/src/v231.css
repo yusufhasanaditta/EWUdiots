@@ -1,0 +1,33 @@
+/* v2.32 — tap-target fixes from the full UX audit (scripts/ux-audit.mjs, 56 screens × phone + desktop).
+   Selectors start with `html` so they beat older rules whatever order the minifier uses. */
+@media (max-width: 960px) {
+  /* Routine day strip: 42px → 44px tall. */
+  html .day-chips button { min-height: 44px; }
+  /* Small icon buttons inside chips keep their look but get a 44px invisible hit area. */
+  html .al-chip button { position: relative; }
+  html .al-chip button::after { content: ""; position: absolute; inset: -8px; }
+  /* Links that sit alone in a row (faculty on the course hero, newsletter sources, LinkedIn) are tap targets, not prose. */
+  html .course-hero .row > a, html .row > a.xs { display: inline-flex; align-items: center; gap: 4px; min-height: 46px; }
+}
+
+/* Course page info strip: grid items didn't shrink, so a long faculty name ran over the room. Let names wrap instead. */
+html .info-strip > div, html .info-strip .min0 { min-width: 0; max-width: 100%; }
+@media (max-width: 720px) { html .info-strip b.ellipsis { white-space: normal; overflow-wrap: anywhere; } }
+
+/* Course page Attendance / Current Marks cards: ring and label don't fit side by side on a phone, so stack them. */
+html .cv-stat > div:last-child { min-width: 0; }
+@media (max-width: 480px) { html .cv-stat.row { flex-direction: column; align-items: flex-start; gap: 10px !important; } }
+
+/* Home next-class card: the start clock + countdown (~210px) sat over the course title, which only kept 96px clear. */
+@media (max-width: 480px) {
+  html .next-card .cd:has(.cclock) { gap: 8px; right: 14px; }
+  html .next-card .cd .cclock { width: 56px; height: 56px; }
+  html .next-card .cd:has(.cclock) .countdown { font-size: 26px; }
+  html .next-card:has(.cclock) h2, html .next-card:has(.cclock) .t { padding-right: 168px; overflow-wrap: anywhere; }
+}
+
+/* What-If rows: the course title had no room and broke one letter per line; give it its own line under the inputs. */
+@media (max-width: 600px) {
+  html .row.nowrap.wi-row { flex-wrap: wrap; row-gap: 4px; }
+  html .wi-row .wi-t { order: 9; flex-basis: 100%; padding-left: 12px; }
+}

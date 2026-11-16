@@ -1,5 +1,7 @@
 # EWUdiots — rules for coding agents
 
+Full agent brief (skills to load, workflow, feature map): `AGENT_PROMPT.md`.
+
 Unofficial student app for East West University students: a Vite vanilla-JS web app (`app/`), wrapped for Android with
 Capacitor, backed by Supabase (Postgres + Auth + Storage + Realtime), hosted on Vercel. EWUdiots Club lives in
 `app/src/clubs/`. Read `DESIGN.md` before any UI work and `SECURITY.md` before any data work.
@@ -9,7 +11,7 @@ Capacitor, backed by Supabase (Postgres + Auth + Storage + Realtime), hosted on 
 - `npm run dev` · `npm run build` · `npm run lint`
 - `npm run typecheck` — TypeScript check of every `.ts` file (strict). Must pass before every commit.
 - `npm test` — unit tests (`tests/*.test.js` and `tests/*.test.ts`, node:test; Node runs `.ts` directly). Must pass before every commit.
-- `node scripts/ux-audit.mjs [routes…]` — every screen at phone + desktop: small tap targets, overflow, unlabelled controls, JS errors.
+- `node scripts/ux-audit.mjs [routes…]` — every screen at phone + desktop: small tap targets, overflow, text over text, text spilling out of cards, unlabelled controls, JS errors. Also look at the screenshots in `.shots/ux/`: the script misses squeezed columns.
 - `npm run test:app` — browser check of every page, no JS errors.
 - `npm run test:clubs` — club end-to-end against the live database (can be flaky on invites; rerun before blaming code).
 - `npm run test:clubs-rls` — row-level security checks for clubs.

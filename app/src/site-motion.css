@@ -103,7 +103,7 @@
 .js-reveal .bento .reveal, .js-reveal .dl-grid4 .reveal, .js-reveal .steps .reveal { transform: translateX(36px); }
 .js-reveal .spot.flip.reveal { transform: translateX(-30px); }
 .js-reveal .reveal { transition: opacity .7s var(--ease-o), transform .7s var(--ease-o); }
-.js-reveal .reveal.in { transform: none; }
+.js-reveal .reveal.in, .js-reveal .spot.flip.reveal.in { transform: none; }
 .faq details { transition: border-color .2s, box-shadow .2s; }
 .faq details[open] { border-color: color-mix(in srgb, var(--primary) 40%, transparent); box-shadow: 0 8px 24px rgba(42, 14, 74, .07); }
 .faq summary::after { transition: transform .3s var(--spring-o); }

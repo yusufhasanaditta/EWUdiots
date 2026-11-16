@@ -1,5 +1,5 @@
 // UX audit of every app screen (demo data), phone + desktop: small tap targets, content past the screen edge,
-// unnamed buttons/links, images without alt, unlabelled fields, text cut off without "…", JS errors.
+// text drawn over text, text past its card, unnamed buttons/links, images without alt, unlabelled fields, text cut off without "…", JS errors.
 // Usage: node scripts/ux-audit.mjs [routes…]   (run `vite build --mode test` first). Report: .shots/ux/report.json
 import puppeteer from "puppeteer-core";
 import { preview } from "vite";
@@ -9,7 +9,8 @@ const OUT = resolve(".shots/ux"); mkdirSync(OUT, { recursive: true });
 const only = process.argv.slice(2);
 const ROUTES = ["home", "routine", "courses", "course?c=CSE207", "marks", "grades", "degree", "whatif", "planner", "plan", "combos", "tasks", "fees", "fee",
   "vault", "rooms", "faculty", "prof?i=NHR", "focus", "cards", "exams", "me", "more", "profile", "notifications", "sync", "help", "about", "cover",
-  "notices", "news", "calendar", "map", "idcard", "alarms", "ask", "people", "events", "scholar", "materials", "classroom", "insights", "attendance", "security", "alumni"];
+  "notices", "news", "calendar", "map", "idcard", "alarms", "ask", "events", "classroom", "insights", "attendance", "security", "alumni",
+  "blog", "jobs", "mentors", "alumhub", "office", "teach", "write", "role", "scholarship", "courses?t=sem"];
 const server = await preview({ root: resolve("."), logLevel: "silent", preview: { port: 4178, strictPort: true } });
 const b = await puppeteer.launch({ executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -26,8 +27,8 @@ for (const [dev, vp] of [["phone", { width: 393, height: 852, deviceScaleFactor:
     errs = [];
     await p.evaluate((x) => { location.hash = "#/" + x; }, r); await wait(900);
     const found = await p.evaluate((phone) => {
-      const out = { small: [], wide: [], unnamed: [], noalt: [], nolabel: [], clipped: [], page: document.querySelector("[data-page]")?.dataset.page };
-      const vis = (el) => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none" && !el.closest("[hidden], .sr-only"); };
+      const out = { small: [], wide: [], unnamed: [], noalt: [], nolabel: [], clipped: [], overlap: [], spill: [], page: document.querySelector("[data-page]")?.dataset.page };
+      const vis = (el) => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.opacity !== "0" && s.visibility !== "hidden" && s.display !== "none" && !el.closest("[hidden], .sr-only"); };
       const name = (el) => (el.getAttribute("aria-label") || el.getAttribute("title") || el.innerText || el.querySelector("img[alt]")?.alt || el.value || "").trim();
       const desc = (el) => `${el.tagName.toLowerCase()}${el.id ? "#" + el.id : ""}${el.className && typeof el.className === "string" ? "." + el.className.trim().split(/\s+/).slice(0, 2).join(".") : ""} "${name(el).slice(0, 30)}"`;
       const main = document.querySelector("#main") || document.body;
@@ -54,6 +55,19 @@ for (const [dev, vp] of [["phone", { width: 393, height: 852, deviceScaleFactor:
         const s = getComputedStyle(el);
         if (el.children.length === 0 && el.textContent.trim() && el.scrollWidth > el.clientWidth + 1 && (s.overflow === "hidden" || s.overflowX === "hidden") && s.textOverflow !== "ellipsis") out.clipped.push(desc(el));
       }
+      // Text drawn over other text, and text that runs past the edge of its card (both missed by the overflow check).
+      const texts = [...main.querySelectorAll("b, strong, span, p, h1, h2, h3, h4, small, label, a")].filter((el) => vis(el) && el.children.length === 0 && el.innerText.trim() && !el.closest("details:not([open]) > :not(summary), .sr-only, svg, .fluid, .tide, .sky, .marquee, [aria-hidden=true]"));
+      const box = texts.map((el) => { const rg = document.createRange(); rg.selectNodeContents(el); return rg.getBoundingClientRect(); });
+      for (let i = 0; i < texts.length; i++) {
+        const a = box[i], card = texts[i].closest(".card");
+        if (card) { const c = card.getBoundingClientRect(); if (a.right > c.right + 2 && getComputedStyle(card).overflow === "visible" && getComputedStyle(texts[i]).overflow === "visible") out.spill.push(desc(texts[i])); }
+        for (let j = i + 1; j < texts.length; j++) {
+          const b = box[j];
+          if (texts[i].contains(texts[j]) || texts[j].contains(texts[i]) || [texts[i], texts[j]].some((t) => getComputedStyle(t).webkitLineClamp !== "none")) continue;
+          const w = Math.min(a.right, b.right) - Math.max(a.left, b.left), h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+          if (w > 4 && h > 4) out.overlap.push(desc(texts[i]) + " × " + desc(texts[j]));
+        }
+      }
       for (const img of main.querySelectorAll("img")) if (!img.hasAttribute("alt") && vis(img)) out.noalt.push(img.src.split("/").pop());
       for (const k of Object.keys(out)) if (Array.isArray(out[k])) out[k] = [...new Set(out[k])].slice(0, 12);
       return out;
@@ -69,4 +83,4 @@ for (const [dev, vp] of [["phone", { width: 393, height: 852, deviceScaleFactor:
 await b.close(); await new Promise((r) => server.httpServer.close(r));
 writeFileSync(`${OUT}/report.json`, JSON.stringify(report, null, 1));
 const count = (k) => Object.values(report).reduce((a, d) => a + Object.values(d).reduce((x, v) => x + (Array.isArray(v[k]) ? v[k].length : v[k] ? 1 : 0), 0), 0);
-console.log(["small", "wide", "unnamed", "noalt", "nolabel", "clipped", "hscroll", "errors"].map((k) => `${k}: ${count(k)}`).join(" · "));
+console.log(["small", "wide", "overlap", "spill", "unnamed", "noalt", "nolabel", "clipped", "hscroll", "errors"].map((k) => `${k}: ${count(k)}`).join(" · "));
