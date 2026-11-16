@@ -18,7 +18,8 @@ export function install(ctx) {
   /* Numbers for a course: from per-class marks when the semester's classes are known, else the old counters. */
   function stats(code, sem) {
     const ss = sessions(code, sem), a = S().attendance[code] || {};
-    if (ss.length) return { ...attendance(ss, a.marks || {}, today(), minOf(code) / 100), sessions: ss };
+    // Per-date marks win; counts kept with the older +/- counters still count until the first date is marked.
+    if (ss.length && (Object.keys(a.marks || {}).length || !a.held)) return { ...attendance(ss, a.marks || {}, today(), minOf(code) / 100), sessions: ss };
     const held = a.held || 0, missed = a.missed || 0, total = a.planned || 26;
     return { present: held - missed, absent: missed, cancelled: 0, held, total, left: Math.max(0, total - held), pct: held ? Math.round((100 * (held - missed)) / held) : null,
       finalPct: Math.round((100 * (total - missed)) / total), canMiss: Math.max(0, Math.floor(total * (1 - minOf(code) / 100)) - missed), sessions: [], legacy: true };

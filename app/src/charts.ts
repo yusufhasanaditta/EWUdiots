@@ -33,3 +33,16 @@ export function hbarsHtml(items: Bar[], { aria = "", fmt = (n: number): string =
   return `<div class="chart" data-chart="hbars"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(aria)}">${rows.join("")}`
     + `${goal ? `<line class="thr" x1="${x(goal).toFixed(1)}" x2="${x(goal).toFixed(1)}" y1="${T}" y2="${H - 14}"/><text class="ax" x="${x(goal).toFixed(1)}" y="${H - 2}" text-anchor="middle">${esc(fmt(goal))}</text>` : ""}</svg></div>`;
 }
+
+export interface Cell { date: string; value: number; title?: string }
+
+/** Calendar heatmap: rows are weeks (Sun…Sat), darker = busier. Day numbers stay readable; 0 is a quiet day. */
+export function heatmapHtml(weeks: Cell[][], { aria = "", today = "" } = {}): string {
+  const max = Math.max(1, ...weeks.flat().map((c) => c.value));
+  const head = ["S", "M", "T", "W", "T", "F", "S"].map((d) => `<span class="hm-d">${d}</span>`).join("");
+  const rows = weeks.map((w) => w.map((c) => {
+    const lvl = c.value ? Math.min(4, Math.ceil((4 * c.value) / max)) : 0, day = Number(c.date.slice(8, 10));
+    return `<span class="hm-c l${lvl}${c.date === today ? " today" : ""}" title="${esc(c.title || `${c.date}: ${c.value}`)}">${day}</span>`;
+  }).join("")).join("");
+  return `<div class="hm" role="img" aria-label="${esc(aria)}">${head}${rows}</div><div class="hm-key xs"><span>Quiet</span>${[0, 1, 2, 3, 4].map((l) => `<i class="hm-c l${l}"></i>`).join("")}<span>Busy</span></div>`;
+}

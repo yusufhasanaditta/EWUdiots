@@ -64,7 +64,7 @@ Feature map (verify against the code; it grows):
 - **EWUdiots Club** (`app/src/clubs/`): explore, feed, events, tickets, QR check-in, members, recruitment, forms,
   polls, meetings, projects (kanban), messages, workspace, finance, sponsors, merch shop and orders, certificates,
   resources, reports, platform admin.
-- **Admin CMS:** `app/src/admin/`.
+- **Admin CMS:** `app/src/admin/` (command-centre look in `admin-v2.css`; Help desk inbox in `helpdesk.js` over `support_tickets` / `support_messages`).
 - **Website:** `app/index.html` + `site.js` (flap-board hero, 3D coverflow, bento with animated Kubai icons, QR tide).
 - **APIs:** `app/api/` (calendar, cron, flowchart, news, notices, pdf, track).
 

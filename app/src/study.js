@@ -483,6 +483,9 @@ export function install(ctx) {
   };
 
   /* ───────── My courses + course hub ───────── */
+  const skipChip = (code) => { const s = ctx.attendance?.stats(code); if (!s || !(s.present + s.absent)) return ""; const low = s.pct != null && s.pct < ctx.attendance.minOf(code);
+    if (s.canMiss > 0 && low) return `<span class="pill amber skip-chip">${icon("alert", "sm")} Below ${ctx.attendance.minOf(code)}% now · can miss ${s.canMiss} more this term</span>`;
+    return s.canMiss > 0 ? `<span class="pill green skip-chip">${icon("checkc", "sm")} Can miss ${s.canMiss} more this term</span>` : `<span class="pill red skip-chip">${icon("alert", "sm")} Can't miss any more</span>`; };
   const attOf = (code) => { const a = S().attendance[code]; return a && a.held ? Math.round((100 * (a.held - a.missed)) / a.held) : null; };
   /* Courses from earlier semesters: grades first, then every earlier semester's classes from the portal sync, so a
      finished semester shows up even before its grade report is synced (its grade reads "Pending"). */
@@ -581,7 +584,7 @@ export function install(ctx) {
     const card = (c) => { const att = attOf(c.code), ms = ctx.marksSummary ? ctx.marksSummary(c.code) : null;
       return `<a class="ccard" href="#/course?c=${encodeURIComponent(c.code)}" style="--cc:${ctx.colorFor(c.code)}"><span class="chev-abs">${icon("chevR")}</span><h3>${esc(c.code)}</h3><div class="t">${esc(c.title || "")}</div>
         <div class="meta"><span>${icon("room")} ${esc(c.room || "TBA")}</span>${c.faculty ? `<span>${icon("user")} ${esc(ctx.facName(c.faculty))}</span>` : ""}</div>
-        <div class="bars"><div><span class="xs">Attendance</span><div class="row nowrap">${ctx.bar(att ?? 0, att !== null && att < 70 ? "red" : "green")}<b class="small num">${att !== null ? att + "%" : "—"}</b></div></div>
+        ${skipChip(c.code)}<div class="bars"><div><span class="xs">Attendance</span><div class="row nowrap">${ctx.bar(att ?? 0, att !== null && att < 70 ? "red" : "green")}<b class="small num">${att !== null ? att + "%" : "—"}</b></div></div>
           <div><span class="xs">Current Marks</span><div class="row nowrap">${ctx.bar(ms && ms.of ? (100 * ms.got) / ms.of : 0)}<b class="small num">${ms && ms.of ? `${ms.got}/${ms.of}` : "—"}</b></div></div></div></a>`; };
     const doneCard = (r) => { const p = pastCourse(r.code); return `<a class="ccard done" href="#/course?c=${encodeURIComponent(r.code)}" style="--cc:${ctx.colorFor(r.code)}"><div class="row between nowrap"><h3>${esc(r.code)}</h3><span class="grade-chip g-${esc(r.g ? r.g.replace("+", "p").replace("-", "m") : "na")}">${esc(r.g || "Pending")}</span></div><div class="t">${esc(r.title || p?.title || "")}</div><p class="xs mt-s">${r.cr !== "" ? `${r.cr} credits` : "Credits after grade sync"}${p?.faculty ? ` · ${esc(ctx.facName(p.faculty))}` : ""}${p?.sec ? ` · Sec ${esc(p.sec)}` : ""}</p></a>`; };
     const leftCard = (c, needs) => `<div class="ccard left" style="--cc:${ctx.colorFor(c.code)}"><div class="row between nowrap"><h3>${esc(c.code)}</h3><span class="pill">${c.cr} cr</span></div><div class="t">${esc(c.title || "")}</div>${needs?.length ? `<p class="xs mt-s">${icon("lock", "sm")} Needs ${needs.map(esc).join(", ")}</p>` : `<p class="xs mt-s" style="color:var(--success-t)">${icon("checkc", "sm")} You can take it next</p>`}</div>`;

@@ -23,3 +23,13 @@ html .pie-legend i { width: 10px; height: 10px; border-radius: 3px; flex: none; 
 
 /* Alumni "where they are" rows came out 43px on phones (rounding); give them a clear 46px. */
 @media (max-width: 960px) { html .geo-row { min-height: 46px; } }
+
+/* Bar charts (src/charts.ts): shared by the app and the admin console. */
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .cb { fill: var(--primary, #7c3aed); transform-box: fill-box; transform-origin: bottom; animation: chartGrow .7s cubic-bezier(.22, 1, .36, 1) both; }
+.chart .cb.h { transform-origin: left; } .chart .cb.bad { fill: var(--error, #ef4444); }
+.chart .ax { font-size: 11px; fill: var(--text-3, #64748b); } .chart .dl { font-size: 11.5px; font-weight: 700; fill: var(--text, #0f172a); }
+.chart .base { stroke: var(--border, #e5e7eb); } .chart .thr { stroke: var(--error, #ef4444); stroke-width: 1.5; stroke-dasharray: 4 4; }
+@keyframes chartGrow { from { transform: scale(1, 0); } }
+.chart[data-chart="hbars"] .cb { animation-name: chartGrowH; } @keyframes chartGrowH { from { transform: scale(0, 1); } }
+@media (prefers-reduced-motion: reduce) { .chart .cb { animation: none; } }

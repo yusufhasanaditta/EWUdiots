@@ -8,9 +8,11 @@ import "../v212.css";
 import "../v216.css";
 import { start as startDropdowns } from "../dropdown.js";
 import "./admin.css";
+import "./admin-v2.css";
 import * as cloud from "../cloud.js";
 import { icon } from "../icons.js";
 import { pieHtml } from "../pie.ts";
+import { createHelpdesk } from "./helpdesk.js";
 import "../v232.css";
 import { FEATURES } from "../content.js";
 import { BLOCKS, floorsOf, floorLabel, parseRoom } from "../campus-data.js";
@@ -30,7 +32,7 @@ const ALL_SECTIONS = [
   ["posts", "Posts & announcements", "megaphone", "Content", "posts.write"], ["feed", "News & notices feed", "globe", "Content", "news.edit"], ["website", "Website & theme", "layers", "Content", "site.edit"],
   ["media", "Media library", "image", "Content", "media.write"], ["messages", "Messages to users", "mail", "Content", "messages.send"], ["banner", "Home banner", "bell", "Content", "site.edit"], ["features", "Features & maintenance", "sliders", "Content", "features.edit"],
   ["users", "Users", "user", "People", "users.view"], ["alumni", "Alumni waiting", "community", "People", "alumni.review"], ["alumdb", "All alumni & import", "cap", "People", "alumni.review"], ["faculty", "Faculty listings", "users", "People", "faculty.edit"],
-  ["events", "Events", "calendar", "Community", "events.review"], ["clubs", "Clubs", "community", "Community", "clubs.verify"], ["feedback", "Feedback inbox", "help", "Community", "feedback.handle"], ["library", "Study Library", "books", "Community", "reports.handle"], ["reports", "Reports", "flag", "Community", "reports.handle"], ["rooms", "Campus rooms", "map", "Campus", "rooms.edit"],
+  ["events", "Events", "calendar", "Community", "events.review"], ["clubs", "Clubs", "community", "Community", "clubs.verify"], ["support", "Help desk", "chat", "Community", "support.manage"], ["feedback", "Feedback inbox", "help", "Community", "feedback.handle"], ["library", "Study Library", "books", "Community", "reports.handle"], ["reports", "Reports", "flag", "Community", "reports.handle"], ["rooms", "Campus rooms", "map", "Campus", "rooms.edit"],
   ["security", "Security centre", "lock", "System", "security.view"], ["jobs", "Scheduled jobs", "zap", "System", "jobs.run"], ["history", "Change history", "clock", "System"],
   ["roles", "Roles & permissions", "shield", "System"], ["admins", "Admins", "crown", "System"], ["activity", "Activity log", "list", "System"]
 ];
@@ -107,9 +109,9 @@ async function checkAdmin(user) {
 let drawerOpen = false;
 const closeDrawer = () => { drawerOpen = false; root.classList.remove("drawer"); };
 async function refreshBadges() {
-  try { const [a, r, f, e] = await Promise.all([api.count("alumni_profiles", { status: "pending" }), api.count("reports"), api.count("feedback", { status: "new" }).catch(() => 0), can("events.review") ? api.count("events", { status: "pending" }).catch(() => 0) : 0]); badges = { alumni: a, reports: r, feedback: f, events: e }; } catch { badges = {}; }
+  try { const [a, r, f, e, h] = await Promise.all([api.count("alumni_profiles", { status: "pending" }), api.count("reports"), api.count("feedback", { status: "new" }).catch(() => 0), can("events.review") ? api.count("events", { status: "pending" }).catch(() => 0) : 0, can("support.manage") ? api.count("support_tickets", { status: "open" }).catch(() => 0) : 0]); badges = { alumni: a, reports: r, feedback: f, events: e, support: h }; } catch { badges = {}; }
   $$(".adm-nav [data-badge]").forEach((el) => { const n = badges[el.dataset.badge] || 0; el.textContent = n; el.hidden = !n; });
-  const total = (badges.alumni || 0) + (badges.reports || 0) + (badges.feedback || 0) + (badges.events || 0), bell = $("#adm-bell");
+  const total = (badges.alumni || 0) + (badges.reports || 0) + (badges.feedback || 0) + (badges.events || 0) + (badges.support || 0), bell = $("#adm-bell");
   if (bell) bell.innerHTML = `${icon("bell")}${total ? `<span class="dot-n">${total > 9 ? "9+" : total}</span>` : ""}`;
 }
 async function start() {
@@ -134,7 +136,7 @@ async function start() {
   $("#adm-k").addEventListener("click", jump);
   // Alerts: everything waiting for an admin, each opening the right section.
   $("#adm-bell").addEventListener("click", () => {
-    const items = [["alumni", "community", "green", badges.alumni, "alumni profile(s) waiting for review"], ["reports", "flag", "red", badges.reports, "open report(s) on reviews or files"], ["feedback", "help", "blue", badges.feedback, "new feedback message(s)"]].filter((x) => x[3]);
+    const items = [["support", "chat", "purple", badges.support, "open help desk conversation(s)"], ["alumni", "community", "green", badges.alumni, "alumni profile(s) waiting for review"], ["reports", "flag", "red", badges.reports, "open report(s) on reviews or files"], ["feedback", "help", "blue", badges.feedback, "new feedback message(s)"]].filter((x) => x[3]);
     openModal("Alerts", items.length ? items.map(([to, ic, t, n, l]) => `<button class="lrow" data-al="${to}"><span class="itile sm ${t}">${icon(ic)}</span><span class="body"><b>${n} ${l}</b></span>${icon("chevR", "sm")}</button>`).join("") : '<p class="small muted">All clear. Nothing is waiting for you.</p>',
       (m) => $$("[data-al]", m).forEach((b) => b.addEventListener("click", () => { closeModal(); go(b.dataset.al); })));
   });
@@ -175,11 +177,16 @@ function userCharts(rows) {
         <h3 class="mt">Student verification</h3><div class="u-bar big"><i style="width:${vp}%"></i></div><p class="xs mt-s">${verified} of ${students.length} students verified with their ID card.</p></section></div></section>`;
 }
 const VIEWS = {
+  support: (el) => createHelpdesk({ api, $, $$, esc, icon, toast, act, ago })(el),
   async overview(el) {
     const [posts, pending, reports, hidden, rooms, admins, log] = await Promise.all([api.count("posts", { published: true }), api.count("alumni_profiles", { status: "pending" }), api.count("reports"), api.count("faculty_overrides", { hidden: true }), api.count("campus_rooms"), api.count("admins"), api.list("admin_log", { limit: 8 })]);
     const kpi = [["megaphone", "purple", posts, "Live posts", "posts"], ["community", "green", pending, "Alumni waiting", "alumni"], ["flag", "red", reports, "Open reports", "reports"], ["users", "blue", hidden, "Hidden faculty", "faculty"], ["map", "orange", rooms, "Shared rooms", "rooms"], ["shield", "teal", admins, "Admins", "admins"]];
     const st = await api.rpc("admin_stats", { days: 30 }).catch(() => null);
-    el.innerHTML = `${st ? `<div class="kpis">${[["user", "purple", st.users, "Accounts", "users", ""], ["trend", "green", st.new_period, "New in 30 days", "users", delta(st.new_period, st.new_prev)], ["zap", "orange", st.active_7d, "Active this week", "security", ""], ["help", "blue", st.feedback_new, "New feedback", "feedback", ""]]
+    const openHd = can("support.manage") ? await api.count("support_tickets", { status: "open" }).catch(() => 0) : 0;
+    const hour = new Date().getHours(), hi = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    const hero = `<section class="adm-hero fx-rise"><div><h2>${hi}, ${esc(api.email.split("@")[0])}</h2><p>Here is what needs a person today.</p><span class="clock" id="adm-clock">${new Date().toLocaleString("en-GB", { weekday: "long", hour: "2-digit", minute: "2-digit" })}</span></div>
+      <div class="hero-n">${[["support", openHd, "Conversations"], ["alumni", pending, "Alumni waiting"], ["reports", reports, "Reports"]].filter(([s]) => SECTIONS.some((x) => x[0] === s)).map(([to, n, l]) => `<button data-go="${to}"><b>${n}</b><span>${l}</span></button>`).join("")}</div></section>`;
+    el.innerHTML = `${hero}${st ? `<div class="kpis mt">${[["user", "purple", st.users, "Accounts", "users", ""], ["trend", "green", st.new_period, "New in 30 days", "users", delta(st.new_period, st.new_prev)], ["zap", "orange", st.active_7d, "Active this week", "security", ""], ["help", "blue", st.feedback_new, "New feedback", "feedback", ""]]
         .map(([i, t, n, l, to, d], k) => `<button class="kpi fx-rise" style="--i:${k}" data-go="${to}"><span class="itile ${t}">${icon(i)}</span><b class="count" data-to="${n}">${n}</b><span>${l} ${d}</span></button>`).join("")}</div>
       <div class="split mt" style="align-items:start"><section class="card fx-rise"><div class="card-h"><h2>Sign-ups, last 30 days</h2><span class="xs">${st.students} students · ${st.alumni} alumni · ${st.faculty} faculty</span></div>${barChart(st.signups)}</section>
         <section class="card fx-rise"><div class="card-h"><h2>Accounts</h2></div>${[["Synced their data", st.synced], ["Signed-in sessions", st.sessions], ["Suspended", st.suspended]].map(([l, n]) => `<div class="lrow"><span class="body"><b>${l}</b></span><b>${n}</b></div>`).join("")}</section></div>` : ""}

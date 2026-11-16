@@ -3,6 +3,7 @@
    analytics.view (President, VP, Secretary, Treasurer, Club Admin by default). */
 
 import { createReports } from "./reports.js";
+import { clubHealth, runningBalance } from "../health.ts";
 
 /** @param {Record<string, any>} pages @param {any} kit */
 export function register(pages, kit) {
@@ -34,13 +35,20 @@ export function register(pages, kit) {
     });
   };
 
+  /* Health score: a 3D gauge plus the five parts and the two most useful tips (src/clubs/health.ts). */
+  const healthCard = (a) => {
+    const h = clubHealth(a), weak = h.parts.slice().sort((p, q) => p.score - q.score).filter((p) => p.score < 14).slice(0, 2), tone = h.score >= 60 ? "good" : h.score >= 40 ? "warn" : "bad";
+    return `<section class="card cl-health mb"><div class="cl-health-g" data-tilt>${charts.ring({ value: h.score / 100, label: String(h.score), sub: h.grade, tone, size: 132 })}</div>
+      <div class="min0 grow"><h3>Club health</h3>${charts.hbars({ title: "Club health parts, out of 20", items: h.parts.map((p, i) => ({ label: p.label, value: p.score, max: 20, slot: i % 5, text: `${p.score}/20` })) })}
+        ${weak.length ? `<div class="stack mt-s" style="gap:6px">${weak.map((p) => `<p class="small">${icon("sparkle", "sm")} <b>${esc(p.label)}:</b> ${esc(p.tip)}</p>`).join("")}</div>` : `<p class="small mt-s">${icon("checkc", "sm")} Every part is strong. Keep it up!</p>`}</div></section>`;
+  };
   const months = (a) => a.growth.map((x) => charts.monthLabel(x.m));
   const card = (title, body, extra = "") => `<section class="card cl-chart"><h3>${title}${extra}</h3>${body}</section>`;
   const pctOf = (n, d) => (d ? Math.round((n / d) * 100) : 0);
   const engagement = (a) => pctOf(a.growth.at(-1)?.active || 0, a.members);
 
   const SECTION = {
-    overview: (a, c) => R.overview(a, c),
+    overview: (a, c) => healthCard(a) + R.overview(a, c),
     members(a) {
       const g = a.growth;
       return `<div class="cl-row2">${card("Members by Department", charts.donut({ title: "Members by department", items: Object.entries(a.by_department).map(([label, value]) => ({ label, value })), center: String(a.members), sub: "Members" }))}
@@ -80,7 +88,9 @@ export function register(pages, kit) {
     finance(a, c) {
       if (!a.finance_monthly) return ui.emptyBox("lock", "Finance needs finance access", "");
       const f = a.finance_monthly;
-      return card("Income vs Expense", charts.line({ title: "Income and expenses per month", labels: f.map((x) => charts.monthLabel(x.m)), series: [{ name: "Income", values: f.map((x) => Number(x.income)), area: true }, { name: "Expense", values: f.map((x) => Number(x.expense)) }], fmt: charts.compact }))
+      const bal = runningBalance(f), last = bal.at(-1);
+      return card("Money left over", charts.bars({ title: "Money saved or overspent each month", labels: bal.map((x) => charts.monthLabel(x.m)), series: [{ name: "Saved", values: bal.map((x) => Math.max(0, x.net)) }, { name: "Overspent", values: bal.map((x) => Math.max(0, -x.net)) }], fmt: charts.compact }), last ? ` <span class="xs">Balance ${charts.taka(last.balance)}</span>` : "")
+        + card("Income vs Expense", charts.line({ title: "Income and expenses per month", labels: f.map((x) => charts.monthLabel(x.m)), series: [{ name: "Income", values: f.map((x) => Number(x.income)), area: true }, { name: "Expense", values: f.map((x) => Number(x.expense)) }], fmt: charts.compact }))
         + `<a class="btn outline mt" href="#/club/finance?c=${c}">${icon("wallet")} Open Finance & Budget</a>`;
     }
   };

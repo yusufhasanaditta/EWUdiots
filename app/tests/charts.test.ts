@@ -20,3 +20,11 @@ test("horizontal bars cap at max, mark values under the goal and escape labels",
   assert.ok(widths[1] > widths[0] && widths[1] <= 320);
   assert.match(html, /class="thr"/);
 });
+
+test("heatmap shades busier days darker and marks today", async () => {
+  const { heatmapHtml } = await import("../src/charts.ts");
+  const html = heatmapHtml([[{ date: "2026-11-15", value: 0 }, { date: "2026-11-16", value: 1 }, { date: "2026-11-17", value: 4, title: "3 deadlines" }]], { today: "2026-11-17", aria: "Busy days" });
+  assert.match(html, /class="hm-c l0"[^>]*>15</);
+  assert.match(html, /class="hm-c l1"[^>]*>16</);
+  assert.match(html, /class="hm-c l4 today" title="3 deadlines">17</);
+});

@@ -3,14 +3,14 @@
    nothing done in demo mode reaches students. Both expose the same small API. */
 import * as cloud from "../cloud.js";
 
-const TABLES = ["events", "feed_items", "media_items", "revisions", "job_runs", "newsletter_issues", "role_permissions", "users", "user_messages", "feedback", "posts", "site_settings", "alumni_profiles", "faculty_overrides", "campus_rooms", "reports", "reviews", "resources", "admins", "admin_invites", "admin_log"];
+const TABLES = ["support_tickets", "support_messages", "events", "feed_items", "media_items", "revisions", "job_runs", "newsletter_issues", "role_permissions", "users", "user_messages", "feedback", "posts", "site_settings", "alumni_profiles", "faculty_overrides", "campus_rooms", "reports", "reviews", "resources", "admins", "admin_invites", "admin_log"];
 const KEYS = { media_items: "path", role_permissions: "role", newsletter_issues: "url", site_settings: "key", faculty_overrides: "slug", campus_rooms: "code", admins: "user_id", admin_invites: "email" };
 
 export function supabaseBackend(user) {
   const sb = cloud.sb;
   const ok = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
   return {
-    kind: "supabase", email: user.email,
+    kind: "supabase", email: user.email, uid: user.id,
     async list(table, { order = "created_at", asc = false, eq, limit = 500, select = "*" } = {}) {
       let q = sb.from(table).select(select);
       if (eq) Object.entries(eq).forEach(([k, v]) => { q = q.eq(k, v); });
@@ -81,6 +81,12 @@ function seed() {
       { id: id++, user_id: "u3", email: "alumni.sample@gmail.com", kind: "bug", body: "The alumni filter by country resets when I go back.", status: "read", app_version: "2.4.0", created_at: ago(2) }],
     users: [["u1", "2024-1-60-001@std.ewubd.edu", "student", "Sample Student", 0.1], ["u2", "2024-1-60-002@std.ewubd.edu", "student", "Another Student", 1], ["u3", "alumni.sample@gmail.com", "alumni", "Sample Alumni", 4], ["u4", "faculty.sample@gmail.com", "faculty", "Sample Faculty", 8]]
       .map(([uid, email, role, name, d]) => ({ id: uid, email, role, name, created_at: ago(d + 2), last_sign_in_at: ago(d), confirmed: true, suspended: false })),
+    // Help desk: three made-up conversations (open, waiting on the student, resolved).
+    support_tickets: [{ id: 2501, user_id: "u2", name: "Sample Student", email: "2024-1-60-002@std.ewubd.edu", category: "account", kind: "problem", priority: "high", subject: "Grades did not sync after the new semester", body: "I finished three courses but My Courses shows only one.", status: "open", assigned_to: null, created_at: ago(0.2), updated_at: ago(0.2) },
+      { id: 2502, user_id: "u3", name: "Sample Member", email: "2023-2-60-010@std.ewubd.edu", category: "events", kind: "question", priority: "medium", subject: "How do I get a certificate for Tech Talk?", body: "I attended but I cannot find my certificate.", status: "pending", assigned_to: "demo-owner", created_at: ago(1.5), updated_at: ago(1.1) },
+      { id: 2503, user_id: "u4", name: "Sample Club Lead", email: "2022-1-60-020@std.ewubd.edu", category: "feature", kind: "feature", priority: "low", subject: "Add a budget chart for clubs", body: "It would help us plan events.", status: "resolved", assigned_to: "demo-owner", created_at: ago(4), updated_at: ago(3) }],
+    support_messages: [{ id: 9001, ticket_id: 2502, user_id: "demo-owner", from_staff: true, name: "Support Team", body: "Certificates appear in Club → Me → Certificates once the club publishes them.", created_at: ago(1.1) },
+      { id: 9002, ticket_id: 2503, user_id: "demo-owner", from_staff: true, name: "Support Team", body: "Done: Club Finance now has a budget burn-down chart.", created_at: ago(3.5) }],
     _id: id
   };
 }
@@ -92,7 +98,7 @@ export function demoBackend() {
   TABLES.forEach((t) => { db[t] = db[t] || []; });
   persist();
   return {
-    kind: "demo", email: "you@demo",
+    kind: "demo", email: "you@demo", uid: "demo-owner",
     async list(table, { order = "created_at", asc = false, eq, limit = 500 } = {}) {
       let rows = db[table].filter((r) => !eq || match(r, eq));
       if (order) rows = rows.slice().sort((a, b) => (String(a[order] ?? "") < String(b[order] ?? "") ? -1 : 1) * (asc ? 1 : -1));

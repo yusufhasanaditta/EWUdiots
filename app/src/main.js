@@ -23,6 +23,7 @@ import "./tide.css";
 import "./v230.css";
 import "./v231.css";
 import "./v232.css";
+import "./v233.css";
 import { start as startDropdowns } from "./dropdown.js";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";
@@ -52,6 +53,7 @@ import { install as installAttendance } from "./ui-attendance.js";
 import { install as installSecurity } from "./ui-security.js";
 import { install as installClubs } from "./clubs/index.js";
 import { install as installMotion } from "./motion.ts";
+import { sheetDrag, haptic } from "./gestures.ts";
 import { kubaiPlaceholder, hydrate as hydrateIcons } from "./kicons.ts";
 import { createContent, FEATURES } from "./content.js";
 import { applyBrand } from "./theme.js";
@@ -216,6 +218,7 @@ function toast(title, type = "success", body = "") {
   t.innerHTML = `<span class="t-ic">${icon(TOAST_IC[type] || "info")}</span><div class="grow min0"><b>${esc(title)}</b>${body ? `<p>${esc(body)}</p>` : ""}</div><button class="t-x" aria-label="Dismiss">${icon("x", "sm")}</button>`;
   t.querySelector(".t-x").addEventListener("click", () => t.remove());
   $("#toasts").appendChild(t); setTimeout(() => t.remove(), type === "error" ? 5200 : 3600);
+  if (type === "success") haptic("success");
 }
 let lastFocus = null;
 function openModal(html, onMount, { center = false } = {}) {
@@ -232,6 +235,11 @@ function closeModal(force = false) { if (C.update?.required && native.isNative &
 const modalOpen = () => $("#scrim").classList.contains("open");
 $("#scrim").addEventListener("click", (e) => { if (e.target.id === "scrim" || e.target.closest("[data-close]")) closeModal(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modalOpen()) closeModal(); });
+// Phones: drag a sheet down by its top to close it; a short tick when a box is ticked (gestures.ts).
+sheetDrag($("#scrim"), () => closeModal());
+document.addEventListener("change", (e) => { if (e.target.matches?.("input.check, input.switch") && e.target.checked) haptic(); });
+// Course card → course page: the course code morphs into the page title (View Transitions; see v233.css).
+document.addEventListener("click", (e) => { const h = e.target.closest?.("a.ccard")?.querySelector("h3"); if (h) h.style.viewTransitionName = "course-title"; }, true);
 const modalHead = (title) => `<div class="modal-head"><h2 id="modal-title">${esc(title)}</h2><button class="btn icon-only ghost" data-close aria-label="Close">${icon("x")}</button></div>`;
 /* Centered confirmation, as on the "Confirmation & Delete Flows" board. */
 const confirmModal = (title, body, cta, fn, danger = false, ic = danger ? "trash" : "help") => openModal(

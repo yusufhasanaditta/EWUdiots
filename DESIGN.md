@@ -96,6 +96,10 @@ Animate `transform` and `opacity` only (blobs may also blur). Everything stops u
 | Aurora | hero surfaces | blobs drift 18–26s, alternate |
 | Tide | class in progress, focus timer, website QR card | `tide.ts`: liquid rises with time (`--fill`), two waves, bubbles |
 | Hourglass | next class within 24 h | `tide.ts`: glass sways in 3D, the top bulb empties over the last hour (`--sand`), a stream falls while it runs; card breathes in the last 5 min |
+| Sheet drag | every bottom sheet on phones | `gestures.ts`: grab the handle or header, the sheet follows the finger; past 30% or a quick flick closes it, otherwise it springs back on the drawer curve |
+| Haptic tick | ticked boxes, success toasts | `gestures.ts` `haptic()`: decisions only, never every tap |
+| Title morph | course card → course page | View Transitions: the card's code becomes the hero title (`view-transition-name: course-title`) |
+| Heatmap | calendar "Busy days ahead" | `charts.ts` `heatmapHtml`: 5 weeks × 7 days, four violet steps, today ringed in lime |
 | Pie | Analytics, admin console | `pie.ts`: stroked circles with pathLength 100, legend with value and %, table under it |
 | Bar grow | every `.bar` | fill grows from 0, one light sweep |
 | Flicker / pop | streak flame, ticked boxes | flame flickers; checkbox pops on tick |

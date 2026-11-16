@@ -1,0 +1,8 @@
+# EWUdiots website: the home page and the policy pages are for search; the app and the admin console are not.
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /api/
+Disallow: /app.html
+
+Sitemap: https://ewudiots.vercel.app/sitemap.xml

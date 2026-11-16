@@ -26,7 +26,7 @@ Capacitor, backed by Supabase (Postgres + Auth + Storage + Realtime), hosted on 
   Data goes through `src/clubs/api.js` only; cache with `store.use(key, loader, { ttl })` and `store.invalidate`.
 - Pure logic (parsers, the assistant's matchers, merging) lives in its own module with no DOM access, so it can be tested.
 - TypeScript, step by step: new modules are `.ts` (strict, erasable syntax only: no `enum`/`namespace`), imported with the
-  `.ts` extension. Typed so far: `drop.ts`, `motion.ts`, `tide.ts`, `kicons.ts`, `pie.ts`. Move a `.js` file to `.ts` when you change it a lot;
+  `.ts` extension. Typed so far: `drop.ts`, `motion.ts`, `tide.ts`, `kicons.ts`, `pie.ts`, `charts.ts`, `gestures.ts`, `clubs/health.ts`. Move a `.js` file to `.ts` when you change it a lot;
   Vercel `api/` handlers and what they import stay `.js`.
 - CSS: base `styles.css`, `mobile.css`, `clubs/clubs*.css`, then one file per release (`v2NN.css`, imported last in
   `main.js`). The minifier may reorder same-specificity rules: if a newer rule must beat an older one, make it more specific.
@@ -52,7 +52,7 @@ Capacitor, backed by Supabase (Postgres + Auth + Storage + Realtime), hosted on 
 - Never disable zoom (`user-scalable=no`, `maximum-scale=1`), never block paste, never `transition: all`.
 - Every async button shows a busy state (`ctx.busy(btn, true)`) until the request ends.
 - Honour `prefers-reduced-motion`; animate transform/opacity only. Reuse `motion.ts` / `tide.ts` patterns (reveal, sliding
-  indicator, tilt, coverflow, tide, hourglass) and `pie.ts` for pie charts instead of writing new animation or chart code.
+  indicator, tilt, coverflow, tide, hourglass) `pie.ts` / `charts.ts` (bars, horizontal bars, heatmap) for charts and `gestures.ts` (sheet drag, haptics) instead of writing new animation or chart code.
 - Motion follows Emil Kowalski's skills in `.claude/skills/` (`emil-design-eng`, `animate`, `review-animations`,
   `improve-animations`, `mobile-native`): use `animate` when adding motion and `review-animations` before finishing.
 - Feature-tile icons: `ctx.tileIcon(ic, tone)` (animated Kubai Icons, `src/kicons.ts`; add new names to its import list).

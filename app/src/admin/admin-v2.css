@@ -1,0 +1,74 @@
+/* Admin console v2 ("command centre"): deep navy→indigo sidebar with aurora blobs, glass top bar, KPI cards with a
+   brand glow and 3D lift, a hero strip on Overview, and the Help desk inbox. Loaded after admin.css; selectors start
+   with `html` so they win whatever order the minifier uses. Motion follows DESIGN.md (Emil): hover only where a real
+   pointer hovers, presses .97, under 300ms, nothing under reduced motion. */
+
+/* Sidebar: dark surface, light text, the active item is a glowing gradient pill. */
+html .adm-side { background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 55%, #23198f 100%); border-right: 0; color: #e2e8f0; overflow: hidden; isolation: isolate; }
+html .adm-side::before, html .adm-side::after { content: ""; position: absolute; z-index: -1; width: 260px; height: 260px; border-radius: 50%; filter: blur(60px); opacity: .45; pointer-events: none; }
+html .adm-side::before { background: #7c3aed; top: -80px; left: -90px; }
+html .adm-side::after { background: #06b6d4; bottom: -110px; right: -120px; opacity: .3; }
+@media (prefers-reduced-motion: no-preference) { html .adm-side::before { animation: admDrift 22s ease-in-out infinite alternate; } html .adm-side::after { animation: admDrift 26s ease-in-out infinite alternate-reverse; } }
+@keyframes admDrift { to { transform: translate(60px, 120px) scale(1.15); } }
+html .adm-brand b { color: #fff; } html .adm-brand b i { color: #c4b5fd; } html .adm-brand .xs { color: #a5b4fc; }
+html .adm-group { color: #818cf8; }
+html .adm-nav a { color: #cbd5e1; transition: background-color 150ms ease, color 150ms ease, transform 120ms var(--ease-out-strong, ease-out); }
+html .adm-nav a .icon { color: #a5b4fc; }
+html .adm-nav a[aria-current="page"] { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff; box-shadow: 0 8px 22px -8px rgba(139, 92, 246, .8); }
+html .adm-nav a[aria-current="page"] .icon { color: #fff; }
+@media (hover: hover) { html .adm-nav a:hover { background: rgba(255, 255, 255, .08); color: #fff; } html .adm-nav a[aria-current="page"]:hover { background: linear-gradient(135deg, #8b5cf6, #6d28d9); } }
+html .adm-nav .badge-n { background: #f43f5e; color: #fff; }
+html .adm-me { border-top-color: rgba(255, 255, 255, .12); } html .adm-me b { color: #fff; } html .adm-me .xs { color: #a5b4fc; }
+html .adm-me .btn, html .adm-me .icon-btn { color: #e2e8f0; }
+
+/* Glass top bar. */
+html .adm-top { background: color-mix(in srgb, var(--surface) 72%, transparent); backdrop-filter: blur(16px) saturate(1.4); border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+
+/* Section title: gradient icon tile. */
+html .adm-head .itile { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff; box-shadow: 0 10px 24px -10px rgba(124, 58, 237, .9); }
+
+/* KPI cards: soft brand glow, 3D lift on hover, numbers in the brand ink. */
+html .kpi { position: relative; overflow: hidden; transition: transform 200ms var(--ease-out-strong, ease-out), box-shadow 200ms var(--ease-out-strong, ease-out); }
+html .kpi::after { content: ""; position: absolute; right: -30px; top: -30px; width: 110px; height: 110px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--primary) 18%, transparent), transparent 70%); pointer-events: none; }
+html .kpi:active { transform: scale(.97); }
+@media (hover: hover) { html .kpi:hover { transform: perspective(700px) rotateX(4deg) translateY(-4px); box-shadow: 0 18px 40px -18px rgba(76, 29, 149, .45); } }
+@media (hover: none) { html .kpi:hover { transform: none; } }
+
+/* Overview hero: the command-centre strip. */
+html .adm-hero { position: relative; overflow: hidden; isolation: isolate; border-radius: var(--r24, 24px); padding: 22px 24px; color: #fff; background: linear-gradient(135deg, #0f172a, #23198f 60%, #6d28d9); box-shadow: 0 24px 50px -28px rgba(35, 25, 143, .9); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; }
+html .adm-hero::before { content: ""; position: absolute; inset: auto -60px -90px auto; width: 280px; height: 280px; border-radius: 50%; background: #a3e635; filter: blur(70px); opacity: .25; z-index: -1; }
+html .adm-hero h2 { color: #fff; font-size: clamp(20px, 3vw, 26px); letter-spacing: -.02em; } html .adm-hero p { color: #c7d2fe; margin-top: 4px; }
+html .adm-hero .hero-n { display: flex; gap: 10px; flex-wrap: wrap; }
+html .adm-hero .hero-n button { all: unset; cursor: pointer; min-width: 92px; padding: 10px 14px; border-radius: 16px; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .18); backdrop-filter: blur(8px); text-align: center; transition: transform 160ms var(--ease-out-strong, ease-out), background-color 150ms ease; }
+html .adm-hero .hero-n b { display: block; font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; } html .adm-hero .hero-n span { font-size: 12px; color: #c7d2fe; }
+html .adm-hero .hero-n button:active { transform: scale(.97); } html .adm-hero .hero-n button:focus-visible { outline: 3px solid #a3e635; outline-offset: 2px; }
+@media (hover: hover) { html .adm-hero .hero-n button:hover { background: rgba(255, 255, 255, .18); } }
+html .adm-hero .clock { font-size: 13px; color: #a5b4fc; font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) { html .adm-hero { grid-template-columns: 1fr; } }
+
+/* Help desk: list + conversation side by side on desktop, stacked on phones. */
+html .hd { display: grid; grid-template-columns: minmax(260px, 360px) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 960px) { html .hd { grid-template-columns: 1fr; } }
+html .hd-list { max-height: 640px; overflow-y: auto; padding: 6px; }
+html .hd-item { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px; min-height: 56px; border-radius: 12px; transition: background-color 150ms ease, transform 120ms var(--ease-out-strong, ease-out); }
+html .hd-item .body { display: grid; gap: 2px; flex: 1; } html .hd-item .body > span { font-size: 12.5px; color: var(--text-3); }
+html .hd-item.on { background: var(--primary-l); box-shadow: inset 3px 0 0 var(--primary); }
+html .hd-item:active { transform: scale(.98); } html .hd-item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+@media (hover: hover) { html .hd-item:hover:not(.on) { background: var(--surface-2); } }
+html .hd-meta { display: grid; justify-items: end; gap: 4px; flex: none; }
+html .dot-st { width: 9px; height: 9px; border-radius: 50%; background: var(--text-3); }
+html .dot-st.red { background: #ef4444; box-shadow: 0 0 0 4px rgba(239, 68, 68, .15); } html .dot-st.amber { background: #f59e0b; } html .dot-st.green { background: #22c55e; }
+html .hd-conv { display: grid; gap: 10px; min-height: 420px; }
+html .hd-conv-h { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+html .hd-msgs { display: grid; gap: 10px; max-height: 380px; overflow-y: auto; padding: 4px 2px; align-content: start; }
+html .hd-b { max-width: 82%; padding: 10px 14px; border-radius: 18px; display: grid; gap: 4px; }
+html .hd-b p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+html .hd-b.user { justify-self: start; background: var(--surface-2); border-bottom-left-radius: 6px; }
+html .hd-b.staff { justify-self: end; background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff; border-bottom-right-radius: 6px; }
+html .hd-b.staff .xs { color: #ddd6fe; }
+@media (prefers-reduced-motion: no-preference) { html .hd-b { animation: hdIn 260ms var(--ease-out-strong, ease-out) both; } }
+@keyframes hdIn { from { opacity: 0; transform: translateY(6px) scale(.98); } }
+html .hd-saved { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; } html .hd-saved .chip { flex: none; }
+
+/* Phones: the search button shrinks to fit beside the menu button; the shortcut hint hides. */
+@media (max-width: 720px) { html .adm-top { gap: 8px; padding: 10px 12px; } html .adm-search { min-width: 0; flex: 1; } html .adm-search .kbd { display: none; } html .adm-top .pill { display: none; } html .adm-top .btn.outline { display: none; } }

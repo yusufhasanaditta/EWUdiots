@@ -4,6 +4,7 @@
    holidays and weekends into a longer break, with what that costs your attendance. Your final exam day per course comes
    from EWU's final schedule by class days (ST, MW, TR, SR). Data: /api/calendar (src/acadcal.js), kept on the device.
    Day rules, sessions and breaks: src/semplan.js. */
+import { heatmapHtml } from "./charts.ts";
 import { dayRules, classRange, sessionsOf, longBreaks, addDays, iso, LETTER_DAY } from "./semplan.js";
 
 const KEY = "ewudiots.acadcal";
@@ -63,6 +64,18 @@ export function install(ctx) {
   }
 
   /* Your final exam per course: the theory classes' day pattern (e.g. "MW") → that semester's final exam date. */
+  /* Five weeks from this Sunday: each day shaded by your open deadlines and finals, so heavy weeks stand out early. */
+  function busyCard(today, finals) {
+    const sun = addDays(today, -new Date(today + "T00:00:00").getDay()), open = S().tasks.filter((t) => !t.done && t.due);
+    const weeks = [...Array(5)].map((_, w) => [...Array(7)].map((__, d) => {
+      const date = addDays(sun, w * 7 + d), due = open.filter((t) => iso(new Date(t.due)) === date), fin = finals.filter((f) => f.date === date);
+      const what = [...due.map((t) => `${t.course ? t.course + " " : ""}${t.title}`), ...fin.map((f) => `${f.code} final`)];
+      return { date, value: due.length + 2 * fin.length, title: `${new Date(date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}: ${what.length ? what.join(", ") : "nothing due"}` };
+    }));
+    const busiest = weeks.map((w, i) => [i, w.reduce((a, c) => a + c.value, 0)]).sort((a, b) => b[1] - a[1])[0];
+    if (!busiest[1]) return "";
+    return `<section class="card mt fx-rise"><div class="card-h"><h2>Busy days ahead</h2><span class="pill">Busiest: week of ${fmt(weeks[busiest[0]][0].date)}</span></div>${heatmapHtml(weeks, { today, aria: "Deadlines and finals per day for the next five weeks" })}${(() => { const top = weeks.flat().filter((c) => c.value).sort((a, b) => b.value - a.value).slice(0, 3); return `<div class="stack mt-s" style="gap:4px">${top.map((c) => `<p class="small"><b>${esc(c.title.split(": ")[0])}</b> · ${esc(c.title.split(": ").slice(1).join(": "))}</p>`).join("")}</div>`; })()}<p class="xs mt-s">Darker days have more due. Finals count double.</p></section>`;
+  }
   function myFinals() {
     const sem = (data?.semesters || []).find((s) => s.sem === S().routineSem) || (data?.semesters || []).slice(-1)[0];
     if (!sem || !Object.keys(sem.finals || {}).length) return [];
@@ -165,6 +178,7 @@ export function install(ctx) {
     return `${head}
       ${next ? `<section class="cal-hero fx-rise"><i class="sheen" aria-hidden="true"></i><div class="cal-hero-glow" aria-hidden="true"></div><span class="cal-kicker">${icon(LOOK[next.kind][0], "sm")} Next on the EWU calendar</span><h2>${esc(next.title)}</h2><p>${span(next)} · <b>${inDays(next.start)}</b></p></section>` : ""}
       <div class="mt">${seg}</div>
+      ${view === "month" ? busyCard(today, finals) : ""}
       ${b0 ? `<button class="alert green mt brk-tip" data-cv="breaks">${icon("coffee")}<div class="grow"><b>${b0.days} days off ${fmt(b0.from)} – ${fmt(b0.to)}</b><p>Skip ${b0.skip.length === 1 ? "one class day" : `${b0.skip.length} class days`}${b0.why.length ? ` around ${esc(short(b0.why[0]))}` : ""}. See what it costs your attendance.</p></div>${icon("chevR")}</button>` : ""}
       ${body}
       <p class="xs mt" style="text-align:center">From <a href="https://www.ewubd.edu/academic-calendar" target="_blank" rel="noopener">ewubd.edu/academic-calendar</a> (undergraduate programs, except B.Pharm/LL.B). Updated ${new Date(data.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}.</p>`;

@@ -42,7 +42,7 @@ export function install(ctx) {
     if (rows.error) return head + `<div class="alert red">${icon("alert")}<div><b>Couldn't load the blog</b><p>${esc(rows.error)}</p></div></div>`;
     const q = bQ.trim().toLowerCase(), list = rows.filter((p) => (bCat === "all" || p.category === bCat) && (!q || `${p.title} ${p.body} ${p.author_name}`.toLowerCase().includes(q)));
     const top = bCat === "all" && !q ? rows.slice().sort((a, b) => b.claps - a.claps)[0] : null;
-    return `${head}<div class="row nowrap"><div class="searchbar grow">${icon("search")}<input class="input" id="bq" type="search" value="${esc(bQ)}" placeholder="Search posts"></div></div>
+    return `${head}<div class="row nowrap"><div class="searchbar grow">${icon("search")}<input class="input" id="bq" type="search" value="${esc(bQ)}" placeholder="Search posts" aria-label="Search posts"></div></div>
       <div class="chips mt-s">${[["all", "All", "grid"], ...CATS].map(([v, l, ic]) => `<button class="chip" data-bc="${v}" aria-pressed="${bCat === v}">${icon(ic, "sm")} ${l}</button>`).join("")}</div>
       ${top && top.claps ? `<a class="blog-lead mt" href="#/post?id=${top.id}"><span class="eyebrow">Most helpful</span><h2>${esc(top.title)}</h2><p>${esc(top.body.slice(0, 180))}…</p><span class="xs">${esc(top.author_name)} · ${roleChip(top.author_role)} · ${icon("thumb", "sm")} ${top.claps}</span></a>` : ""}
       <div class="blog-grid mt">${list.map((p) => `<a class="blog-card" href="#/post?id=${p.id}">${p.cover_url ? `<img src="${esc(p.cover_url)}" alt="" loading="lazy">` : `<span class="blog-ic">${icon((CATS.find((c) => c[0] === p.category) || CATS[6])[2])}</span>`}

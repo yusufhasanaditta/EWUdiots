@@ -1,0 +1,38 @@
+/* v2.35 — busy-days heatmap, "can miss N more" chip, club health and leaderboard, motion pass.
+   Selectors start with `html` so they beat older rules whatever order the minifier uses. */
+
+/* Heatmap (charts.ts heatmapHtml): 7 columns, day numbers stay readable on every shade. */
+html .hm { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: 8px; }
+html .hm-d { text-align: center; font-size: 11px; font-weight: 700; color: var(--text-3); }
+html .hm-c { display: grid; place-items: center; aspect-ratio: 1; min-height: 30px; border-radius: 9px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-2); background: var(--surface-2); }
+html .hm-c.l1 { background: #ede9fe; color: #5b21b6; } html .hm-c.l2 { background: #c4b5fd; color: #3b0764; }
+html .hm-c.l3 { background: #8b5cf6; color: #fff; } html .hm-c.l4 { background: #5b21b6; color: #fff; }
+html .hm-c.today { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent, #a3e635); }
+html .hm-key { display: flex; align-items: center; gap: 4px; margin-top: 8px; justify-content: flex-end; }
+html .hm-key .hm-c { width: 14px; min-height: 14px; border-radius: 4px; }
+@media (prefers-reduced-motion: no-preference) { html .hm .hm-c { animation: hmIn .45s var(--ease-out-strong, ease-out) both; } }
+@keyframes hmIn { from { opacity: 0; transform: scale(.9); } }
+
+/* Course card: attendance allowance. */
+html .ccard .skip-chip { display: inline-flex; align-items: center; gap: 4px; margin: 8px 0 2px; font-size: 12px; }
+
+/* Club health card: a tilting gauge beside the five parts. */
+html .cl-health { display: flex; gap: 20px; align-items: center; }
+html .cl-health-g { flex: none; perspective: 700px; }
+html .cl-health-g .viz-ring { transform-style: preserve-3d; }
+html .cl-health .viz-ring b { font-size: 34px; }
+html .viz-ring-fg.warn { stroke: #f59e0b; } html .viz-ring-fg.bad { stroke: #ef4444; }
+@media (prefers-reduced-motion: no-preference) { html .cl-health-g .viz-ring { animation: gaugeIn .9s var(--ease-out-strong, ease-out) both; } }
+@keyframes gaugeIn { from { opacity: 0; transform: perspective(600px) rotateY(-50deg) scale(.92); } }
+@media (max-width: 560px) { html .cl-health { flex-direction: column; align-items: stretch; } html .cl-health-g { align-self: center; } }
+
+/* Sheet drag (gestures.ts): a bigger grab area on the handle; the header starts a drag instead of a scroll. */
+@media (max-width: 720px) {
+  html .grabber { position: relative; touch-action: none; cursor: grab; }
+  html .grabber::before { content: ""; position: absolute; inset: -16px -80px; }
+  html .modal:not(.center-modal) > .modal-head { touch-action: none; }
+}
+
+/* Course card → course page: the course code morphs into the hero title. */
+html .course-hero h1 { view-transition-name: course-title; }
+::view-transition-group(course-title) { animation-duration: .42s; animation-timing-function: var(--ease-out-strong, ease-out); }
