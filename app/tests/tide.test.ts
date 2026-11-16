@@ -42,3 +42,13 @@ test("markup carries the fill and the start marker", () => {
   assert.match(svg, /--near:0.500/);
   assert.match(svg, /class="cc-start" cx="50.0" cy="91.0"/); // :30 is straight down
 });
+
+test("hourglass: sand runs out over the last hour and the stream only shows while it runs", async () => {
+  const { sandLeft, hourglassHtml } = await import("../src/tide.ts");
+  assert.equal(sandLeft(T("07:00"), T("08:30")), 1);
+  assert.equal(sandLeft(T("08:15"), T("08:30")), 0.25);
+  assert.equal(sandLeft(T("08:30"), T("08:30")), 0);
+  assert.match(hourglassHtml(0.25, { id: "hg" }), /class="hglass is-flowing" id="hg".*--sand:0.250/);
+  assert.doesNotMatch(hourglassHtml(1), /is-flowing/);
+  assert.doesNotMatch(hourglassHtml(0), /is-flowing/);
+});

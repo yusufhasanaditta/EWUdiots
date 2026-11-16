@@ -63,3 +63,25 @@ export function clockHtml(now: Date, start: Date): string {
     + `<line class="cc-s" x1="50" y1="56" x2="50" y2="14" style="transform:rotate(${a.s}deg)"/>`
     + `<circle class="cc-pin" cx="50" cy="50" r="2.6"/></svg>`;
 }
+
+/* ── Hourglass ─────────────────────────────────────────────────────────────── */
+/** Sand left in the top bulb (0…1) for a class that starts at `start`: full until the last `windowMs`, empty at the start. */
+export function sandLeft(now: number, start: number, windowMs = 3600e3): number {
+  return 1 - nearness(now, start, windowMs);
+}
+
+/** A glass hourglass: the top bulb empties and the bottom fills as `sand` (0…1) falls; a stream shows while it runs.
+    Decorative (aria-hidden); CSS drives the levels from --sand so a tick only changes one number. */
+export function hourglassHtml(sand: number, { id = "" } = {}): string {
+  const s = clamp01(sand);
+  return `<svg class="hglass${s > 0 && s < 1 ? " is-flowing" : ""}"${id ? ` id="${id}"` : ""} viewBox="0 0 100 140" aria-hidden="true" style="--sand:${s.toFixed(3)}">`
+    + `<defs><clipPath id="hg-top"><path d="M22 18 H78 V36 C78 50 60 60 52 70 H48 C40 60 22 50 22 36 Z"/></clipPath>`
+    + `<clipPath id="hg-bot"><path d="M48 70 H52 C60 80 78 90 78 104 V122 H22 V104 C22 90 40 80 48 70 Z"/></clipPath></defs>`
+    + `<rect class="hg-cap" x="14" y="8" width="72" height="10" rx="4"/><rect class="hg-cap" x="14" y="122" width="72" height="10" rx="4"/>`
+    + `<path class="hg-glass" d="M22 18 H78 V36 C78 50 60 60 52 70 C60 80 78 90 78 104 V122 H22 V104 C22 90 40 80 48 70 C40 60 22 50 22 36 Z"/>`
+    + `<g clip-path="url(#hg-top)"><rect class="hg-sand hg-sand-top" x="18" y="18" width="64" height="52"/></g>`
+    + `<g clip-path="url(#hg-bot)"><rect class="hg-sand hg-sand-bot" x="18" y="70" width="64" height="52"/></g>`
+    + `<line class="hg-stream" x1="50" y1="68" x2="50" y2="118"/>`
+    + `<path class="hg-shine" d="M27 22 V36 C27 46 36 54 42 60" />`
+    + `</svg>`;
+}

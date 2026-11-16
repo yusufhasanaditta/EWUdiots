@@ -95,7 +95,8 @@ Animate `transform` and `opacity` only (blobs may also blur). Everything stops u
 | Count up | big numbers | 0 → value in 700ms on first view |
 | Aurora | hero surfaces | blobs drift 18–26s, alternate |
 | Tide | class in progress, focus timer, website QR card | `tide.ts`: liquid rises with time (`--fill`), two waves, bubbles |
-| Start clock | next class within 24 h | `tide.ts`: live hands, arc closes over the last hour, start-minute dot; card breathes in the last 5 min |
+| Hourglass | next class within 24 h | `tide.ts`: glass sways in 3D, the top bulb empties over the last hour (`--sand`), a stream falls while it runs; card breathes in the last 5 min |
+| Pie | Analytics, admin console | `pie.ts`: stroked circles with pathLength 100, legend with value and %, table under it |
 | Bar grow | every `.bar` | fill grows from 0, one light sweep |
 | Flicker / pop | streak flame, ticked boxes | flame flickers; checkbox pops on tick |
 

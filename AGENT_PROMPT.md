@@ -34,7 +34,8 @@ truly mine (product direction, money, publishing, deleting data).
 | Writing code | `ponytail` (smallest complete change) |
 | Reviewing before commit | `ponytail-review` or `code-review`, then `simplify`; `security-review` for data/auth/API changes |
 | Whole-repo health check | `ponytail-audit` |
-| Charts, CGPA trends, analytics | `dataviz` |
+| Charts, CGPA trends, analytics | `dataviz`, reuse `src/pie.ts` and the Insights SVG helpers |
+| Any new project in this style | `premium-app-ui` (global skill: look, motion, charts, audit, learned here) |
 
 Say in one line which skills you loaded for each task.
 

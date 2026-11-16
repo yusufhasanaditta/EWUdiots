@@ -22,6 +22,7 @@ import "./v229.css";
 import "./tide.css";
 import "./v230.css";
 import "./v231.css";
+import "./v232.css";
 import { start as startDropdowns } from "./dropdown.js";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";

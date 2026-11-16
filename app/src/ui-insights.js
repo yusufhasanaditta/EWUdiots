@@ -4,6 +4,7 @@
    Hand-made SVG charts (no library): thin marks, one axis, hover/tap tooltips, legend + direct labels, and a table view
    of every chart. Palette validated for light and dark (see mobile.css: --viz1, --viz2). */
 import { semesterKey } from "./parser.js";
+import { pieHtml } from "./pie.ts";
 
 export function install(ctx) {
   const { pages, icon, esc, $$ } = ctx;
@@ -52,7 +53,7 @@ export function install(ctx) {
   }
   /* Horizontal bars with a goal line (attendance vs the course's minimum). Values under the goal carry a warning label. */
   function hbars(items, { goal, aria, unit = "%" }) {
-    const w = W(), rowH = 30, L = 74, R = 46, T = 6, H = T + items.length * rowH + 18, x = (v) => L + ((w - L - R) * Math.max(0, Math.min(100, v))) / 100;
+    const w = W(), rowH = 30, L = Math.max(74, 10 + 6.6 * Math.max(...items.map((d) => d.k.length))), R = 46, T = 6, H = T + items.length * rowH + 18, x = (v) => L + ((w - L - R) * Math.max(0, Math.min(100, v))) / 100;
     return `<div class="viz" data-viz="bars"><svg viewBox="0 0 ${w} ${H}" role="img" aria-label="${esc(aria)}">
       ${items.map((d, i) => { const y = T + i * rowH; return `<text class="ax" x="${L - 8}" y="${y + 18}" text-anchor="end">${esc(d.k)}</text>
         <path class="bar h ${d.v < (d.goal ?? goal) ? "bad" : ""}" d="M${L},${y + 6} h${Math.max(0, x(d.v) - L - 4)} q4,0 4,4 v8 q0,4 -4,4 h${-Math.max(0, x(d.v) - L - 4)} z"/>
@@ -94,8 +95,11 @@ export function install(ctx) {
             : `<p class="small muted">Mark classes on each course's Attendance tab (or from the calendar) and they show here.</p>`}</section>
         ${pts.length ? `<section class="card"><div class="card-h"><h2>Credits per semester</h2><span class="pill">${earned} earned</span></div>
           ${bars(pts.map((p) => ({ k: p.short, full: p.sem, v: p.credits })), { label: "credits", aria: "Credits earned per semester" })}${table(["Semester", "Credits"], pts.map((p) => [p.sem, p.credits]))}</section>` : ""}
-        ${dist.length ? `<section class="card"><div class="card-h"><h2>Grade distribution</h2><span class="pill">${St.grades.length} courses</span></div>
-          ${bars(dist, { label: "courses", aria: "How many courses got each grade" })}${table(["Grade", "Courses"], dist.map((d) => [d.k, d.v]))}</section>` : ""}
+        ${dist.length ? `<section class="card"><div class="card-h"><h2>Grade mix</h2><span class="pill">${St.grades.length} courses</span></div>
+          ${pieHtml(dist.map((d) => ({ label: d.k, value: d.v })), { center: String(St.grades.length), sub: "courses", aria: "Share of courses at each grade" })}${table(["Grade", "Courses"], dist.map((d) => [d.k, d.v]))}</section>` : ""}
+        ${earned || St.routine.length ? `<section class="card"><div class="card-h"><h2>Credits at a glance</h2><span class="pill">${total} needed</span></div>
+          ${pieHtml([{ label: "Earned", value: earned, color: "#16a34a" }, { label: "This semester", value: Math.min(total - earned, St.routine.reduce((a, r) => a + (r.lab ? 0 : Number(r.cr) || 3), 0)), color: "#7c3aed" }, { label: "Still to take", value: Math.max(0, total - earned - St.routine.reduce((a, r) => a + (r.lab ? 0 : Number(r.cr) || 3), 0)), color: "#e5e7eb" }],
+            { center: `${Math.min(100, Math.round((100 * earned) / total))}%`, sub: "done", aria: "Credits earned, in progress and remaining" })}</section>` : ""}
         ${St.degree?.length ? `<section class="card"><div class="card-h"><h2>Degree areas</h2><span class="pill">${St.degree.filter((d) => d.total && d.done >= d.total).length} of ${St.degree.filter((d) => d.total).length} complete</span></div>
           ${hbars(St.degree.filter((d) => d.total).map((d) => ({ k: d.category.split(/\s+/).slice(0, 2).join(" ").slice(0, 12) || "Other", v: Math.min(100, Math.round((100 * d.done) / d.total)), tip: `${d.category}: ${d.done} of ${d.total} credits` })), { aria: "Share of credits done in each degree area" })}
           ${table(["Area", "Done", "Needed"], St.degree.map((d) => [d.category, d.done, d.total]))}</section>` : ""}

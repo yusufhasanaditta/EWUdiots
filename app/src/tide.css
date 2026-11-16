@@ -65,3 +65,19 @@ input.check:checked { animation: checkPop .45s cubic-bezier(.34, 1.56, .64, 1); 
   .tide-bub { display: none; }
   .tide-body, .cc-arc, .cc-h, .cc-m, .cc-s { transition: none; }
 }
+
+/* ── Hourglass (class countdown): glass with a 3D sway; sand levels come from --sand (1 full top, 0 all fallen) ─── */
+.next-card .cd:has(.hglass) { display: flex; align-items: center; gap: 12px; perspective: 600px; }
+.hglass { width: 56px; height: 78px; flex: none; overflow: visible; filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .3)); transform-style: preserve-3d; animation: hgSway 7s ease-in-out infinite; }
+@keyframes hgSway { 0%, 100% { transform: rotateY(-22deg) rotateX(4deg); } 50% { transform: rotateY(22deg) rotateX(-4deg); } }
+.hg-cap { fill: #3b2a68; stroke: rgba(255, 255, 255, .35); stroke-width: 1; }
+.hg-glass { fill: rgba(255, 255, 255, .14); stroke: rgba(255, 255, 255, .7); stroke-width: 1.6; stroke-linejoin: round; }
+.hg-shine { fill: none; stroke: rgba(255, 255, 255, .55); stroke-width: 2; stroke-linecap: round; }
+.hg-sand { fill: var(--accent, #a3e635); transition: transform 1s linear; }
+.hg-sand-top { transform-origin: 50px 70px; transform: scaleY(var(--sand, 1)); }
+.hg-sand-bot { transform-origin: 50px 122px; transform: scaleY(calc(1 - var(--sand, 1))); }
+.hg-stream { stroke: var(--accent, #a3e635); stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 3 4; opacity: 0; transition: opacity .4s; }
+.hglass.is-flowing .hg-stream { opacity: .95; animation: hgFall .5s linear infinite; }
+@keyframes hgFall { to { stroke-dashoffset: -7; } }
+.next-card.is-soon .hglass { animation-duration: 2.4s; }
+@media (prefers-reduced-motion: reduce) { .hglass, .hglass.is-flowing .hg-stream { animation: none; transform: none; } }

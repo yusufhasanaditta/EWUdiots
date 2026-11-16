@@ -10,6 +10,8 @@ import { start as startDropdowns } from "../dropdown.js";
 import "./admin.css";
 import * as cloud from "../cloud.js";
 import { icon } from "../icons.js";
+import { pieHtml } from "../pie.ts";
+import "../v232.css";
 import { FEATURES } from "../content.js";
 import { BLOCKS, floorsOf, floorLabel, parseRoom } from "../campus-data.js";
 import { supabaseBackend, demoBackend } from "./backend.js";
@@ -167,10 +169,9 @@ function userCharts(rows) {
   const max = Math.max(1, ...weeks.map((w) => w.v)), H = 160, B = 26, T = 16, bw = (W - 20) / weeks.length;
   const bars = `<div class="viz"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="New accounts per week, last 12 weeks"><line class="base" x1="10" x2="${W - 10}" y1="${H - B}" y2="${H - B}"/>
     ${weeks.map((w, i) => { const h = ((H - B - T) * w.v) / max, x = 10 + i * bw + bw * 0.2; return `<rect class="bar" x="${x}" y="${H - B - h}" width="${bw * 0.6}" height="${h}" rx="3"><title>${w.k}: ${w.v}</title></rect>${w.v ? `<text class="dl" x="${x + bw * 0.3}" y="${H - B - h - 4}" text-anchor="middle" style="font-size:11px">${w.v}</text>` : ""}${i % 2 === 1 ? `<text class="ax" x="${x + bw * 0.3}" y="${H - 8}" text-anchor="middle" style="font-size:10.5px">${w.k}</text>` : ""}`; }).join("")}</svg></div>`;
-  const rmax = Math.max(1, ...roles.map((r) => r.v));
   return `<section class="u-insights mt"><div class="kpis">${[["users", "purple", rows.length, "Accounts"], ["zap", "green", active(7), "Active this week"], ["clock", "blue", active(30), "Active in 30 days"], ["checkc", vp >= 50 ? "green" : "orange", `${vp}%`, "Students verified"]].map(([i, t, v, l], k) => `<div class="kpi fx-rise" style="--i:${k}"><span class="itile ${t}">${icon(i)}</span><b>${v}</b><span>${l}</span></div>`).join("")}</div>
     <div class="grid g2 mt"><section class="card"><h3>New accounts per week</h3>${bars}<details class="viz-table"><summary>Show as a table</summary><table><tbody>${weeks.map((w) => `<tr><td>Week to ${w.k}</td><td>${w.v}</td></tr>`).join("")}</tbody></table></details></section>
-      <section class="card"><h3>Accounts by role</h3><div class="stack mt-s" style="gap:10px">${roles.map((r) => `<div><div class="row between small"><b style="text-transform:capitalize">${esc(r.k)}</b><span class="num">${r.v}</span></div><div class="u-bar"><i style="width:${(100 * r.v) / rmax}%"></i></div></div>`).join("")}</div>
+      <section class="card"><h3>Accounts by role</h3><div class="mt-s">${pieHtml(roles.map((r) => ({ label: r.k[0].toUpperCase() + r.k.slice(1), value: r.v })), { center: String(rows.length), sub: "accounts", aria: "Accounts by role" })}</div>
         <h3 class="mt">Student verification</h3><div class="u-bar big"><i style="width:${vp}%"></i></div><p class="xs mt-s">${verified} of ${students.length} students verified with their ID card.</p></section></div></section>`;
 }
 const VIEWS = {

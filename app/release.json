@@ -1,11 +1,10 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "What-If: course titles sit on their own line instead of one letter per line",
-    "Course page: faculty names, Attendance and Current Marks fit their cards on phones",
-    "Home: the start clock no longer covers the course title",
-    "Bigger tap targets on the routine day strip, alarm chips and newsletter links",
-    "Website: the Faculty section no longer sits off the left edge on phones"
+    "Home: a 3D hourglass drains over the last hour before your next class",
+    "Analytics: new pie charts for your grade mix and credits at a glance",
+    "Club Home: announcements and messages no longer overlap on phones",
+    "Admin: accounts-by-role pie chart and a one-tap Members button on every club"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

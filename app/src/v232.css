@@ -1,0 +1,22 @@
+/* v2.33 — Club Home two-column block, pie charts, admin shortcuts.
+   Selectors start with `html` (or the club body attribute) so they beat older rules whatever order the minifier uses. */
+
+/* Club Home: "Recent Announcements" and "Unread Messages" shared one row on phones and their headings ran into each
+   other (clubs-v2.css keeps .cl-row2.keep at two columns and loads after v217). Stack them under 600px. */
+@media (max-width: 600px) {
+  html body[data-mode="club"][data-mode] .cl-row2.keep:has(> section) { grid-template-columns: 1fr; }
+  html body[data-mode="club"][data-mode] .cl-row2.keep .cl-sec { flex-wrap: wrap; }
+}
+
+/* Pie (donut) charts: hand-made SVG, same palette as the other charts; legend lists every slice with its value. */
+html .pie { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 14px; align-items: center; }
+html .pie svg { width: 150px; height: 150px; overflow: visible; }
+html .pie circle.slice { fill: none; stroke-width: 22; transition: stroke-width 160ms var(--ease-out-strong, ease-out); }
+html .pie circle.slice:hover { stroke-width: 26; }
+html .pie .pie-c { font-size: 22px; font-weight: 800; fill: var(--text); } html .pie .pie-s { font-size: 11px; fill: var(--text-3); }
+html .pie-legend { display: grid; gap: 6px; font-size: 13px; }
+html .pie-legend > span { display: flex; align-items: center; gap: 8px; min-width: 0; } html .pie-legend b { margin-left: auto; font-variant-numeric: tabular-nums; }
+html .pie-legend i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+@media (max-width: 420px) { html .pie { grid-template-columns: 120px minmax(0, 1fr); } html .pie svg { width: 120px; height: 120px; } }
+@media (prefers-reduced-motion: no-preference) { html .pie circle.slice { animation: pieIn .8s var(--ease-out-strong, ease-out) both; } }
+@keyframes pieIn { from { stroke-dasharray: 0 100; } }
