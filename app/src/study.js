@@ -2,7 +2,8 @@
    my courses + course hub, XP / levels / badges and the shareable semester card.
    Everything is local-first and lives in S.study. */
 import { confetti, chime, ambient, ambientOn } from "./art.js";
-import { degreeStatus, roadmap, nextSem, latestGrades } from "./degreeplan.js";
+import { barsHtml } from "./charts.ts";
+import { finishedCount, degreeStatus, roadmap, nextSem, latestGrades } from "./degreeplan.js";
 import { createOutline } from "./ui-outline.js";
 import { install as installSemesters } from "./ui-semesters.js";
 import { tideHtml } from "./tide.ts";
@@ -485,6 +486,8 @@ export function install(ctx) {
   const attOf = (code) => { const a = S().attendance[code]; return a && a.held ? Math.round((100 * (a.held - a.missed)) / a.held) : null; };
   /* Courses from earlier semesters: grades first, then every earlier semester's classes from the portal sync, so a
      finished semester shows up even before its grade report is synced (its grade reads "Pending"). */
+  // Chart labels: "Assignment 1" → "Asg 1", "Mid Term" → "Mid", "Final Exam" → "Final".
+  const shortName = (n) => String(n).replace(/assignment/i, "Asg").replace(/presentation/i, "Pres").replace(/project/i, "Proj").replace(/mid[- ]?term/i, "Mid").replace(/final exam/i, "Final").replace(/attendance/i, "Att").trim().slice(0, 8);
   function pastRows(St, ds) {
     const rows = ds.done.concat(Object.values(latestGrades(St.grades)).filter((x) => !ds.done.includes(x)));
     const seen = new Set(St.grades.map((g) => `${g.sem}|${g.code}`).concat(rows.map((r) => `${r.sem}|${r.code}`)));
@@ -608,7 +611,7 @@ export function install(ctx) {
     }
     return `${ctx.demoBanner()}${ctx.head("My Courses", "Everything you've done, what's on now, and what's left until graduation.", `<span class="pill" style="padding:8px 12px">${esc(St.routineSem || ctx.currentSemester())}</span>`)}
       <section class="deg-hero fx-rise"><i class="sheen" aria-hidden="true"></i><div class="ring lg" style="--p:${pct}"><div><b>${pct}%</b><span>of degree</span></div></div>
-        <div class="deg-stats">${[["Credits earned", `${earned} / ${total}`], ["Courses done", ds.done.length], ["This semester", cur.length], [St.curriculum?.length ? "Courses left" : "Credits left", St.curriculum?.length ? ds.left.length : leftCr], ["Graduation", gradSem || "—"]].map(([l, v]) => `<div><span>${l}</span><b class="num">${esc(String(v))}</b></div>`).join("")}</div></section>
+        <div class="deg-stats">${[["Credits earned", `${earned} / ${total}`], ["Courses done", finishedCount(pastRows(St, ds))], ["This semester", cur.length], [St.curriculum?.length ? "Courses left" : "Credits left", St.curriculum?.length ? ds.left.length : leftCr], ["Graduation", gradSem || "—"]].map(([l, v]) => `<div><span>${l}</span><b class="num">${esc(String(v))}</b></div>`).join("")}</div></section>
       <div class="mt">${ctx.seg([["ongoing", "This semester"], ["plan12", "Semesters"], ["completed", "Completed"], ["left", "Still to take"], ["roadmap", "Road map"]], coTab, "data-co")}</div>
       ${body}
       <div class="row mt"><a class="btn outline" href="#/marks">${icon("percent")} Marks &amp; Attendance Estimator</a><a class="btn outline" href="#/planner">${icon("calcheck")} Advising planner</a></div>`;
@@ -663,6 +666,7 @@ export function install(ctx) {
       <div class="row mt"><button class="btn primary grow" id="ch-focus">${icon("target")} Focus on ${esc(code)}</button><button class="btn outline grow" id="ch-cards">${icon("cards")} ${due ? `${due} cards due` : `${cardsN} flashcards`}</button></div>`;
     else if (chTab === "marks") body = `<div class="card-h"><h2>Marks Breakdown</h2><span class="small muted">${ms ? `Total: ${ms.total} Marks` : ""}</span></div>
       ${m ? `<section class="card tight">${m.parts.map((p) => { const has = p.got !== "" && p.got != null, pc = has ? (100 * Number(p.got)) / p.w : 0; return `<div class="lrow"><span class="itile sm purple">${icon("notes")}</span><div class="body"><b>${esc(p.n)}</b><span>${p.w} marks</span></div><div style="width:34%">${ctx.bar(pc, pc >= 70 ? "green" : pc >= 50 ? "" : "orange")}</div><span class="pill ${!has ? "" : pc >= 70 ? "green" : pc >= 50 ? "purple" : "red"}" style="min-width:58px;justify-content:center">${has ? `${p.got} / ${p.w}` : "–"}</span></div>`; }).join("")}</section>
+        ${m.parts.some((p) => p.got !== "" && p.got != null) ? `<section class="card mt"><div class="card-h"><h2>Score per assessment</h2><span class="pill">% of each</span></div>${barsHtml(m.parts.filter((p) => p.got !== "" && p.got != null).map((p) => ({ label: shortName(p.n), value: Math.round((100 * Number(p.got)) / p.w), title: `${p.n}: ${p.got} of ${p.w}` })), { aria: "Score in each assessment as a percentage", fmt: (n) => `${n}%`, max: 100 })}</section>` : ""}
         ${estG ? `<div class="card tint-green mt row nowrap"><span class="grade-bubble">${estG}</span><div class="grow"><b>Estimated Final Grade</b><p class="small muted">Based on current marks (${Math.round(est)}% of what's been assessed)</p></div></div>` : ""}` : `<div class="card">${ctx.empty("icon:percent", "No marks yet", "Enter your quiz, assignment and exam marks to estimate your grade.")}</div>`}
       <a class="btn primary block mt" href="#/marks?c=${encodeURIComponent(code)}&from=course">${icon("calc")} Open Marks Estimator</a>`;
     else if (chTab === "attendance") body = ctx.attendance.panel(code, c.past ? c.sem : undefined);

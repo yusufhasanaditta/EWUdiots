@@ -43,3 +43,9 @@ test("the advising planner's picks come first", () => {
   const plan = roadmap(CUR, GRADES, ["CSE106"], "Spring-2027", { perSem: 8, planned: ["ENG101"] });
   assert.ok(plan[0].courses.some((c) => c.code === "ENG101"));
 });
+
+test("finishedCount: passed grades and courses still awaiting a grade count, F/W/I do not", async () => {
+  const { finishedCount } = await import("../src/degreeplan.js");
+  assert.equal(finishedCount([{ code: "CSE103", g: "B+" }, { code: "MAT101", g: "" }, { code: "ENG101" }, { code: "CSE489", g: "W" }, { code: "PHY109", g: "F" }]), 3);
+  assert.equal(finishedCount([]), 0);
+});

@@ -53,3 +53,11 @@ export function roadmap(curriculum = [], grades = [], currentCodes = [], fromSem
   }
   return out;
 }
+
+/* Finished courses for the "Courses done" count: every passed grade plus courses from finished semesters whose grade
+   has not been published yet (the Grade Report lists a course only once its result is in). Failed, withdrawn and
+   incomplete courses never count. */
+export const isPass = PASS;
+export function finishedCount(rows = []) {
+  return rows.filter((r) => r && r.code && (!r.g || PASS(r.g))).length;
+}

@@ -80,7 +80,7 @@ export function install(ctx) {
     const best = Object.values(St.grades.reduce((m, r) => ((m[r.code] = r), m), {})).filter((r) => ctx.gradePoint(r.g) > 0).sort((a, b) => ctx.gradePoint(b.g) - ctx.gradePoint(a.g));
     const noSem = St.grades.length && !pts.length;
     return `${head}
-      <section class="kpi-hero fx-rise"><i class="sheen" aria-hidden="true"></i>
+      <section class="kpi-hero fx-rise" data-tilt><i class="sheen" aria-hidden="true"></i>
         <div class="kpi-main"><span class="kpi-lbl">Current CGPA</span><b class="kpi-big num" data-count="${f2(cgpa)}">${f2(cgpa)}</b><span class="kpi-sub">out of 4.00${delta != null ? ` · <span class="kpi-delta ${delta >= 0 ? "up" : "down"}">${delta >= 0 ? "▲" : "▼"} ${f2(Math.abs(delta))} vs last term</span>` : ""}</span></div>
         <div class="kpi-side">${[["Credits earned", `${earned} / ${total}`, Math.min(100, Math.round((100 * earned) / total))], ["Study this week", `${(weekMin / 60).toFixed(1)} h`, Math.min(100, Math.round((weekMin / (St.study?.goal * 7 || 840)) * 100))]]
           .map(([l, v, p]) => `<div class="kpi-mini"><span>${l}</span><b>${v}</b><div class="kpi-bar"><i style="width:${p}%"></i></div></div>`).join("")}</div></section>

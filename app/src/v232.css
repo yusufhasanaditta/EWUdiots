@@ -20,3 +20,6 @@ html .pie-legend i { width: 10px; height: 10px; border-radius: 3px; flex: none; 
 @media (max-width: 420px) { html .pie { grid-template-columns: 120px minmax(0, 1fr); } html .pie svg { width: 120px; height: 120px; } }
 @media (prefers-reduced-motion: no-preference) { html .pie circle.slice { animation: pieIn .8s var(--ease-out-strong, ease-out) both; } }
 @keyframes pieIn { from { stroke-dasharray: 0 100; } }
+
+/* Alumni "where they are" rows came out 43px on phones (rounding); give them a clear 46px. */
+@media (max-width: 960px) { html .geo-row { min-height: 46px; } }

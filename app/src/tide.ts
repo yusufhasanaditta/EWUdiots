@@ -81,7 +81,8 @@ export function hourglassHtml(sand: number, { id = "" } = {}): string {
     + `<path class="hg-glass" d="M22 18 H78 V36 C78 50 60 60 52 70 C60 80 78 90 78 104 V122 H22 V104 C22 90 40 80 48 70 C40 60 22 50 22 36 Z"/>`
     + `<g clip-path="url(#hg-top)"><rect class="hg-sand hg-sand-top" x="18" y="18" width="64" height="52"/></g>`
     + `<g clip-path="url(#hg-bot)"><rect class="hg-sand hg-sand-bot" x="18" y="70" width="64" height="52"/></g>`
-    + `<line class="hg-stream" x1="50" y1="68" x2="50" y2="118"/>`
+    + `<g class="hg-grains">${[0, 1, 2, 3, 4, 5].map((i) => `<circle class="hg-grain" cx="${50 + ((i % 3) - 1) * 1.6}" cy="68" r="1.3" style="--i:${i}"/>`).join("")}</g>`
+    + `<ellipse class="hg-pile" cx="50" cy="121" rx="22" ry="7"/>`
     + `<path class="hg-shine" d="M27 22 V36 C27 46 36 54 42 60" />`
     + `</svg>`;
 }
