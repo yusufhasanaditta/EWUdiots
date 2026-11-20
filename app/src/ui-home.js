@@ -205,7 +205,7 @@ export function install(ctx) {
           .map(([id, ic, tone, t, d]) => `<a class="lrow" href="#/${id}"><span class="itile ${tone}">${icon(ic)}</span><span class="body"><b>${t}</b><span>${d}</span></span>${icon("chevR", "chev")}</a>`).join("")}
         <button class="lrow" id="mo-share"><span class="itile purple">${icon("share")}</span><span class="body"><b>Share with Friends</b><span>Help your friends find it</span></span>${icon("chevR", "chev")}</button>
       </section>
-      ${devCard()}`;
+      <p class="xs mt" style="text-align:center">Unofficial · not affiliated with East West University</p>`;
   };
   /* Arcade: the study tools as games, with your level and XP from Focus Quest. */
   const arcade = () => {
@@ -220,7 +220,7 @@ export function install(ctx) {
         <span class="xp-pill">${icon("zap", "sm")} ${L.xp} XP</span></div><div class="xp-bar mt-s" role="progressbar" aria-valuenow="${L.pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Progress to level ${L.n + 1}"><i style="width:${L.pct}%"></i></div><p class="xs mt-s">${L.toNext} XP to level ${L.n + 1}</p></section>
       <div class="arcade mt-s">${GAMES.map(([id, ic, bg, t, d, lv]) => `<a class="arc" href="#/${id}" style="background:${bg}"><span class="lvl">${esc(lv)}</span>${icon(ic)}<b>${t}</b><span>${d}</span></a>`).join("")}</div>`;
   };
-  /* The maker of EWUdiots (More and About). */
+  /* The maker of EWUdiots (About page). */
   const devCard = () => `<section class="dev-card mt" aria-label="Made by">
     <div class="dev-glow" aria-hidden="true"></div>
     <img class="dev-photo" src="/img/dev-yusuf.webp" alt="Yusuf Hasan Aditta" width="88" height="88" loading="lazy">

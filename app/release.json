@@ -1,11 +1,7 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Chat with the EWUdiots team from Help, and get a notification when we reply",
-    "Calendar: a Busy days ahead heatmap shows heavy weeks before they arrive",
-    "Course cards show how many more classes you can miss this term",
-    "Swipe a sheet down to close it; small taps of feedback when you tick things off",
-    "Sharper pictures across the app, and clubs get a health score with tips"
+    "The maker card now lives on the About EWUdiots page, keeping More tidy"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"
