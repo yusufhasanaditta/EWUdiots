@@ -1,7 +1,8 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "The maker card now lives on the About EWUdiots page, keeping More tidy"
+    "The EWUdiots team can put anyone in any club position, Faculty Moderator included, or remove them",
+    "Club positions list on phones keeps names readable"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

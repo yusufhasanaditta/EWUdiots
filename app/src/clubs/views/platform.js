@@ -68,14 +68,41 @@ export function register(pages, kit) {
         ${sel ? clubCard(sel, counts[sel.id] || {}) : ""}`;
     }, { n: 5, h: 54 });
   }
+  /* Positions: the App Admin moves anyone into or out of any position (Faculty Moderator, Club Admin, President,
+     executives…) or removes them; public.admin_set_club_position and set_member_role check it in the database. */
+  let allMembers = false;
+  function positions(c) {
+    const rl = store.use(`platform:roles:${c.id}`, () => api.roles(c.id), { ttl: 60e3 });
+    const mem = store.use(`platform:members:${c.id}`, () => api.members(c.id), { ttl: 30e3 });
+    return `${ui.sec("Positions", `<button class="btn sm primary" data-padd="${c.id}">${icon("plus", "sm")} Add to a position</button>`)}` + ui.view(rl, (roles) => ui.view(mem, (rows) => {
+      const active = rows.filter((m) => m.status === "active"), list = allMembers ? active : active.filter((m) => m.rank <= 4);
+      const opts = roles.map((r) => [r.id, r.name]);
+      return `${list.length ? `<div class="cl-list">${list.map((m) => { const nm = m.display_name || "Member"; return `<div class="cl-setrow pa-pos">${ui.ava(nm, m.photo_url, "sm")}<span class="body"><b>${esc(nm)}</b><span>${esc(m.student_id || m.email || m.department || "")}</span></span>
+          <span class="pa-act">${ui.select("role", opts, m.role_id, `data-prole="${m.user_id}" aria-label="Position of ${esc(nm)}" style="width:auto;max-width:190px"`)}<button class="icon-btn" data-prm="${m.user_id}" data-nm="${esc(nm)}" aria-label="Remove ${esc(nm)} from the club">${icon("trash")}</button></span></div>`; }).join("")}</div>`
+        : `<p class="small muted">${allMembers ? "No members yet." : "No committee yet."} Add someone with Add to a position.</p>`}
+        ${active.length > list.length || allMembers ? `<button class="btn sm ghost mt-s" data-pall>${allMembers ? "Show the committee only" : `Show all ${active.length} members`}</button>` : ""}`;
+    }, { n: 3, h: 54 }), { n: 3, h: 54 });
+  }
+  function addPosition(c) {
+    const roles = store.peek(`platform:roles:${c.id}`) || [];
+    const admin = roles.find((r) => r.rank === 2) || roles[0];
+    ui.sheet(`Add to a position in ${c.name}`, `<form id="pp" class="stack">${ui.field("Student ID or email", ui.input("who", "", 'required maxlength="200" placeholder="2024-1-60-123 or someone@ewubd.edu"'))}
+      ${ui.field("Position", ui.select("role", roles.map((r) => [r.id, r.name]), admin?.id || ""))}<p class="xs">Members move to the new position straight away. People without an account get it when they sign up.</p><div id="cl-err"></div><button class="btn primary block">${icon("crown")} Give the position</button></form>`, (s) =>
+      kit.$("#pp", s).addEventListener("submit", async (e) => {
+        e.preventDefault(); const b = e.submitter || kit.$("#pp button", s), f = new FormData(e.target); ctx.busy(b, true);
+        try { const r = await api.admin.setPosition(c.id, String(f.get("who")).trim(), String(f.get("role"))); ctx.closeModal(); store.invalidate("platform:", "clubs:"); kit.toast(r === "invited" ? "Invite saved: they get the position when they sign up" : "Position given", "success"); }
+        catch (err) { ui.fail(s, err.message); } finally { ctx.busy(b, false); }
+      }));
+  }
   function clubCard(c, n) {
     const feats = c.features || {}, locks = c.features_locked || {};
     return `<section class="card mt" id="pa-card"><div class="row nowrap" style="gap:14px">${ui.logo(c, "xl")}<div class="grow min0"><div class="row" style="gap:8px"><h2>${esc(c.name)}</h2>${c.verified ? icon("checkc", "sm") : ""}${ui.st(STATUS[c.status])}</div>
         <p class="xs">@${esc(c.slug)} · ${esc(CATEGORIES[c.category])}</p><p class="small" style="color:var(--text-2)">${esc((c.about || c.tagline || "").slice(0, 220))}${(c.about || "").length > 220 ? "…" : ""}</p></div>
         <div class="row" style="gap:16px">${[["users", n.members || 0, "Members"], ["bell", n.followers || 0, "Followers"]].map(([ic, v, l]) => `<div style="text-align:center">${icon(ic)}<b style="display:block">${v}</b><span class="xs">${l}</span></div>`).join("")}</div></div>
       ${ui.sec("Features", `<span class="xs">Locked features stay off whatever the club chooses</span>`)}<div class="cl-list">${Object.entries(FEATURES).map(([k, [l, ic]]) => `<div class="cl-setrow">${icon(ic)}<span class="body"><b>${l}</b><span>${feats[k] === false ? "Off" : feats[k] ? "On" : "Default"}${locks[k] ? " · locked by the EWUdiots team" : ""}</span></span><label class="switch" aria-label="Lock ${l}"><input type="checkbox" data-lock="${k}" ${locks[k] ? "checked" : ""}><span></span></label><span class="xs">Lock</span></div>`).join("")}</div>
+      ${positions(c)}
       <div class="row mt" style="gap:8px;flex-wrap:wrap"><a class="btn outline" href="#/club/manage?c=${c.id}&tab=settings">${icon("edit")} Edit Details</a><a class="btn outline" href="#/club/manage?c=${c.id}&tab=members">${icon("users")} Manage Members</a>
-        <a class="btn outline" href="#/club/analytics?c=${c.id}">${icon("chart")} View Analytics</a><button class="btn outline" data-admin="${c.id}">${icon("crown")} Appoint Club Admin</button>
+        <a class="btn outline" href="#/club/analytics?c=${c.id}">${icon("chart")} View Analytics</a>
         ${c.status === "suspended" ? `<button class="btn outline" data-status="active">${icon("checkc")} Reinstate</button>` : `<button class="btn outline" data-status="suspended" style="color:var(--error)">${icon("xc")} Suspend Club</button>`}${c.status !== "archived" ? `<button class="btn ghost" data-status="archived">Archive</button>` : ""}</div></section>`;
   }
 
@@ -118,8 +145,16 @@ export function register(pages, kit) {
     kit.$$("[data-lock]", el).forEach((x) => x.addEventListener("change", async () => { try { await api.platform.lockFeature(cid, x.dataset.lock, x.checked); reload(); } catch (e) { kit.toast(e.message, "error"); x.checked = !x.checked; } }));
     kit.$$("[data-status]", el).forEach((b) => b.addEventListener("click", () => ui.confirm(`${b.textContent.trim()}?`, b.dataset.status === "suspended" ? "Members keep their data but the club disappears from the directory and its tools stop working." : b.dataset.status === "archived" ? "The club is hidden everywhere. You can reinstate it later." : "The club goes live again.", "Confirm",
       async () => { await api.admin.setStatus(cid, b.dataset.status); reload(); }, b.dataset.status !== "active")));
-    kit.$$("[data-admin]", el).forEach((b) => b.addEventListener("click", () => ui.sheet("Appoint the Club Admin", `<form id="ad" class="stack">${ui.field("Student ID or email", ui.input("who", "", 'required placeholder="2024-1-60-123 or someone@ewubd.edu"'))}<p class="xs">They become Club Admin straight away (or the moment they create an account) and can then give positions to the committee. The club becomes verified and active.</p><div id="cl-err"></div><button class="btn primary block">${icon("crown")} Appoint</button></form>`, (s) =>
-      kit.$("#ad", s).addEventListener("submit", async (e) => { e.preventDefault(); try { await api.admin.setAdmin(b.dataset.admin, String(new FormData(e.target).get("who")).trim()); ctx.closeModal(); reload(); kit.toast("Club Admin appointed", "success"); } catch (err) { ui.fail(s, err.message); } }))));
+    const club = () => (store.peek("platform:clubs") || []).find((x) => x.id === cid);
+    kit.$$("[data-padd]", el).forEach((b) => b.addEventListener("click", () => { const c = club(); if (c) addPosition(c); }));
+    kit.$("[data-pall]", el)?.addEventListener("click", () => { allMembers = !allMembers; ctx.rerender(); });
+    kit.$$("[data-prole]", el).forEach((s) => s.addEventListener("change", async () => {
+      const before = s.querySelector("option[selected]")?.value; s.disabled = true;
+      try { await api.setMemberRole(cid, s.dataset.prole, { role: s.value }); store.invalidate(`platform:members:${cid}`); kit.toast("Position changed", "success"); }
+      catch (e) { kit.toast(e.message, "error"); if (before) s.value = before; } finally { s.disabled = false; }
+    }));
+    kit.$$("[data-prm]", el).forEach((b) => b.addEventListener("click", () => ui.confirm(`Remove ${b.dataset.nm}?`, `<b>${esc(b.dataset.nm)}</b> leaves ${esc(club()?.name || "the club")} and loses their position. They can be added again later.`, "Remove",
+      async () => { await api.setMemberRole(cid, b.dataset.prm, { status: "removed" }); store.invalidate(`platform:members:${cid}`); kit.toast("Removed from the club", "success"); }, true)));
     kit.$$("[data-tpl]", el).forEach((b) => b.addEventListener("click", () => editTemplate((store.peek("platform:template") || []).find((r) => String(r.id) === b.dataset.tpl))));
     kit.$$("[data-claim]", el).forEach((b) => b.addEventListener("click", () => ui.confirm(b.dataset.ok === "1" ? "Verify this claim?" : "Reject this claim?", b.dataset.ok === "1" ? "They become Club Admin and the club goes live with the verified badge." : "They're told it wasn't approved.", b.dataset.ok === "1" ? "Verify" : "Reject",
       async () => { await api.admin.reviewClaim(b.dataset.claim, b.dataset.ok === "1"); reload(); }, b.dataset.ok !== "1")));

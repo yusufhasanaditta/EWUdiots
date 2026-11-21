@@ -1,7 +1,7 @@
 // Design check for EWUdiots Club: screenshots of club screens at phone size, to compare with the boards in
 // "UI Design/Ewudiots Club". Makes a throwaway club with sample data (two throwaway accounts), signs in, captures the
 // screens you name and deletes everything again. Nothing is tested here; npm run test:clubs does that.
-// Usage (from app/):  node scripts/club-shots.mjs [names…]   (no names = all)   SHOTS_W=1366 for desktop
+// Usage (from app/):  node scripts/club-shots.mjs [names…]   (no names = all)   SHOTS_W=1366 for desktop, SHOTS_SCALE=3 for sharp stills
 //   Screenshots go to app/.shots/design/<name>.png
 import puppeteer from "puppeteer-core";
 import { preview, build } from "vite";
@@ -65,7 +65,7 @@ async function setup() {
 }
 async function cleanup() {
   try { if (clubId) await sql(`delete from public.club_orders where club_id = '${clubId}'; delete from public.clubs where id = '${clubId}'`); } catch (e) { console.warn("club cleanup:", e.message); }
-  for (const u of Object.values(users)) { try { await sql(`delete from public.user_messages where user_id = '${u.id}'`); await adminApi(`users/${u.id}`, "DELETE"); } catch (e) { console.warn("user cleanup:", e.message); } }
+  for (const u of Object.values(users)) { try { await sql(`delete from public.user_messages where user_id = '${u.id}'; delete from public.admins where user_id = '${u.id}'`); await adminApi(`users/${u.id}`, "DELETE"); } catch (e) { console.warn("user cleanup:", e.message); } }
 }
 
 const PORT = 4184, BASE = `http://localhost:${PORT}`;
@@ -82,16 +82,18 @@ try {
     project: `#/club/project?id=${ids.pr}&tab=tasks`, resources: `#/club/resources?c=${clubId}`, polls: "#/club/polls", poll: `#/club/poll?id=${ids.pl}`, elections: "#/club/elections", recruit: "#/club/recruit", finance: `#/club/finance?c=${clubId}`,
     analytics: `#/club/analytics?c=${clubId}`, analyticsm: `#/club/analytics?c=${clubId}&tab=members`, reports: `#/club/reports?c=${clubId}`, reportsx: `#/club/reports?c=${clubId}&tab=export`, store: "#/club/store", product: `#/club/product?id=${ids.pd}`, merch: `#/club/merch?c=${clubId}`, orders: `#/club/ordersadmin?c=${clubId}`,
     sponsors: "#/club/sponsors", collab: "#/club/collab", help: "#/club/help", privacy: "#/club/privacy", me: "#/club/me", more: "#/club/more", roles: `#/club/manage?c=${clubId}&tab=roles`,
-    committee: `#/club/committee?c=${clubId}`, console: `#/club/manage?c=${clubId}`, mmembers: `#/club/manage?c=${clubId}&tab=members`, platform: "#/club/admin", platclubs: "#/club/admin?tab=clubs", mytickets: "#/club/tickets", scan: "#/club/scan",
+    committee: `#/club/committee?c=${clubId}`, console: `#/club/manage?c=${clubId}`, mmembers: `#/club/manage?c=${clubId}&tab=members`, platform: "#/club/admin", platclubs: "#/club/admin?tab=clubs", platpos: `#/club/admin?tab=clubs&club=${clubId}`, mytickets: "#/club/tickets", scan: "#/club/scan",
     ws: `#/club/workspace?c=${clubId}`, task: `#/club/task?id=${ids.tk}`, register: "#/club/register", privdata: "#/club/privacy?tab=data", rolesmx: `#/club/manage?c=${clubId}&tab=roles&rt=matrix`,
-    recruitform: `#/club/recruit?form=${ids.fm}`, wsposts: `#/club/space?c=${clubId}&tab=posts`, cart: "#/club/cart"
+    recruitform: `#/club/recruit?form=${ids.fm}`, form: `#/club/form?id=${ids.fm}`, wsposts: `#/club/space?c=${clubId}&tab=posts`, cart: "#/club/cart"
   };
   const want = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SCREENS);
+  // App Admin screens need the throwaway admin on the EWUdiots team; its row goes when the account is deleted.
+  if (want.includes("platpos")) await sql(`insert into public.admins (user_id, email, role) values ('${users.admin.id}', '${users.admin.email}', 'admin')`);
   await build({ root: resolve("."), logLevel: "silent" });
   srv = await preview({ root: resolve("."), logLevel: "silent", preview: { port: PORT, strictPort: true } });
   browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--no-sandbox"] });
   const p = await browser.newPage();
-  await p.setViewport({ width: W, height: H, deviceScaleFactor: 1, isMobile: W < 900, hasTouch: W < 900 });
+  await p.setViewport({ width: W, height: H, deviceScaleFactor: Number(process.env.SHOTS_SCALE || 1), isMobile: W < 900, hasTouch: W < 900 });
   await p.evaluateOnNewDocument(() => { if (!localStorage.getItem("ewudiots.v2")) localStorage.setItem("ewudiots.v2", JSON.stringify({ onboarded: true, role: "student", profile: { name: "Yusuf Hasan", department: "CSE", creditsTotal: 140 } })); });
   await p.goto(`${BASE}/app.html#/login?m=signin`, { waitUntil: "networkidle2" });
   await p.waitForSelector("#au-in");

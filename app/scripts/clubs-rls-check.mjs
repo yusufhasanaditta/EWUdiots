@@ -25,7 +25,8 @@ const U = {
   member: ["b0000000-0000-4000-8000-00000000000b", "2021-2-60-902@std.ewubd.edu", "Bashir Member"],
   applicant: ["c0000000-0000-4000-8000-00000000000c", "2022-3-60-903@std.ewubd.edu", "Chandni Applicant"],
   outsider: ["d0000000-0000-4000-8000-00000000000d", "2023-1-60-904@std.ewubd.edu", "Dipu Outsider"],
-  exec: ["e0000000-0000-4000-8000-00000000000e", "2021-1-60-905@std.ewubd.edu", "Esha Exec"]
+  exec: ["e0000000-0000-4000-8000-00000000000e", "2021-1-60-905@std.ewubd.edu", "Esha Exec"],
+  team: ["f0000000-0000-4000-8000-00000000000f", "2019-1-60-906@std.ewubd.edu", "Farid Team"]
 };
 const as = (who) => {
   const [id, email, name] = U[who];
@@ -349,7 +350,28 @@ const steps = [
   fails("a used ticket can't be cancelled", `perform public.cancel_ticket(${v("t1")}::uuid)`),
   expect("every scan is logged, out of reach of members", `(select count(*) from public.club_ticket_scans) = 0`),
   asRoot,
-  expect("scans were logged", `(select count(*) from public.club_ticket_scans where event_id = ${v("ev")}::uuid) >= 5`)
+  expect("scans were logged", `(select count(*) from public.club_ticket_scans where event_id = ${v("ev")}::uuid) >= 5`),
+
+  // ── App Admin (EWUdiots team) puts anyone in any position, Faculty Moderator included, and removes them ──
+  `insert into public.admins (user_id, email, role) values ('${U.team[0]}', '${U.team[1]}', 'owner');`,
+  setv("mod", `(select id from public.club_roles where club_id = ${v("club")}::uuid and rank = 1 order by sort limit 1)`),
+  setv("pres", `(select id from public.club_roles where club_id = ${v("club")}::uuid and name = 'President' limit 1)`),
+  as("admin"),
+  fails("a Club Admin can't use the team's position tool", `perform public.admin_set_club_position(${v("club")}::uuid, '2023-1-60-904', ${v("pres")}::uuid)`),
+  fails("a Club Admin still can't make a Faculty Moderator", `perform public.set_member_role(${v("club")}::uuid, '${U.member[0]}', ${v("mod")}::uuid)`),
+  as("outsider"),
+  fails("an outsider can't use the team's position tool", `perform public.admin_set_club_position(${v("club")}::uuid, '2023-1-60-904', ${v("pres")}::uuid)`),
+  as("team"),
+  expect("the team adds an outsider as President", `public.admin_set_club_position(${v("club")}::uuid, '2023-1-60-904', ${v("pres")}::uuid) = 'added'`),
+  expect("the team makes a member Faculty Moderator", `public.admin_set_club_position(${v("club")}::uuid, '2021-2-60-902', ${v("mod")}::uuid) = 'added'`),
+  expect("no account yet: the position waits as an invite", `public.admin_set_club_position(${v("club")}::uuid, '2025-1-60-999', ${v("pres")}::uuid) = 'invited'`),
+  fails("a position from another club is refused", `perform public.admin_set_club_position(${v("club")}::uuid, '2023-1-60-904', (select id from public.club_roles where club_id <> ${v("club")}::uuid limit 1))`),
+  fails("junk instead of an ID or email is refused", `perform public.admin_set_club_position(${v("club")}::uuid, 'not an id', ${v("pres")}::uuid)`),
+  `select public.set_member_role(${v("club")}::uuid, '${U.admin[0]}', null, null, null, 'removed');`,
+  asRoot,
+  expect("outsider is President now", `(select r.name = 'President' and m.status = 'active' from public.club_members m join public.club_roles r on r.id = m.role_id where m.club_id = ${v("club")}::uuid and m.user_id = '${U.outsider[0]}')`),
+  expect("member is Faculty Moderator now", `(select r.rank = 1 from public.club_members m join public.club_roles r on r.id = m.role_id where m.club_id = ${v("club")}::uuid and m.user_id = '${U.member[0]}')`),
+  expect("the team removed the Club Admin", `(select status = 'removed' from public.club_members where club_id = ${v("club")}::uuid and user_id = '${U.admin[0]}')`)
 ];
 
 const script = `begin;\n${migration}\n${steps.join("\n")}\nreset role;\nselect 'ALL OK' as result;\nrollback;`;

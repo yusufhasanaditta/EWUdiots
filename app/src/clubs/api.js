@@ -208,6 +208,8 @@ export function createClubApi(sb, me) {
       claimStep: async (id, step, note = "") => ok(await rpc("club_claim_step", { claim: id, st: step, note })),
       reviewClaim: async (id, approve, note = "") => ok(await rpc("review_claim", { claim: id, approve, note })),
       setAdmin: async (clubId, who) => ok(await rpc("admin_set_club_admin", { c: clubId, who })),
+      /** Any position, Faculty Moderator included; returns "added" or "invited" (no account yet). */
+      setPosition: async (clubId, who, roleId) => ok(await rpc("admin_set_club_position", { c: clubId, who, rid: roleId })),
       setStatus: async (clubId, status) => ok(await from("clubs").update({ status }).eq("id", clubId)),
       setVerified: async (clubId, verified) => ok(await from("clubs").update({ verified }).eq("id", clubId)),
       reports: async () => ok(await from("club_reports").select("*, clubs(name, slug)").eq("status", "open").order("created_at", { ascending: false })),

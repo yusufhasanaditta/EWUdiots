@@ -1,0 +1,7 @@
+/* v2.36: App Admin positions list. On phones the position menu and remove button take their own line, so names never
+   get squeezed into broken words. */
+.cl-setrow.pa-pos { flex-wrap: wrap; }
+.cl-setrow.pa-pos > .body { flex: 1 1 160px; }
+.cl-setrow.pa-pos .pa-act { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.cl-setrow.pa-pos .pa-act .select { max-width: 220px; min-height: 44px; }
+.cl-setrow.pa-pos .pa-act .icon-btn { width: 44px; height: 44px; }
