@@ -92,6 +92,10 @@ export function install(ctx) {
     clubsWith: (perm) => kit.myClubs().filter((m) => has(m, perm)),
     /** EWUdiots team member with clubs.manage (App Admin). */
     isPlatform: () => !!(me() && api && store.use("me:platform", () => api.platformCan("clubs.manage"), { ttl: 10 * 60e3 }).value),
+    /** True while the App Admin check is still loading: pages wait instead of flashing "members only" at the team. */
+    platformPending: () => !!(me() && api && store.use("me:platform", () => api.platformCan("clubs.manage"), { ttl: 10 * 60e3 }).value === undefined),
+    /** The App Admin acts in any club as its most senior position, even without a membership. */
+    asPlatform: () => ({ rank: 1, perms: ["*"], status: "active" }),
     /** Page heading in club mode. */
     head: (title, sub = "", actions = "") => ui.ph(title, sub, actions),
     back: (href, label) => `<a class="cl-back" href="${href}">${icon("chevL", "sm")} ${esc(label)}</a>`,
@@ -104,7 +108,7 @@ export function install(ctx) {
     /** Members-only page: gate + membership check. Returns HTML to show instead, or "". */
     memberGate(clubId, what = "this space") {
       const g = kit.gate(what); if (g) return g;
-      const ms = memberships(); if (ms.loading && !ms.value) return ui.skeleton(3);
+      const ms = memberships(); if ((ms.loading && !ms.value) || (!kit.membership(clubId) && kit.platformPending())) return ui.skeleton(3);
       if (!kit.membership(clubId) && !kit.isPlatform()) return ui.emptyBox("lock", "For club members", `Only members can open ${what}. Join the club first.`, `<a class="btn primary" href="#/club/explore">Find clubs</a>`);
       return "";
     },

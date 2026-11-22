@@ -1,8 +1,8 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "The EWUdiots team can put anyone in any club position, Faculty Moderator included, or remove them",
-    "Club positions list on phones keeps names readable"
+    "The EWUdiots team can add, move or remove any club member, club admins included, from the admin panel",
+    "Club pages opened from the admin panel go straight to the club, no student sign-in screen"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

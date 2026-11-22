@@ -22,8 +22,8 @@ export function register(pages, kit) {
   pages["club/manage"] = () => {
     const g = kit.gate("the club console"); if (g) return g;
     const id = cid(), ms = kit.memberships();
-    if (ms.loading && !ms.value) return ui.skeleton(3);
-    const m = kit.membership(id);
+    if ((ms.loading && !ms.value) || (!kit.membership(id) && kit.platformPending())) return ui.skeleton(3);
+    const m = kit.membership(id) || (kit.isPlatform() ? kit.asPlatform() : null);
     if (!m || !kit.canManage(id)) return ui.emptyBox("lock", "Only the club's organisers can open this", "Ask your club admin for a role with permissions.", `<a class="btn primary" href="#/club/mine">My clubs</a>`);
     return ui.view(clubE(id), (club) => {
       if (!club) return ui.emptyBox("search", "Club not found", "");
@@ -41,7 +41,7 @@ export function register(pages, kit) {
   };
   pages["club/manage"].mount = (el) => {
     kit.bindRetry(el);
-    const id = cid(), club = store.peek(`clubid:${id}`), m = kit.membership(id); if (!club || !m) return;
+    const id = cid(), club = store.peek(`clubid:${id}`), m = kit.membership(id) || (kit.isPlatform() ? kit.asPlatform() : null); if (!club || !m) return;
     kit.$("#mg-pick", el)?.addEventListener("change", (e) => kit.go(`#/club/manage?c=${id}&tab=${e.target.value}`));
     const t = Object.keys(S).includes(kit.param("tab")) ? kit.param("tab") : "overview";
     if (allowed(m, S[t])) S[t].mount?.(el, club, m);

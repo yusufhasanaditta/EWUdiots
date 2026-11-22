@@ -441,7 +441,12 @@ function route({ animate = false } = {}) {
   let id = pages[r] ? r : r === "account" ? "profile" : "notfound";
   if (PAGE_FEATURE[id] && !content.feature(PAGE_FEATURE[id])) id = "off";
   if (content.data.settings.maintenance?.on && !maintBypass && !FULLSCREEN.has(id)) id = "maint";
-  if (!S.onboarded && !FULLSCREEN.has(id) && id !== "sync") id = "welcome";
+  // Club pages the admin panel opens (as=team) skip the student welcome; nothing about this device's setup is saved.
+  // Remembered for this tab only, so links inside the club pages (which drop the marker) keep working.
+  if (/[?&]as=team(&|$)/.test(location.hash)) { try { sessionStorage.setItem("ewud.staff", "1"); } catch { /* private mode */ } }
+  let staffTab = false; try { staffTab = sessionStorage.getItem("ewud.staff") === "1"; } catch { /* private mode */ }
+  const staffView = id.startsWith("club/") && staffTab;
+  if (!S.onboarded && !FULLSCREEN.has(id) && id !== "sync" && !staffView) id = "welcome";
   const changed = id !== currentRoute;
   currentRoute = id;
   const full = FULLSCREEN.has(id);

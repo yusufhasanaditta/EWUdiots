@@ -1,6 +1,7 @@
 /* Admin → Clubs (EWUdiots Club, migration 0016): platform overview, claims waiting for verification, every club with
-   status / verified / appoint-an-admin, and reported club content. Verifying a claim makes that student the club's
-   admin; appointing works by student ID or email (an invite if they have no account yet). */
+   status / verified, and reported club content. A club's Manage dialog lists its members: the team changes anyone's
+   position (Faculty Moderator and Club Admin included), removes them, or adds someone by student ID or email (an invite
+   if they have no account yet). Links into the app carry as=team so it skips the student welcome. */
 
 /** @param {any} h helpers from admin.js */
 export function clubViews(h) {
@@ -53,21 +54,54 @@ export function clubViews(h) {
     body.innerHTML = `<div class="row" style="gap:8px"><input class="input grow" id="cq" placeholder="Search clubs" type="search"></div>
       <section class="card tight mt">${rows.map((c) => `<div class="lrow" data-row="${esc(c.name.toLowerCase())}"><span class="itile sm ${STATUS[c.status]?.[1] || ""}">${icon("community")}</span>
         <span class="body"><b>${esc(c.name)}${c.verified ? ` ${icon("checkc", "sm")}` : ""}</b><span>${STATUS[c.status]?.[0] || c.status} · ${esc(c.slug)}</span></span>
-        <a class="btn sm ghost" href="/app.html#/club/c?slug=${encodeURIComponent(c.slug)}" target="_blank" rel="noopener">${icon("external", "sm")}</a><button class="btn sm outline" data-ce="${c.id}">Manage</button></div>`).join("")}</section>`;
+        <a class="btn sm ghost" href="/app.html#/club/c?slug=${encodeURIComponent(c.slug)}&as=team" target="_blank" rel="noopener">${icon("external", "sm")}</a><button class="btn sm outline" data-ce="${c.id}">Manage</button></div>`).join("")}</section>`;
     $("#cq", body).addEventListener("input", (e) => { const q = e.target.value.toLowerCase(); $$("[data-row]", body).forEach((r) => { r.hidden = q && !r.dataset.row.includes(q); }); });
     $$("[data-ce]", body).forEach((b) => b.addEventListener("click", () => {
       const c = rows.find((x) => x.id === b.dataset.ce);
       openModal(c.name, `<div class="stack"><p class="small muted">Status: <b>${STATUS[c.status]?.[0]}</b>${c.verified ? " · verified" : ""}</p>
-        <div class="row" style="gap:8px;flex-wrap:wrap"><a class="btn sm primary" href="/app.html#/club/manage?c=${c.id}" target="_blank" rel="noopener">${icon("settings", "sm")} Open club console</a><a class="btn sm outline" href="/app.html#/club/analytics?c=${c.id}" target="_blank" rel="noopener">${icon("chart", "sm")} Analytics &amp; reports</a><a class="btn sm outline" href="/app.html#/club/committee?c=${c.id}&tab=previous" target="_blank" rel="noopener">${icon("users", "sm")} Committees & history</a></div>
+        <div class="row" style="gap:8px;flex-wrap:wrap"><a class="btn sm primary" href="/app.html#/club/manage?c=${c.id}&as=team" target="_blank" rel="noopener">${icon("settings", "sm")} Open club console</a><a class="btn sm outline" href="/app.html#/club/analytics?c=${c.id}&as=team" target="_blank" rel="noopener">${icon("chart", "sm")} Analytics &amp; reports</a><a class="btn sm outline" href="/app.html#/club/committee?c=${c.id}&tab=previous&as=team" target="_blank" rel="noopener">${icon("users", "sm")} Committees & history</a></div>
         <p class="xs">As a platform admin you have every club permission there: members, positions, committees, events, posts, finance.</p>
-        <form id="ca-f" class="row nowrap" style="gap:8px"><input class="input grow" name="who" placeholder="Student ID or email of the new club admin" required><button class="btn primary">${icon("crown", "sm")} Appoint</button></form>
-        <p class="xs">If they have no account yet, they get an invite and become admin when they sign up.</p>
+        <h3 style="margin:6px 0 0">Members &amp; positions</h3>
+        <form id="ca-f" class="row" style="gap:8px;flex-wrap:wrap"><input class="input grow" name="who" placeholder="Student ID or email" required maxlength="200" aria-label="Student ID or email" style="min-width:200px"><select class="input" name="role" id="ca-role" aria-label="Position" style="width:auto"><option>Loading…</option></select><button class="btn primary">${icon("plus", "sm")} Add</button></form>
+        <p class="xs">Members move to the new position straight away; people without an account get it when they sign up.</p>
+        <div id="ca-mem"><p class="small muted">Loading members…</p></div>
         <div class="row" style="gap:8px;flex-wrap:wrap">${c.status !== "active" ? `<button class="btn sm" data-st="active">${icon("play", "sm")} Activate</button>` : `<button class="btn sm danger-soft" data-st="suspended">${icon("lock", "sm")} Suspend</button>`}
           ${c.status !== "archived" ? `<button class="btn sm neutral" data-st="archived">Archive</button>` : ""}${c.status !== "unclaimed" ? `<button class="btn sm neutral" data-st="unclaimed">Mark unclaimed</button>` : ""}
           <button class="btn sm ${c.verified ? "neutral" : "outline"}" id="ca-ver">${icon("checkc", "sm")} ${c.verified ? "Remove verified badge" : "Give verified badge"}</button></div></div>`, (m) => {
+        // Members & positions: every active member with a position menu and a remove button (Faculty Moderator and
+        // Club Admin included); the database (admin_set_club_position, set_member_role) checks it is the EWUdiots team.
+        let roles = [];
+        const roleOpts = (sel) => roles.map((r) => `<option value="${r.id}" ${r.id === sel ? "selected" : ""}>${esc(r.name)}</option>`).join("");
+        const loadMembers = async () => {
+          const box = $("#ca-mem", m); if (!box) return;
+          try {
+            const [rl, ms] = await Promise.all([api().list("club_roles", { eq: { club_id: c.id }, order: "rank", asc: true, select: "id,name,rank" }), api().rpc("club_member_list", { c: c.id })]);
+            roles = rl; $("#ca-role", m).innerHTML = roleOpts((roles.find((r) => r.rank === 2) || roles[0])?.id);
+            const list = (ms || []).filter((x) => x.status === "active");
+            box.innerHTML = list.length ? `<div class="list" style="text-align:left">${list.map((x) => `<div class="row" style="gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--border)"><span class="grow" style="min-width:160px"><b>${esc(x.display_name || "Member")}</b><br><span class="xs">${esc(x.student_id || x.email || "")}</span></span>
+              <span class="row nowrap" style="gap:8px;margin-left:auto"><select class="input" data-mrole="${x.user_id}" aria-label="Position of ${esc(x.display_name || "member")}" style="width:auto;min-height:40px">${roleOpts(x.role_id)}</select><button class="btn sm danger-soft" data-mrm="${x.user_id}" data-nm="${esc(x.display_name || "this member")}" aria-label="Remove ${esc(x.display_name || "member")} from the club">${icon("trash", "sm")} Remove</button></span></div>`).join("")}</div>`
+              : `<p class="small muted">No members yet. Add the club admin above.</p>`;
+            $$("[data-mrole]", box).forEach((s) => s.addEventListener("change", async () => {
+              const before = s.querySelector("option[selected]")?.value; s.disabled = true;
+              try { await act("Changed club position", `${c.name} · ${roles.find((r) => r.id === s.value)?.name}`, () => api().rpc("set_member_role", { c: c.id, u: s.dataset.mrole, rid: s.value })); toast("Position changed", "success"); loadMembers(); }
+              catch (err) { if (before) s.value = before; s.disabled = false; toast(err.message, "error"); }
+            }));
+            $$("[data-mrm]", box).forEach((b) => b.addEventListener("click", async () => {
+              // Two taps: the first arms the button for 4 s, so a slip never removes anyone.
+              if (!b.dataset.armed) { b.dataset.armed = "1"; b.textContent = "Tap again to remove"; setTimeout(() => { if (b.isConnected && b.dataset.armed) { delete b.dataset.armed; b.innerHTML = `${icon("trash", "sm")} Remove`; } }, 4000); return; }
+              delete b.dataset.armed; busy(b, true);
+              try { await act("Removed club member", `${c.name} · ${b.dataset.nm}`, () => api().rpc("set_member_role", { c: c.id, u: b.dataset.mrm, st: "removed" })); toast("Removed from the club", "success"); loadMembers(); }
+              catch (err) { busy(b, false); toast(err.message, "error"); }
+            }));
+          } catch (err) { box.innerHTML = `<p class="small" style="color:var(--error)">Couldn't load members: ${esc(err.message)}</p>`; }
+        };
+        loadMembers();
         $("#ca-f", m).addEventListener("submit", async (e) => {
-          e.preventDefault(); const who = new FormData(e.target).get("who").trim(), btn = e.target.querySelector("button"); busy(btn, true);
-          try { await act("Appointed club admin", `${c.name} · ${who}`, () => api().rpc("admin_set_club_admin", { c: c.id, who })); closeModal(); toast("Appointed", "success"); reload(); } catch (err) { busy(btn, false); toast(err.message, "error"); }
+          e.preventDefault(); const f = new FormData(e.target), who = String(f.get("who")).trim(), rid = String(f.get("role")), btn = e.target.querySelector("button"); busy(btn, true);
+          try {
+            const r = await act("Gave club position", `${c.name} · ${who} · ${roles.find((x) => x.id === rid)?.name}`, () => api().rpc("admin_set_club_position", { c: c.id, who, rid }));
+            toast(r === "invited" ? "Invite saved: they get the position when they sign up" : "Position given", "success"); e.target.reset(); $("#ca-role", m).innerHTML = roleOpts((roles.find((x) => x.rank === 2) || roles[0])?.id); loadMembers(); reload();
+          } catch (err) { toast(err.message, "error"); } finally { busy(btn, false); }
         });
         $$("[data-st]", m).forEach((s) => s.addEventListener("click", () => { closeModal(); confirmAct(`Set ${esc(c.name)} to ${STATUS[s.dataset.st][0]}?`, s.dataset.st === "suspended" ? "Its posts, forms and members' space go offline until you activate it again." : "", "Confirm", async () => { await act("Changed club status", `${c.name} → ${s.dataset.st}`, () => api().update("clubs", { id: c.id }, { status: s.dataset.st })); reload(); }); }));
         $("#ca-ver", m).addEventListener("click", async () => { try { await act("Changed club verification", c.name, () => api().update("clubs", { id: c.id }, { verified: !c.verified })); closeModal(); reload(); } catch (err) { toast(err.message, "error"); } });
@@ -78,7 +112,7 @@ export function clubViews(h) {
   async function reportsView(body, reload) {
     const rows = await api().list("club_reports", { select: "*, clubs(name, slug)", eq: { status: "open" }, limit: 300 });
     body.innerHTML = `<section class="card tight">${rows.length ? rows.map((r) => `<div class="lrow"><span class="itile sm red">${icon("flag")}</span><span class="body"><b>${esc(r.clubs?.name || "Club")} · ${esc(r.target_type)}</b><span>${esc(r.reason)} · ${ago(r.created_at)}</span></span>
-      ${r.target_type === "post" ? `<a class="btn sm ghost" href="/app.html#/club/post?id=${r.target_id}" target="_blank" rel="noopener">${icon("eye", "sm")} View</a><button class="btn sm danger-soft" data-hide="${r.target_id}" data-r="${r.id}">Hide post</button>` : ""}
+      ${r.target_type === "post" ? `<a class="btn sm ghost" href="/app.html#/club/post?id=${r.target_id}&as=team" target="_blank" rel="noopener">${icon("eye", "sm")} View</a><button class="btn sm danger-soft" data-hide="${r.target_id}" data-r="${r.id}">Hide post</button>` : ""}
       <button class="btn sm ghost" data-done="${r.id}">Dismiss</button></div>`).join("") : '<p class="small muted">No open reports.</p>'}</section>`;
     $$("[data-hide]", body).forEach((b) => b.addEventListener("click", async () => { try { await act("Hid club post", b.dataset.hide, () => api().update("club_posts", { id: b.dataset.hide }, { status: "hidden" })); await api().update("club_reports", { id: b.dataset.r }, { status: "done" }); toast("Post hidden", "success"); reload(); } catch (err) { toast(err.message, "error"); } }));
     $$("[data-done]", body).forEach((b) => b.addEventListener("click", async () => { try { await api().update("club_reports", { id: b.dataset.done }, { status: "done" }); reload(); } catch (err) { toast(err.message, "error"); } }));

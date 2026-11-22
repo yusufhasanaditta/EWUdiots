@@ -82,12 +82,14 @@ try {
     project: `#/club/project?id=${ids.pr}&tab=tasks`, resources: `#/club/resources?c=${clubId}`, polls: "#/club/polls", poll: `#/club/poll?id=${ids.pl}`, elections: "#/club/elections", recruit: "#/club/recruit", finance: `#/club/finance?c=${clubId}`,
     analytics: `#/club/analytics?c=${clubId}`, analyticsm: `#/club/analytics?c=${clubId}&tab=members`, reports: `#/club/reports?c=${clubId}`, reportsx: `#/club/reports?c=${clubId}&tab=export`, store: "#/club/store", product: `#/club/product?id=${ids.pd}`, merch: `#/club/merch?c=${clubId}`, orders: `#/club/ordersadmin?c=${clubId}`,
     sponsors: "#/club/sponsors", collab: "#/club/collab", help: "#/club/help", privacy: "#/club/privacy", me: "#/club/me", more: "#/club/more", roles: `#/club/manage?c=${clubId}&tab=roles`,
-    committee: `#/club/committee?c=${clubId}`, console: `#/club/manage?c=${clubId}`, mmembers: `#/club/manage?c=${clubId}&tab=members`, platform: "#/club/admin", platclubs: "#/club/admin?tab=clubs", platpos: `#/club/admin?tab=clubs&club=${clubId}`, mytickets: "#/club/tickets", scan: "#/club/scan",
+    committee: `#/club/committee?c=${clubId}`, console: `#/club/manage?c=${clubId}`, mmembers: `#/club/manage?c=${clubId}&tab=members`, platform: "#/club/admin", platclubs: "#/club/admin?tab=clubs", platpos: `#/club/admin?tab=clubs&club=${clubId}`, teamconsole: `#/club/manage?c=${clubId}&tab=members&as=team`, mytickets: "#/club/tickets", scan: "#/club/scan",
     ws: `#/club/workspace?c=${clubId}`, task: `#/club/task?id=${ids.tk}`, register: "#/club/register", privdata: "#/club/privacy?tab=data", rolesmx: `#/club/manage?c=${clubId}&tab=roles&rt=matrix`,
     recruitform: `#/club/recruit?form=${ids.fm}`, form: `#/club/form?id=${ids.fm}`, wsposts: `#/club/space?c=${clubId}&tab=posts`, cart: "#/club/cart"
   };
   const want = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SCREENS);
   // App Admin screens need the throwaway admin on the EWUdiots team; its row goes when the account is deleted.
+  // teamconsole: an EWUdiots admin who is NOT a member of the club opens its console from the admin panel (as=team).
+  if (want.includes("teamconsole")) await sql(`insert into public.admins (user_id, email, role) values ('${users.admin.id}', '${users.admin.email}', 'admin') on conflict do nothing; update public.club_members set status = 'removed' where club_id = '${clubId}' and user_id = '${users.admin.id}'`);
   if (want.includes("platpos")) await sql(`insert into public.admins (user_id, email, role) values ('${users.admin.id}', '${users.admin.email}', 'admin')`);
   await build({ root: resolve("."), logLevel: "silent" });
   srv = await preview({ root: resolve("."), logLevel: "silent", preview: { port: PORT, strictPort: true } });
@@ -101,6 +103,15 @@ try {
   await p.$eval("#au-in", (f) => f.requestSubmit());
   await p.waitForFunction(() => location.hash.startsWith("#/home"), { timeout: 20000 });
   for (const name of want) {
+    // panelclub: the admin panel (admin.html shares the app's sign-in) → Clubs → All clubs → this club's Manage dialog.
+    if (name === "panelclub") {
+      await sql(`insert into public.admins (user_id, email, role) values ('${users.admin.id}', '${users.admin.email}', 'admin') on conflict do nothing`);
+      await p.goto(`${BASE}/admin.html#clubs`, { waitUntil: "networkidle2" }); await wait(3000);
+      await p.evaluate(() => document.querySelector('[data-ct="all"]')?.click()); await wait(2500);
+      await p.evaluate((id) => document.querySelector(`[data-ce="${id}"]`)?.click(), clubId); await wait(3500);
+      await p.screenshot({ path: resolve(OUT, `panelclub${W > 900 ? "-desktop" : ""}.png`) });
+      console.log("shot panelclub"); continue;
+    }
     if (!SCREENS[name]) { console.warn(`unknown screen ${name}`); continue; }
     await p.evaluate((h) => { location.hash = h; }, SCREENS[name]);
     await wait(2500);
