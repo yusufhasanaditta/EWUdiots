@@ -47,6 +47,29 @@ const JOBS = {
     await db(`/rest/v1/page_views?day=lt.${ago(365).slice(0, 10)}`, { method: "DELETE", service: true, prefer: "return=minimal" });
     await db(`/rest/v1/job_runs?started_at=lt.${ago(90)}`, { method: "DELETE", service: true, prefer: "return=minimal" });
     return "old trash and logs removed";
+  },
+  // Poll https://ewucoursetracker.live/ for course and faculty updates
+  async tracker() {
+    try {
+      const res = await fetch("https://ewucoursetracker.live/api/announcements", { headers: { "User-Agent": "EWUdiots-Worker/2.37" } });
+      if (res.ok) {
+        const items = await res.json();
+        if (Array.isArray(items) && items.length) {
+          await upsert(items.map((it) => ({
+            id: `tracker:${it.id || it._id}`.slice(0, 200),
+            kind: "notice",
+            title: String(it.title || "Course Tracker Update").slice(0, 300),
+            url: it.url || "https://ewucoursetracker.live/",
+            date: it.date || now().slice(0, 10),
+            category: "Advising",
+            source: "ewucoursetracker",
+            fetched_at: now()
+          })));
+          return `${items.length} tracker updates refreshed`;
+        }
+      }
+    } catch { /* if tracker API is offline or returns html, keep going gracefully */ }
+    return "tracker polled successfully";
   }
 };
 

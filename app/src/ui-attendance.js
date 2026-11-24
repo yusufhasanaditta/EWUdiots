@@ -12,7 +12,21 @@ export function install(ctx) {
   const today = () => iso(Date.now());
   const recOf = (code) => (S().attendance[code] = S().attendance[code] || { held: 0, missed: 0 });
   const minOf = (code) => Number(S().attendance[code]?.min) || 70;
-  const sessions = (code, sem) => (ctx.acal?.sessionsFor ? ctx.acal.sessionsFor(code, sem) : []);
+  const sessions = (code, sem) => {
+    const list = ctx.acal?.sessionsFor ? ctx.acal.sessionsFor(code, sem) : [];
+    const makes = (S().attendance[code]?.makeups || []).map((m, idx) => ({
+      key: `${m.date}|${m.start || "10:00"}`,
+      date: m.date,
+      start: m.start || "10:00",
+      end: m.end || "11:30",
+      room: m.room || "",
+      makeup: true,
+      lab: Boolean(m.lab),
+      off: "",
+      n: list.length + idx + 1
+    }));
+    return [...list, ...makes].sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+  };
   const fmtD = (d, o = { weekday: "short", day: "numeric", month: "short" }) => new Date(d + "T00:00:00").toLocaleDateString("en-GB", o);
 
   /* Numbers for a course: from per-class marks when the semester's classes are known, else the old counters. */
@@ -71,11 +85,11 @@ export function install(ctx) {
         <p class="small mt-s">${st.unmarked ? `${icon("alert", "sm")} ${st.unmarked} past class${st.unmarked === 1 ? "" : "es"} not marked yet. ` : ""}Attend the rest and you finish at <b>${st.finalPct}%</b>.</p></div></div>
       <div class="alert ${tone} mt-s">${icon(tone === "red" ? "alertc" : "calendar")}<div><b>${st.canMiss ? `You can miss ${st.canMiss} more class${st.canMiss === 1 ? "" : "es"}` : st.finalPct >= min ? "No more absences to spare" : `Below ${min}% even if you attend everything`}</b><p>${st.total} classes this semester (holidays and cancelled classes don't count). Your course needs ${min}%.</p></div></div></section>
 
-    <section class="card mt att-card"><div class="card-h"><h2>${icon("checksq")} Mark a class</h2>${ctx.seg([["date", "By date"], ["n", "By class no."]], p.mode, "data-amode")}</div>
+    <section class="card mt att-card"><div class="card-h"><h2>${icon("checksq")} Mark a class</h2><div class="row" style="gap:6px"><button class="btn sm ghost" id="att-add-makeup">${icon("plus", "sm")} Add make-up class</button>${ctx.seg([["date", "By date"], ["n", "By class no."]], p.mode, "data-amode")}</div></div>
       ${p.mode === "date" ? `<label class="field">Date<input class="input" type="date" id="att-date" value="${p.date}" min="${ss[0]?.date || ""}" max="${ss[ss.length - 1]?.date || ""}"></label>`
-        : `<label class="field">Class<select class="select" id="att-n">${real.map((s) => `<option value="${s.n}" ${sel[0]?.n === s.n ? "selected" : ""}>Class ${s.n} · ${fmtD(s.date)}${s.lab ? " · Lab" : ""}</option>`).join("")}</select></label>`}
+        : `<label class="field">Class<select class="select" id="att-n">${real.map((s) => `<option value="${s.n}" ${sel[0]?.n === s.n ? "selected" : ""}>Class ${s.n} · ${fmtD(s.date)}${s.makeup ? " · Make-up" : s.lab ? " · Lab" : ""}</option>`).join("")}</select></label>`}
       <div class="stack mt-s">${sel.map((s) => s.off ? `<div class="cg-off-banner"><span class="itile red">${icon("sun")}</span><div><b>${esc(ctx.acal.short(s.off))}</b><p class="small">Holiday: no ${esc(code)} class on ${fmtD(s.date)}.</p></div></div>`
-        : `<div class="att-row"><div class="min0"><b>Class ${s.n}${s.lab ? " · Lab" : ""}</b><span class="xs">${fmtD(s.date, { weekday: "long", day: "numeric", month: "short" })} · ${ctx.fmt12(ctx.toMin(s.start))} · ${esc(s.room || "")}${s.date > today() ? " · upcoming" : ""}</span></div>
+        : `<div class="att-row"><div class="min0"><b>Class ${s.n}${s.makeup ? " · Make-up Class" : s.lab ? " · Lab" : ""}</b><span class="xs">${fmtD(s.date, { weekday: "long", day: "numeric", month: "short" })} · ${ctx.fmt12(ctx.toMin(s.start))} · ${esc(s.room || "")}${s.date > today() ? " · upcoming" : ""}</span></div>
           <div class="att-pick lg" role="group" aria-label="Class ${s.n}">${[["p", "Present", "check"], ["a", "Absent", "x"], ["c", "Cancelled", "minus"]].map(([k, l, ic]) => `<button class="ap ${k}" data-amark="${esc(s.key)}|${k}" aria-pressed="${marks[s.key] === k}">${icon(ic, "sm")}<span>${l}</span></button>`).join("")}</div></div>`).join("")
         || `<p class="small muted">${offDay ? `${esc(ctx.acal.short(offDay))}: holiday.` : `No ${esc(code)} class on ${fmtD(p.date, { weekday: "long", day: "numeric", month: "short" })}.`}</p>`}</div></section>
 
@@ -101,6 +115,32 @@ export function install(ctx) {
     $("#att-min", el)?.addEventListener("change", (e) => { recOf(code).min = Number(e.target.value); ctx.save(); ctx.rerender(); });
     $$("[data-amark]", el).forEach((b) => b.addEventListener("click", () => { const [date, start, v] = b.dataset.amark.split("|"); mark(code, `${date}|${start}`, v); }));
     $$("[data-achip]", el).forEach((b) => b.addEventListener("click", () => { Object.assign(p(), { mode: "n", n: b.dataset.achip }); ctx.rerender(); }));
+    $("#att-add-makeup", el)?.addEventListener("click", () => openMakeupModal(code));
+  }
+  function openMakeupModal(code) {
+    const a = recOf(code);
+    ctx.openModal(ctx.modalHead(`Add make-up class for ${code}`) + `<form id="att-mu-form" class="stack">
+      <p class="small muted">Faculty can take make-up classes on any day. Enter the date, time, and room to track attendance.</p>
+      <label class="field">Date<input class="input" type="date" name="date" required value="${today()}"></label>
+      <div class="row"><label class="field grow">Start time<input class="input" type="time" name="start" value="10:00" required></label>
+      <label class="field grow">End time<input class="input" type="time" name="end" value="11:30" required></label></div>
+      <label class="field">Room (optional)<input class="input" name="room" placeholder="e.g. AB2-301"></label>
+      <label class="row small"><input type="checkbox" name="lab"> Lab session</label>
+      <button class="btn primary block">${icon("plus", "sm")} Add make-up class</button></form>`, (m) => {
+      $("#att-mu-form", m).addEventListener("submit", (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const date = String(fd.get("date") || "").trim();
+        const start = String(fd.get("start") || "10:00").trim();
+        const end = String(fd.get("end") || "11:30").trim();
+        const room = String(fd.get("room") || "").trim();
+        const lab = fd.get("lab") === "on";
+        if (!date) return ctx.toast("Please select a date", "warn");
+        a.makeups = a.makeups || [];
+        a.makeups.push({ date, start, end, room, lab });
+        ctx.save(); ctx.closeModal(); ctx.toast("Make-up class added", "success"); ctx.rerender();
+      });
+    });
   }
   return { stats, mark, quick, panel, mount, minOf };
 }

@@ -25,8 +25,8 @@ export function install(ctx) {
     const courses = new Set(St.routine.map((r) => r.code)).size;
     const str = ctx.study.streak();
     const first = esc(ctx.firstName());
-    const TILES = [["routine", "calendar", "purple", "Routine", "View your classes"], ["planner", "listcheck", "green", "Planner", "Plan next semester"], ["grades", "bars", "blue", "CGPA", "Track your progress"], ["focus", "target", "pink", "Focus", "Study timer"],
-      ["map", "map", "purple", "Campus Map", "Find any room"], ["vault", "vault", "yellow", "Vault", "Notes, past papers"], ["rooms", "building", "blue", "Free Rooms", "Find empty classrooms"], ["fees", "wallet", "orange", "Fees", "Payments & installments"]];
+    const TILES = [["routine", "calendar", "purple", "Routine", "View your classes"], ["planner", "listcheck", "green", "Spring-2027", "Faculty & advising"], ["faculty", "users", "purple", "Faculty", "Teacher list"], ["grades", "bars", "blue", "CGPA", "Track your progress"],
+      ["map", "map", "purple", "Campus Map", "Find any room"], ["vault", "vault", "yellow", "Vault", "Notes, past papers"], ["tasks", "clipboard", "red", "Deadlines", "Assignments & exams"], ["fees", "wallet", "orange", "Fees", "Payments & installments"]];
     const prof = nc ? ctx.facName(nc.faculty) : "";
     const ncAt = nc ? (() => { const t = new Date(); t.setSeconds(0, 0); return t.getTime() + nc.mins * 6e4; })() : 0;
     const ncStart = nc ? (nc.live ? ncAt - (nc.e - nc.s) * 6e4 : ncAt) : 0;
@@ -52,9 +52,9 @@ export function install(ctx) {
     const desktop = `<div class="d-only">
       <section class="hero-banner"><span class="fluid" aria-hidden="true"><i></i><i></i><i></i></span><span class="date">${now.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })} ${icon("star", "sm")}</span>
         <h1><small>${ctx.greeting()},</small>${first}!</h1><p>Small steps. Big progress.</p></section>
-      <div class="mt"><a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Remind me 30 min before”</span></span>${icon("arrow")}</a></div>
-      <div class="dtiles mt">${[["routine", "calendar", "purple", "Routine", "View your classes"], ["planner", "listcheck", "green", "Advising Planner", "Plan next semester"], ["map", "map", "blue", "Campus Map", "Rooms, routes & 3D walk"], ["grades", "bars", "purple", "CGPA", "Track your progress"],
-        ["tasks", "clipboard", "red", "Deadlines", "Assignments & exams"], ["fees", "wallet", "orange", "Fees", "Payments & installments"], ["vault", "vault", "blue", "Study Library", "Notes, past papers"], ["rooms", "door", "purple", "Free Rooms", "Find empty classrooms"]]
+      <div class="mt"><a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Spring-2027 Advising & Faculty” · “Remind me 30 min before”</span></span>${icon("arrow")}</a></div>
+      <div class="dtiles mt">${[["routine", "calendar", "purple", "Routine", "View your classes"], ["planner", "listcheck", "green", "Spring-2027 Planner", "Faculty list & advising"], ["faculty", "users", "purple", "Faculty List", "Spring-2027 teachers"], ["map", "map", "blue", "Campus Map", "Rooms, routes & 3D walk"], ["grades", "bars", "purple", "CGPA", "Track your progress"],
+        ["tasks", "clipboard", "red", "Deadlines", "Assignments & exams"], ["fees", "wallet", "orange", "Fees", "Payments & installments"], ["vault", "vault", "blue", "Study Library", "Notes, past papers"]]
         .map(([id, ic, tone, t, d]) => `<a class="dtile" data-kubai-trigger href="#/${id}">${ctx.tileIcon(ic, tone)}<div class="min0"><b>${t}</b><span>${d}</span></div></a>`).join("")}</div>
       <div class="split mt">
         <section class="card"><div class="card-h"><h2>Today's Schedule</h2><a class="see" href="#/routine">View All</a></div>${navStrip ? `<div style="margin:-4px 0 12px">${navStrip}</div>` : ""}

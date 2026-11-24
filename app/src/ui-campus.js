@@ -121,7 +121,7 @@ export function install(ctx) {
   };
 
   /* ═════════════ FACULTY ═════════════ */
-  let facQ = "", facDept = "All", facMine = false, facShow = 60;
+  let facQ = "", facDept = "All", facMine = false, facSem = "Spring-2027", facShow = 60;
   const face = (f, cls = "") => `<span class="avatar face ${cls}" style="background:${ctx.colorFor(f.init)}">${esc(ctx.initials(f.name || f.init))}${f.photo ? `<img src="${esc(f.photo)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</span>`;
   const showInit = (f) => (f.init && !f.init.startsWith("@") ? f.init : "");
   const stars = (r) => `<span style="color:var(--yellow)" aria-hidden="true">★</span> <b>${r.toFixed(1)}</b>`;
@@ -131,9 +131,13 @@ export function install(ctx) {
     const all = [...ctx.facultyIndex().values()].sort((a, b) => (mine.has(b.init) - mine.has(a.init)) || (b.rating || 0) - (a.rating || 0) || (a.name || a.init).localeCompare(b.name || b.init));
     const depts = ["All", ...new Set(all.map((f) => f.dept).filter(Boolean))];
     const q = facQ.toLowerCase();
-    const list = all.filter((f) => (facDept === "All" || f.dept === facDept) && (!facMine || mine.has(f.init)) && (!q || [f.name, showInit(f), f.dept, f.deptName, f.designation, f.email, f.roomCode].join(" ").toLowerCase().includes(q)));
+    const semFilter = (f) => facSem === "All" || !f.semesters?.length || f.semesters.includes(facSem);
+    const list = all.filter((f) => semFilter(f) && (facDept === "All" || f.dept === facDept) && (!facMine || mine.has(f.init)) && (!q || [f.name, showInit(f), f.dept, f.deptName, f.designation, f.email, f.roomCode].join(" ").toLowerCase().includes(q)));
     const loading = C.directory === null;
     return `${ctx.demoBanner()}${ctx.head("Faculty Directory", `${C.directory?.length ? `${all.length} faculty members from ${depts.length - 1} departments` : "Contacts, offices and honest ratings"}, with reviews from verified EWU students.`)}
+      <div class="row nowrap" style="gap:8px;margin-bottom:8px">
+        <select class="select sm grow" id="fac-sem" aria-label="Select Semester"><option value="Spring-2027" ${facSem === "Spring-2027" ? "selected" : ""}>Spring-2027 (Active List)</option><option value="All" ${facSem === "All" ? "selected" : ""}>All Semesters</option></select>
+      </div>
       <div class="row nowrap"><div class="searchbar grow">${icon("search")}<input class="input" id="fac-q" type="search" placeholder="Search name, initials, department, room" value="${esc(facQ)}" aria-label="Search faculty"></div><button class="chip" id="fac-mine" aria-pressed="${facMine}">My faculty</button></div>
       ${depts.length > 2 ? `<div class="seg mt">${depts.map((d) => `<button data-dept="${esc(d)}" aria-selected="${facDept === d}">${esc(d)}</button>`).join("")}</div>` : ""}
       ${loading ? `<div class="grid g2 mt">${[1, 2, 3, 4].map(() => '<div class="skel" style="height:84px"></div>').join("")}</div>` : list.length ? `<div class="grid g2 mt">${list.slice(0, facShow).map((f) => `<a class="lcard" href="#/prof?i=${encodeURIComponent(f.init)}" style="margin:0">${face(f)}<div class="grow min0"><b class="ellipsis" style="display:block">${esc(f.name || f.init)}</b><span class="xs">${[f.designation, showInit(f), f.dept].filter(Boolean).map(esc).join(" · ")}</span>${f.roomCode ? `<span class="xs" style="display:block">${icon("pin", "sm")} Room ${esc(f.roomCode)}</span>` : ""}
@@ -146,6 +150,7 @@ export function install(ctx) {
     const q = $("#fac-q", el); let t;
     q.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => { facQ = q.value; ctx.rerender(); const n = $("#fac-q"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 220); });
     $$("[data-dept]", el).forEach((b) => b.addEventListener("click", () => { facDept = b.dataset.dept; facShow = 60; ctx.rerender(); }));
+    $("#fac-sem", el)?.addEventListener("change", (e) => { facSem = e.target.value; ctx.rerender(); });
     $("#fac-mine", el).addEventListener("click", () => { facMine = !facMine; ctx.rerender(); });
     $("#fac-more", el)?.addEventListener("click", () => { facShow += 60; ctx.rerender(); });
     ctx.loadDirectory();

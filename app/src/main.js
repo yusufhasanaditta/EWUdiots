@@ -107,9 +107,37 @@ function save({ silent = false } = {}) {
 const resetState = () => { const th = S.theme; S = blank(); S.theme = th; snap = snapshot(S); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* storage blocked */ } clearBlobs("id:"); idcard?.forget(); };
 const C = { user: null, faculty: null, sections: null, vault: null, votes: new Set(), syncing: false, directory: null };
 /* Official faculty directory, from EWU's public profile pages (scripts/scrape-faculty.mjs). Loaded on first use. */
-let dirP = null;
-const loadDirectory = () => (dirP = dirP || fetch("/data/faculty.json").then((r) => (r.ok ? r.json() : { faculty: [] })).catch(() => ({ faculty: [] }))
-  .then((j) => { C.directory = j.faculty || []; facCache = null; if (["faculty", "prof", "home"].includes(currentRoute)) rerender(); }));
+let dirP = null, offeredP = null;
+const loadDirectory = () => (dirP = dirP || Promise.all([
+  fetch("/data/faculty.json").then((r) => (r.ok ? r.json() : { faculty: [] })).catch(() => ({ faculty: [] })),
+  fetch("/data/spring-2027-faculty.json").then((r) => (r.ok ? r.json() : { faculty: [] })).catch(() => ({ faculty: [] }))
+]).then(([j1, j2]) => {
+  const map = new Map((j1.faculty || []).map((f) => [f.email?.toLowerCase() || f.name, f]));
+  (j2.faculty || []).forEach((f) => {
+    const existing = map.get(f.init) || [...map.values()].find((x) => x.name?.toLowerCase() === f.name?.toLowerCase());
+    if (existing) {
+      existing.init = existing.init || f.init;
+      existing.semesters = [...new Set([...(existing.semesters || []), "Spring-2027"])];
+      if (f.dept) existing.dept = existing.dept || f.dept;
+    } else {
+      map.set(f.init, { init: f.init, name: f.name || f.init, dept: f.dept || "", semesters: ["Spring-2027"], room: f.room || "" });
+    }
+  });
+  C.directory = [...map.values()]; facCache = null; if (["faculty", "prof", "home"].includes(currentRoute)) rerender();
+}));
+const loadOffered = (sem = "Spring-2027") => (offeredP = offeredP || fetch(`/data/${sem.toLowerCase()}-offered.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+  .then((j) => {
+    if (j?.courses) {
+      C.offeredSemesters = C.offeredSemesters || {};
+      C.offeredSemesters[j.semester || sem] = j.courses;
+      if (!S.planner.offered || !Object.keys(S.planner.offered).length) {
+        S.planner.offered = j.courses;
+        S.planner.offeredSem = j.semester || sem;
+      }
+      facCache = null;
+      if (["planner", "plan", "combos"].includes(currentRoute)) rerender();
+    }
+  }));
 // A faculty photo that fails to load falls back to the initials underneath it.
 addEventListener("error", (e) => { const t = e.target; if (t.tagName === "IMG" && t.closest(".face")) t.remove(); }, true);
 let study = null; // study-mode API, installed at boot (src/study.js)
@@ -371,9 +399,10 @@ function inbox() {
   if (p && daysUntil(p.due) <= 7) out.push({ id: `p${p.due}`, cat: "System", icon: "wallet", tone: daysUntil(p.due) <= 3 ? "red" : "orange", title: "Payment reminder", body: `${fmtMoney(p.amount)} due ${daysUntil(p.due) === 0 ? "today" : `in ${daysUntil(p.due)} days`} (${fmtDate(p.due)})${p.late ? "" : ". Late fee after that"}.`, at: new Date(new Date(p.due) - 7 * 864e5).toISOString(), href: "#/fees" });
   Object.entries(S.attendance).forEach(([c, a]) => { if (a.held >= 4 && (a.held - a.missed) / a.held < 0.7) out.push({ id: `a${c}${a.held}`, cat: "Academic", icon: "alert", tone: "red", title: "You're below 70% attendance", body: `${c}: ${Math.round((100 * (a.held - a.missed)) / a.held)}%. Attend upcoming classes to stay eligible.`, at: new Date().toISOString(), href: `#/course?c=${encodeURIComponent(c)}&tab=attendance` }); });
   // Classes that ended today or yesterday without attendance marked.
+  const gone = droppedCodes();
   if (acal?.ready()) for (const d of [0, 1]) {
     const day = new Date(now - d * 864e5), key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`, nm = new Date().getHours() * 60 + new Date().getMinutes();
-    acal.classesOn(key).filter((b) => b.start && (d || b.e <= nm) && !S.attendance[b.code]?.marks?.[`${key}|${b.start}`]).forEach((b) => out.push({ id: `pa${b.code}${key}${b.start}`, cat: "Academic", icon: "checksq", tone: "orange",
+    acal.classesOn(key).filter((b) => b.start && (d || b.e <= nm) && !gone.has(b.code) && !S.attendance[b.code]?.marks?.[`${key}|${b.start}`]).forEach((b) => out.push({ id: `pa${b.code}${key}${b.start}`, cat: "Academic", icon: "checksq", tone: "orange",
       title: `Mark attendance: ${b.code}`, body: `${d ? "Yesterday" : "Today"} ${fmt12(b.s)}. Were you there? Add a note on what you covered.`, at: new Date(new Date(key + "T00:00:00").getTime() + b.e * 6e4), href: d ? `#/course?c=${encodeURIComponent(b.code)}&tab=attendance` : "#/home" }));
   }
   const due = study ? study.dueCards().length : 0;
@@ -495,15 +524,25 @@ pages.off = () => `<div class="card mt-l">${empty("mascot-reading", "This sectio
 pages.notfound = () => `<div class="card mt-l">${empty("mascot-confused", "Oops! Page not found", "The page you're looking for doesn't exist.", `<a class="btn primary" href="#/home">Go Home</a>`)}</div>`;
 
 /* ───────────── Shared computations ───────────── */
+function droppedCodes() {
+  const sem = S.routineSem || currentSemester();
+  return new Set((S.dropped || []).filter((d) => !d.sem || d.sem === sem).map((d) => d.code));
+}
+function activeRoutine() {
+  const gone = droppedCodes();
+  return gone.size ? S.routine.filter((r) => !gone.has(r.code)) : S.routine;
+}
 function nextClass() {
-  const blocks = expand(S.routine);
+  const blocks = expand(activeRoutine());
   if (!blocks.length) return null;
   const now = new Date(), nd = now.getDay(), nm = now.getHours() * 60 + now.getMinutes();
+  const gone = droppedCodes();
   for (let k = 0; k < 15; k++) {
     const d = (nd + k) % 7, date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + k);
     // Holidays, make-up days ("Regular Tuesday Classes") and the semester's first/last day come from the EWU calendar.
     const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-    for (const b of acal ? acal.classesOn(day) : blocks.filter((x) => x.day === d).sort((a, c) => a.s - c.s)) {
+    const rawList = acal ? acal.classesOn(day) : blocks.filter((x) => x.day === d).sort((a, c) => a.s - c.s);
+    for (const b of rawList.filter((x) => !gone.has(x.code))) {
       if (k === 0 && b.e <= nm) continue;
       const live = k === 0 && b.s <= nm;
       return { ...b, live, mins: live ? b.e - nm : k * 1440 + b.s - nm };
@@ -534,7 +573,7 @@ function facultyIndex() {
 }
 const facBy = (init) => facultyIndex().get(String(init || "").toUpperCase());
 const facName = (init) => { const f = facBy(init); return f?.name || init || ""; };
-const offered = () => S.planner.offered || (S.demo ? DEMO.offered : {});
+const offered = () => S.planner.offered || (C.offeredSemesters?.["Spring-2027"]) || (S.demo ? DEMO.offered : {});
 const sectionBlocks = (code, s) => expand([{ code, sec: s.sec, days: s.days, start: s.start, end: s.end, id: code + s.sec, room: s.room }]
   .concat(s.lab ? [{ code, sec: s.sec, days: s.lab.days, start: s.lab.start, end: s.lab.end, id: code + s.sec + "L", lab: true, room: s.lab.room || s.room }] : []));
 /* Every known room and when it's occupied: campus-wide sections ∪ offered courses ∪ my routine. */
@@ -585,27 +624,29 @@ function scheduleReminders() {
     });
     if (acal) items.push(...acal.reminderItems().filter((x) => x.at > Date.now()));
     // 5 minutes after each class this week: mark attendance and note what was covered (skipped once it's marked).
+    const gone = droppedCodes();
     if (acal?.ready() && S.settings.attendNudge !== false) for (let d = 0; d < 7; d++) {
       const day = new Date(Date.now() + d * 864e5), key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
-      for (const b of acal.classesOn(key)) if (b.start && !S.attendance[b.code]?.marks?.[`${key}|${b.start}`])
+      for (const b of acal.classesOn(key)) if (b.start && !gone.has(b.code) && !S.attendance[b.code]?.marks?.[`${key}|${b.start}`])
         items.push({ key: `att|${b.code}|${key}|${b.start}`, title: `How was ${b.code}?`, body: "Mark your attendance and note what you covered.", at: new Date(new Date(key + "T00:00:00").getTime() + (b.e + 5) * 6e4) });
     }
     const t = S.study?.timer;
     if (t?.endAt) items.push({ key: "focus" + t.endAt, title: t.kind === "focus" ? "Focus session done" : "Break's over", body: t.kind === "focus" ? "Nice work. Take a short break." : "Start your next focus session.", at: new Date(t.endAt) });
     // With the EWU calendar known, class alarms are dated (no alarm on Durga Puja or after the last class); else weekly.
     const dated = acal?.ready() ? upcomingAlarms(400, 21) : null;
-    await native.scheduleAll({ classes: dated ? [] : expand(S.routine).map((c) => ({ ...c, offsets: alarmsFor(c.code) })).filter((c) => c.offsets.length), classAt: dated || [], items }).catch(() => {});
+    await native.scheduleAll({ classes: dated ? [] : expand(activeRoutine()).map((c) => ({ ...c, offsets: alarmsFor(c.code) })).filter((c) => c.offsets.length), classAt: dated || [], items }).catch(() => {});
   }, 800);
 }
 const fmtBefore = (m) => (m >= 60 && m % 60 === 0 ? `${m / 60} hour${m === 60 ? "" : "s"}` : m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`);
 function alarmsFor(code) { const a = S.settings.alarms; if (!a.on) return []; return [...new Set(a.perCourse[code] || a.offsets)].sort((x, y) => y - x); }
 /* The next alarm times for the coming week: [{ at: Date, off, code, title, room, s, day }] */
 function upcomingAlarms(limit = 8, days = 8) {
-  const out = [], now = new Date();
+  const out = [], now = new Date(), gone = droppedCodes();
   for (let k = 0; k < days; k++) {
     const d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + k);
     const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    for (const b of acal ? acal.classesOn(day) : expand(S.routine).filter((x) => x.day === d.getDay())) for (const off of alarmsFor(b.code)) {
+    const rawClasses = acal ? acal.classesOn(day) : expand(activeRoutine()).filter((x) => x.day === d.getDay());
+    for (const b of rawClasses.filter((x) => !gone.has(x.code))) for (const off of alarmsFor(b.code)) {
       const at = new Date(d.getTime() + (b.s - off) * 6e4);
       if (at > now) out.push({ at, off, ...b });
     }
@@ -649,8 +690,8 @@ setInterval(() => {
 }, 20000);
 // Alarms whose time passed in the last 90 s (upcomingAlarms only looks forward).
 function recentAlarms() {
-  const now = new Date(), d = new Date(now); d.setHours(0, 0, 0, 0);
-  return expand(S.routine).filter((b) => b.day === now.getDay()).flatMap((b) => alarmsFor(b.code).map((off) => ({ at: new Date(d.getTime() + (b.s - off) * 6e4), off, ...b })));
+  const now = new Date(), d = new Date(now), gone = droppedCodes(); d.setHours(0, 0, 0, 0);
+  return expand(activeRoutine()).filter((b) => b.day === now.getDay() && !gone.has(b.code)).flatMap((b) => alarmsFor(b.code).map((off) => ({ at: new Date(d.getTime() + (b.s - off) * 6e4), off, ...b })));
 }
 
 /* ───────────── Shared row renderers ───────────── */
@@ -738,7 +779,7 @@ async function restoreOrBackup(user) {
 /* ───────────── Boot ───────────── */
 const ctx = {
   get S() { return S; }, resetState, pages, save, rerender, route: () => currentRoute, go, qparam, toast, openModal, closeModal, modalHead, confirmModal, modalOpen, busy,
-  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, get events() { return events; }, get acal() { return acal; }, motion,
+  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, loadOffered, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, get events() { return events; }, get acal() { return acal; }, motion,
   // Feature-tile icon: an animated Kubai icon when there is one for this name, else the Phosphor icon.
   tileIcon: (ic, tone) => { const k = kubaiPlaceholder(ic, tone); return `<span class="itile ${tone}${k ? " ki" : ""}">${k || icon(ic)}</span>`; }, get attendance() { return attendanceUi; }, get charts() { return charts; }, get materials() { return materials; }, get sync() { return sync; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
   afterSignIn: () => signInDone, LETTER, toMin, fmt12, fmtShort, dayIdx, expand, overlaps, toneFor, colorFor, HEX, TONES, gradePoint, cgpaOf, fmtMoney, fmtCountdown, daysUntil, fmtDate, firstName, initials, myAvatar, greeting,

@@ -14,7 +14,8 @@ export function install(ctx) {
   const saved = (msg = "Alarms saved") => { ctx.save(); ctx.scheduleReminders(); toast(msg, "success"); ctx.rerender(); };
 
   pages.alarms = () => {
-    const a = A(), courses = [...new Map(S().routine.map((r) => [r.code, r])).values()];
+    const a = A(), dropped = new Set((S().dropped || []).map((d) => d.code));
+    const courses = [...new Map(S().routine.map((r) => [r.code, r])).values()].filter((c) => !dropped.has(c.code));
     const next = ctx.upcomingAlarms(6), perm = S().settings.notify;
     return `${ctx.subHead("Class alarms", "Warn me before every class", "#/routine")}<div style="max-width:720px;margin:0 auto">
       <section class="card al-hero"><div class="row nowrap"><span class="al-bell${a.on ? " on" : ""}" aria-hidden="true">${icon("bell")}</span><div class="grow"><b style="font-size:17px">${a.on ? "Alarms are on" : "Alarms are off"}</b><p class="small muted">${a.on ? `${a.offsets.map(ctx.fmtBefore).join(" and ")} before each class${Object.keys(a.perCourse).length ? `, custom for ${Object.keys(a.perCourse).length} course${Object.keys(a.perCourse).length > 1 ? "s" : ""}` : ""}.` : "Turn on to get warned before your classes."}</p></div>
