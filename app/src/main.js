@@ -258,9 +258,11 @@ function openModal(html, onMount, { center = false } = {}) {
   first && first.focus({ preventScroll: true });
   onMount && onMount(m);
 }
-function closeModal(force = false) { if (C.update?.required && native.isNative && $("#modal .upd-sheet")) return; // a required update stays on screen
+function closeModal(force = false) {
+  if (C.update?.required && native.isNative && $("#modal .upd-sheet")) return; // a required update stays on screen
   if (!force && $("#modal [data-locked]")) return; // e.g. the two-step code at sign-in: answer it or sign out
-  $("#scrim").classList.remove("open"); $("#modal").innerHTML = ""; lastFocus && lastFocus.focus && lastFocus.focus({ preventScroll: true }); }
+  $("#scrim").classList.remove("open"); $("#modal").innerHTML = ""; lastFocus && lastFocus.focus && lastFocus.focus({ preventScroll: true });
+}
 const modalOpen = () => $("#scrim").classList.contains("open");
 $("#scrim").addEventListener("click", (e) => { if (e.target.id === "scrim" || e.target.closest("[data-close]")) closeModal(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modalOpen()) closeModal(); });
@@ -357,7 +359,7 @@ function renderNav(route) {
   $("#side-nav").innerHTML = navFor().map((n) => `<a href="#/${n.id}" ${active === n.id ? 'aria-current="page"' : ""}>${icon(n.icon)}<span>${n.label}</span>${n.id === "tasks" && dueSoon ? `<span class="badge-n">${dueSoon}</span>` : ""}${n.id === "notices" && notices?.unseenCount() ? `<span class="badge-n">${notices.unseenCount()}</span>` : ""}</a>`).join("");
   const B = S.role === "student" ? [["home", "home", "Home"], ["routine", "calendar", "Routine"], ["fab"], ["grades", "bars", "CGPA"], ["more", "grid", "More"]]
     : S.role === "faculty" ? [["home", "home", "Home"], ["teach", "briefcase", "Teaching"], ["fab"], ["blog", "notes", "Blog"], ["more", "grid", "More"]]
-    : [["home", "home", "Home"], ["alumhub", "cap", "Hub"], ["fab"], ["jobs", "briefcase", "Jobs"], ["more", "grid", "More"]];
+      : [["home", "home", "Home"], ["alumhub", "cap", "Hub"], ["fab"], ["jobs", "briefcase", "Jobs"], ["more", "grid", "More"]];
   $("#bottom-nav").innerHTML = B.map(([id, ic, l]) => id === "fab"
     ? `<button class="fab" id="fab" type="button" aria-label="Quick add"><span class="fab-btn">${icon("plus")}</span></button>`
     : `<a href="#/${id}" ${active === id || (id === "more" && !B.some((b) => b[0] === active)) ? 'aria-current="page"' : ""}>${icon(ic)}<span>${l}</span></a>`).join("");
@@ -392,8 +394,10 @@ function inbox() {
   const out = [], now = Date.now();
   S.tasks.filter((t) => !t.done).forEach((t) => {
     const h = (new Date(t.due) - now) / 36e5;
-    if (h > -48 && h < 72) out.push({ id: `t${t.id}${h < 24 ? "a" : "b"}`, cat: "Academic", icon: t.type === "Exam" ? "exam" : "clipboard", tone: h < 0 ? "red" : h < 24 ? "orange" : "purple",
-      title: h < 0 ? `Overdue: ${t.title}` : h < 24 ? `${t.type} due today` : `${t.type} due in ${Math.ceil(h / 24)} days`, body: `${t.title}${t.course ? " · " + t.course : ""}`, at: new Date(Math.min(now, new Date(t.due) - 3 * 864e5)).toISOString(), href: "#/tasks" });
+    if (h > -48 && h < 72) out.push({
+      id: `t${t.id}${h < 24 ? "a" : "b"}`, cat: "Academic", icon: t.type === "Exam" ? "exam" : "clipboard", tone: h < 0 ? "red" : h < 24 ? "orange" : "purple",
+      title: h < 0 ? `Overdue: ${t.title}` : h < 24 ? `${t.type} due today` : `${t.type} due in ${Math.ceil(h / 24)} days`, body: `${t.title}${t.course ? " · " + t.course : ""}`, at: new Date(Math.min(now, new Date(t.due) - 3 * 864e5)).toISOString(), href: "#/tasks"
+    });
   });
   const p = nextPayment();
   if (p && daysUntil(p.due) <= 7) out.push({ id: `p${p.due}`, cat: "System", icon: "wallet", tone: daysUntil(p.due) <= 3 ? "red" : "orange", title: "Payment reminder", body: `${fmtMoney(p.amount)} due ${daysUntil(p.due) === 0 ? "today" : `in ${daysUntil(p.due)} days`} (${fmtDate(p.due)})${p.late ? "" : ". Late fee after that"}.`, at: new Date(new Date(p.due) - 7 * 864e5).toISOString(), href: "#/fees" });
@@ -416,9 +420,9 @@ function inbox() {
 
 /* ───────────── Command palette (Ctrl+K / search) ───────────── */
 const PAGES_SEARCH = [["security", "Security: password, two-step verification, devices", "shield"], ["ask", "Ask EWUdiots (assistant)", "sparkle"], ["blog", "Blog: tips and stories", "notes"], ["write", "Write a blog post", "edit"], ["calendar", "Academic calendar: holidays, payment deadlines, final exams", "calcheck"], ["insights", "Analytics: CGPA trend, credits, grades, study time", "chart"], ["scholarship", "Scholarships: how to get one, what CGPA you need", "trophy"], ["classroom", "Google Classroom: import materials and assignments", "school"], ["events", "Campus events: workshops, concerts, club recruitment", "calendar"], ["jobs", "Jobs & internships", "briefcase"], ["mentors", "Alumni mentors", "heart"], ["office", "Teachers' office hours & consultations", "clock"], ["teach", "Teaching hub (teachers)", "briefcase"], ["alumhub", "Alumni hub", "cap"], ["home", "Home", "home"], ["routine", "My routine", "calendar"], ["alarms", "Class alarms (remind me before class)", "bell"], ["planner", "Advising planner", "calcheck"], ["courses", "My courses", "book"], ["grades", "CGPA", "bars"], ["degree", "Degree progress", "cap"],
-  ["whatif", "What-if calculator", "calc"], ["marks", "Marks & attendance estimator", "percent"], ["tasks", "Deadlines", "clipboard"], ["exams", "Exam planner", "exam"], ["fees", "Fees & payments", "wallet"], ["vault", "Study vault", "vault"],
-  ["rooms", "Free rooms", "door"], ["map", "Campus map & directions", "map"], ["notices", "EWU notice board", "megaphone"], ["news", "Campus news", "globe"], ["alumni", "Alumni: where are they now", "community"], ["idcard", "My ID card", "user"], ["faculty", "Faculty & reviews", "users"], ["focus", "Focus timer", "focus"], ["cards", "Flashcards", "cards"], ["me", "Achievements", "award"], ["cover", "Cover page", "file"],
-  ["sync", "Sync portal", "sync"], ["notifications", "Notifications", "bell"], ["profile", "Profile & settings", "settings"]];
+["whatif", "What-if calculator", "calc"], ["marks", "Marks & attendance estimator", "percent"], ["tasks", "Deadlines", "clipboard"], ["exams", "Exam planner", "exam"], ["fees", "Fees & payments", "wallet"], ["vault", "Study vault", "vault"],
+["rooms", "Free rooms", "door"], ["map", "Campus map & directions", "map"], ["notices", "EWU notice board", "megaphone"], ["news", "Campus news", "globe"], ["alumni", "Alumni: where are they now", "community"], ["idcard", "My ID card", "user"], ["faculty", "Faculty & reviews", "users"], ["focus", "Focus timer", "focus"], ["cards", "Flashcards", "cards"], ["me", "Achievements", "award"], ["cover", "Cover page", "file"],
+["sync", "Sync portal", "sync"], ["notifications", "Notifications", "bell"], ["profile", "Profile & settings", "settings"]];
 function palette() {
   loadDirectory();
   const courses = [...new Map(S.routine.map((r) => [r.code, r])).values()];
@@ -470,12 +474,7 @@ function route({ animate = false } = {}) {
   let id = pages[r] ? r : r === "account" ? "profile" : "notfound";
   if (PAGE_FEATURE[id] && !content.feature(PAGE_FEATURE[id])) id = "off";
   if (content.data.settings.maintenance?.on && !maintBypass && !FULLSCREEN.has(id)) id = "maint";
-  // Club pages the admin panel opens (as=team) skip the student welcome; nothing about this device's setup is saved.
-  // Remembered for this tab only, so links inside the club pages (which drop the marker) keep working.
-  if (/[?&]as=team(&|$)/.test(location.hash)) { try { sessionStorage.setItem("ewud.staff", "1"); } catch { /* private mode */ } }
-  let staffTab = false; try { staffTab = sessionStorage.getItem("ewud.staff") === "1"; } catch { /* private mode */ }
-  const staffView = id.startsWith("club/") && staffTab;
-  if (!S.onboarded && !FULLSCREEN.has(id) && id !== "sync" && !staffView) id = "welcome";
+  if (!S.onboarded && !FULLSCREEN.has(id) && id !== "sync") id = "welcome";
   const changed = id !== currentRoute;
   currentRoute = id;
   const full = FULLSCREEN.has(id);
@@ -491,7 +490,7 @@ function route({ animate = false } = {}) {
     let html, ok = true; try { html = pages[id](); } catch (e) { html = crashed(e); ok = false; }
     target.innerHTML = `<div class="${changed && !viewTx ? "page-in" : ""}" data-page="${id}">${html}</div>`;
     if (!ok) { target.querySelector("[data-reload]")?.addEventListener("click", () => location.reload()); return; }
-    try { (pages[id].mount || (() => {}))(target); } catch (e) { console.error(e); }
+    try { (pages[id].mount || (() => { }))(target); } catch (e) { console.error(e); }
     motion.enhance(target, id, changed);
     hydrateIcons(target);
   };
@@ -499,7 +498,7 @@ function route({ animate = false } = {}) {
   const viewTx = animate && changed && document.startViewTransition && !prefersReduced() && !modalOpen() && lastPainted !== null && document.visibilityState === "visible";
   if (viewTx) {
     const t = document.startViewTransition(paint);
-    [t.ready, t.finished, t.updateCallbackDone].forEach((p) => p?.catch(() => {})); // a skipped transition rejects these; that's expected
+    [t.ready, t.finished, t.updateCallbackDone].forEach((p) => p?.catch(() => { })); // a skipped transition rejects these; that's expected
     let done = false; t.finished?.then(() => { done = true; }, () => { done = true; });
     setTimeout(() => { if (!done) t.skipTransition?.(); }, 700);
   } else paint();
@@ -512,7 +511,7 @@ window.addEventListener("hashchange", () => route({ animate: true }));
 let lastTracked = "";
 function track(id) {
   if (id === lastTracked || navigator.doNotTrack === "1" || !import.meta.env.PROD) return; lastTracked = id;
-  try { fetch((native.isNative ? SITE : "") + "/api/track", { method: "POST", keepalive: true, headers: { "content-type": "text/plain" }, body: JSON.stringify({ path: "/app/" + id, ref: document.referrer, app: native.isNative }) }).catch(() => {}); } catch { /* never block the app */ }
+  try { fetch((native.isNative ? SITE : "") + "/api/track", { method: "POST", keepalive: true, headers: { "content-type": "text/plain" }, body: JSON.stringify({ path: "/app/" + id, ref: document.referrer, app: native.isNative }) }).catch(() => { }); } catch { /* never block the app */ }
 }
 const rerender = () => route();
 const qparam = (k) => new URLSearchParams(location.hash.split("?")[1] || "").get(k);
@@ -656,14 +655,16 @@ function upcomingAlarms(limit = 8, days = 8) {
 /* In-app alarm: a full sheet with a soft repeating chime, snooze or dismiss. Shown while the app is open
    (on phones the system alarm notification also rings when the app is closed). */
 let chime = null;
-function stopChime() { if (chime) { clearInterval(chime.t); chime.ctx.close().catch(() => {}); chime = null; } }
+function stopChime() { if (chime) { clearInterval(chime.t); chime.ctx.close().catch(() => { }); chime = null; } }
 function ringAlarm(c, off) {
   if (S.settings.alarms.ring && !prefersReduced()) {
     try {
       const ac = new (window.AudioContext || window.webkitAudioContext)();
-      const beep = () => [0, 0.25, 0.5].forEach((dt, i) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = "sine"; o.frequency.value = [880, 988, 1175][i];
+      const beep = () => [0, 0.25, 0.5].forEach((dt, i) => {
+        const o = ac.createOscillator(), g = ac.createGain(); o.type = "sine"; o.frequency.value = [880, 988, 1175][i];
         g.gain.setValueAtTime(0.0001, ac.currentTime + dt); g.gain.exponentialRampToValueAtTime(0.25, ac.currentTime + dt + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dt + 0.22);
-        o.connect(g).connect(ac.destination); o.start(ac.currentTime + dt); o.stop(ac.currentTime + dt + 0.25); });
+        o.connect(g).connect(ac.destination); o.start(ac.currentTime + dt); o.stop(ac.currentTime + dt + 0.25);
+      });
       stopChime(); beep(); chime = { ctx: ac, t: setInterval(beep, 1600) }; setTimeout(stopChime, 30000);
     } catch { /* no audio */ }
   }
@@ -729,8 +730,10 @@ function loadDemo() {
     ],
     attendance: { CSE207: { held: 14, missed: 1 }, CSE209: { held: 12, missed: 4 }, MAT205: { held: 13, missed: 1 }, STA102: { held: 12, missed: 0 } },
     marks: { CSE207: { parts: [{ n: "Quiz 1", w: 10, got: "8" }, { n: "Quiz 2", w: 10, got: "7" }, { n: "Assignment 1", w: 10, got: "8" }, { n: "Mid Term", w: 30, got: "21" }, { n: "Final Exam", w: 40, got: "" }] } },
-    payments: { semester: currentSemester(), fees: { tuition: 81500, lab: 4000, activity: 1200, library: 1000 }, schedule: [
-      { late: false, due: iso(6), amount: 87700 }, { late: true, due: iso(36), amount: 88200 }, { late: true, due: iso(43), amount: 88700 }] },
+    payments: {
+      semester: currentSemester(), fees: { tuition: 81500, lab: 4000, activity: 1200, library: 1000 }, schedule: [
+        { late: false, due: iso(6), amount: 87700 }, { late: true, due: iso(36), amount: 88200 }, { late: true, due: iso(43), amount: 88700 }]
+    },
     recommended: [{ code: "CSE246", cr: 3, prereq: ["CSE207"] }, { code: "CSE325", cr: 4, prereq: ["CSE207"] }, { code: "MAT205", cr: 3, prereq: [] }]
   });
   S.planner.offered = null;
@@ -755,9 +758,13 @@ function onSignedIn(user) {
   return (signInDone = restoreOrBackup(user));
 }
 // Messages the team sent to everyone or to you (admin panel → Messages to users).
-async function loadMessages() { if (!C.user) return; try { const before = C.messages; C.messages = await cloud.fetchMessages();
-  // New team messages since the last check pop up on the phone (not on the first load).
-  if (before) { const seen = new Set(before.map((m) => m.id)); C.messages.filter((m) => !seen.has(m.id)).slice(0, 3).forEach((m) => native.notifyNow(m.title, m.body || "", m.link || "#/notifications")); } C.courseNotes = await people.courseNotices().catch(() => []); if (["home", "notifications"].includes(currentRoute)) rerender(); } catch { /* offline */ } }
+async function loadMessages() {
+  if (!C.user) return; try {
+    const before = C.messages; C.messages = await cloud.fetchMessages();
+    // New team messages since the last check pop up on the phone (not on the first load).
+    if (before) { const seen = new Set(before.map((m) => m.id)); C.messages.filter((m) => !seen.has(m.id)).slice(0, 3).forEach((m) => native.notifyNow(m.title, m.body || "", m.link || "#/notifications")); } C.courseNotes = await people.courseNotices().catch(() => []); if (["home", "notifications"].includes(currentRoute)) rerender();
+  } catch { /* offline */ }
+}
 async function restoreOrBackup(user) {
   try {
     const remote = await cloud.pullData(user.id);
@@ -770,7 +777,7 @@ async function restoreOrBackup(user) {
     } else if (S.profile && !S.demo) { await pushNow(); }
     idcard?.forget(); // fetch the card pictures from the account if this device doesn't have them
     sync.checkInbox(); loadMessages();
-    if (S.routine.length && !S.demo) cloud.contribute({ semester: S.routineSem, rows: S.routine, faculty: Object.values(S.faculty) }).catch(() => {});
+    if (S.routine.length && !S.demo) cloud.contribute({ semester: S.routineSem, rows: S.routine, faculty: Object.values(S.faculty) }).catch(() => { });
   } catch (e) { console.warn(e); }
   checkFacultyRole();
   rerender();
@@ -881,7 +888,7 @@ function openUpdateSheet() {
     ${u.notes.length ? `<ul class="upd-notes">${u.notes.map((n) => `<li>${icon("check", "sm")}<span>${esc(n)}</span></li>`).join("")}</ul>` : ""}
     <div id="upd-act">${self ? `<button class="btn primary lg block" id="upd-now">${icon("download")} Update now</button><p class="xs mt-s">Downloads inside the app, then tap <b>Update</b> in the Android window. Your data stays.</p>`
       : PLAY ? `<a class="btn primary lg block" id="upd-now" href="${esc(u.url)}" target="_blank" rel="noopener">${icon("download")} Update on Google Play</a><p class="xs mt-s">Tap <b>Update</b> on the Play Store page. Your data stays.</p>`
-      : `<a class="btn primary lg block" id="upd-now" href="${esc(u.url)}" target="_blank" rel="noopener">${icon("download")} Update now</a><p class="xs mt-s">Open the downloaded file and tap Install. Your data stays. After this update, the next ones install from inside the app.</p>`}</div>
+        : `<a class="btn primary lg block" id="upd-now" href="${esc(u.url)}" target="_blank" rel="noopener">${icon("download")} Update now</a><p class="xs mt-s">Open the downloaded file and tap Install. Your data stays. After this update, the next ones install from inside the app.</p>`}</div>
     ${u.required ? "" : `<button class="btn ghost block" data-close>Later</button>`}</div>`, (m) => {
     if (u.required) { const head = m.querySelector(".grabber"); head && head.remove(); }
     if (!self) return;
@@ -926,11 +933,11 @@ function checkFacultyRole() {
   toast("Teacher tools need your university email", "info", "Sign in or create an account with your @ewubd.edu email.");
 }
 if (cloud.enabled) {
-  cloud.currentUser().then((u) => (u ? onSignedIn(u) : null)).then(checkFacultyRole, () => {});
+  cloud.currentUser().then((u) => (u ? onSignedIn(u) : null)).then(checkFacultyRole, () => { });
   cloud.onAuth((u) => { if (u && !C.user) onSignedIn(u); else if (!u && C.user) { C.user = null; C.faculty = C.sections = C.vault = null; checkFacultyRole(); rerender(); } else if (u && C.user?.id === u.id) refreshUser(u); });
   // The account's badges (verified student, role) change on the server: re-read them when the app comes back.
   let userAt = Date.now();
-  const recheckUser = () => { if (C.user && Date.now() - userAt > 5 * 60e3) { userAt = Date.now(); cloud.currentUser().then((u) => u && C.user?.id === u.id && refreshUser(u)).catch(() => {}); } };
+  const recheckUser = () => { if (C.user && Date.now() - userAt > 5 * 60e3) { userAt = Date.now(); cloud.currentUser().then((u) => u && C.user?.id === u.id && refreshUser(u)).catch(() => { }); } };
   native.onResume(recheckUser);
   document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && recheckUser());
 }
@@ -942,7 +949,7 @@ setInterval(() => { if (document.visibilityState === "visible") pullNow(); }, 60
 // Phone app going to the background (or being closed): send unsaved edits right away.
 native.onPause(() => { save({ silent: true }); if (C.user && S.updatedAt > (S.syncedAt || 0)) pushNow(); });
 addEventListener("online", () => pullNow());
-if ("serviceWorker" in navigator && !native.isNative && import.meta.env.PROD) navigator.serviceWorker.register("/sw.js").catch(() => {});
+if ("serviceWorker" in navigator && !native.isNative && import.meta.env.PROD) navigator.serviceWorker.register("/sw.js").catch(() => { });
 
 /* Tap ripple on buttons (v220.css .fx-ripple): starts where the finger lands. Skipped with "reduce motion". */
 document.addEventListener("pointerdown", (e) => {

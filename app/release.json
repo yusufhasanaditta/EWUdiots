@@ -1,8 +1,10 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "The EWUdiots team can add, move or remove any club member, club admins included, from the admin panel",
-    "Club pages opened from the admin panel go straight to the club, no student sign-in screen"
+    "Spring-2027 faculty list & course schedule planner with credit limits (9-15) and standing detection",
+    "Add make-up classes on any date with attendance tracking",
+    "Fixed dropped courses triggering class attendance alarm popups",
+    "Automated 30-minute background tracker for courses, notices and announcements"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

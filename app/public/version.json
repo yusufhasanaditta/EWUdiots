@@ -1,0 +1,13 @@
+{
+  "version": "2.38.0",
+  "minVersion": "2.12.0",
+  "notes": [
+    "Spring-2027 faculty list & course schedule planner with credit limits (9-15) and standing detection",
+    "Add make-up classes on any date with attendance tracking",
+    "Fixed dropped courses triggering class attendance alarm popups",
+    "Automated 30-minute background tracker for courses, notices and announcements"
+  ],
+  "apk": "/download/android",
+  "extension": "1.8.0",
+  "extensionZip": "/download/extension"
+}

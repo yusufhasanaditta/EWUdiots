@@ -99,13 +99,20 @@ export function install(ctx) {
       <div class="h-sec"><a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Remind me 30 min before”</span></span>${icon("arrow")}</a></div></div>`;
     const b = ctx.content.banner();
     const banner = b ? `<div class="alert ${b.tone || "purple"} admin-banner fx-rise${String(b.image || "").startsWith("https://") ? " has-img" : ""}">${String(b.image || "").startsWith("https://") ? `<img class="bn-img" src="${esc(b.image)}" alt="" loading="lazy">` : ""}<span class="a-ic">${icon(b.tone === "red" ? "alert" : "megaphone")}</span><div class="grow"><b>${esc(b.title || "From the EWUdiots team")}</b><p>${esc(b.text)}</p></div>${b.link ? `<a class="btn sm" href="${esc(b.link)}" ${/^https:/.test(b.link) ? 'target="_blank" rel="noopener"' : ""}>${esc(b.cta || "Open")}</a>` : ""}</div>` : "";
-    const up = ctx.C.update && ctx.native.isNative ? `<a class="alert green update-card" href="${esc(ctx.C.update.url)}" data-update target="_blank" rel="noopener"><span class="a-ic">${icon("download")}</span><div class="grow"><b>Update available: EWUdiots ${esc(ctx.C.update.version)}</b><p>Tap to update. Your data stays.</p></div>${icon("chevR")}</a>` : "";
+    const up = ctx.C.update ? (ctx.native.isNative
+      ? `<a class="alert green update-card" href="${esc(ctx.C.update.url)}" data-update target="_blank" rel="noopener"><span class="a-ic">${icon("download")}</span><div class="grow"><b>Update available: EWUdiots ${esc(ctx.C.update.version)}</b><p>Tap to update. Your data stays.</p></div>${icon("chevR")}</a>`
+      : `<div class="alert green update-card" id="home-upd-web" style="cursor:pointer;" role="button" tabindex="0"><span class="a-ic">${icon("download")}</span><div class="grow"><b>Update available: EWUdiots ${esc(ctx.C.update.version)}</b><p>Click here to refresh and load the latest updates.</p></div><button class="btn sm primary" id="home-upd-refresh">${icon("reset", "sm")} Refresh</button></div>`) : "";
     const verify = needsVerify() ? `<a class="alert green fx-rise" href="#/profile?verify=1"><span class="a-ic">${icon("shield")}</span><div class="grow"><b>Verify your student account</b><p>Scan your EWU ID card once to get the verified badge.</p></div>${icon("chevR")}</a>` : "";
     return `${up}${banner}${verify}${ctx.demoBanner()}${mobile}${desktop}${ctx.community.homeNews()}`;
   };
   // Home: live countdown to the next class (ticks every second), attendance buttons and class notes.
   let cdTimer = 0;
   pages.home.mount = (el) => {
+    const webUpd = $("#home-upd-web", el);
+    if (webUpd) {
+      webUpd.addEventListener("click", () => location.reload());
+      webUpd.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); location.reload(); } });
+    }
     clearInterval(cdTimer);
     const card = $(".m-only .next-card[data-at], .next-card[data-at]", el);
     if (card) {
