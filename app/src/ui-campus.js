@@ -121,7 +121,7 @@ export function install(ctx) {
   };
 
   /* ═════════════ FACULTY ═════════════ */
-  let facQ = "", facDept = "All", facMine = false, facSem = "Spring-2027", facShow = 60;
+  let facQ = "", facDept = "All", facMine = false, facSem = "All", facShow = 60;
   const face = (f, cls = "") => `<span class="avatar face ${cls}" style="background:${ctx.colorFor(f.init)}">${esc(ctx.initials(f.name || f.init))}${f.photo ? `<img src="${esc(f.photo)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</span>`;
   const showInit = (f) => (f.init && !f.init.startsWith("@") ? f.init : "");
   const stars = (r) => `<span style="color:var(--yellow)" aria-hidden="true">★</span> <b>${r.toFixed(1)}</b>`;
@@ -131,12 +131,12 @@ export function install(ctx) {
     const all = [...ctx.facultyIndex().values()].sort((a, b) => (mine.has(b.init) - mine.has(a.init)) || (b.rating || 0) - (a.rating || 0) || (a.name || a.init).localeCompare(b.name || b.init));
     const depts = ["All", ...new Set(all.map((f) => f.dept).filter(Boolean))];
     const q = facQ.toLowerCase();
-    const semFilter = (f) => facSem === "All" || !f.semesters?.length || f.semesters.includes(facSem);
+    const semFilter = (f) => facSem === "All" || (f.semesters || []).includes(facSem); // "Teaching in …": initials in that semester's course list
     const list = all.filter((f) => semFilter(f) && (facDept === "All" || f.dept === facDept) && (!facMine || mine.has(f.init)) && (!q || [f.name, showInit(f), f.dept, f.deptName, f.designation, f.email, f.roomCode].join(" ").toLowerCase().includes(q)));
     const loading = C.directory === null;
     return `${ctx.demoBanner()}${ctx.head("Faculty Directory", `${C.directory?.length ? `${all.length} faculty members from ${depts.length - 1} departments` : "Contacts, offices and honest ratings"}, with reviews from verified EWU students.`)}
       <div class="row nowrap" style="gap:8px;margin-bottom:8px">
-        <select class="select sm grow" id="fac-sem" aria-label="Select Semester"><option value="Spring-2027" ${facSem === "Spring-2027" ? "selected" : ""}>Spring-2027 (Active List)</option><option value="All" ${facSem === "All" ? "selected" : ""}>All Semesters</option></select>
+        <select class="select sm grow" id="fac-sem" aria-label="Which teachers"><option value="All">All teachers</option>${ctx.C.facultySem ? `<option value="${esc(ctx.C.facultySem)}" ${facSem === ctx.C.facultySem ? "selected" : ""}>Teaching in ${esc(ctx.C.facultySem.replace("-", " "))}</option>` : ""}</select>
       </div>
       <div class="row nowrap"><div class="searchbar grow">${icon("search")}<input class="input" id="fac-q" type="search" placeholder="Search name, initials, department, room" value="${esc(facQ)}" aria-label="Search faculty"></div><button class="chip" id="fac-mine" aria-pressed="${facMine}">My faculty</button></div>
       ${depts.length > 2 ? `<div class="seg mt">${depts.map((d) => `<button data-dept="${esc(d)}" aria-selected="${facDept === d}">${esc(d)}</button>`).join("")}</div>` : ""}

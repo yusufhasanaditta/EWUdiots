@@ -16,4 +16,4 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl -fsS --max-time 240 -H "Authorization: Bearer $CRON_SECRET" "https://ewudiots.vercel.app/api/cron?job=news,notices,events,tracker"
+          curl -fsS --max-time 240 -H "Authorization: Bearer $CRON_SECRET" "https://ewudiots.vercel.app/api/cron?job=news,notices,events,courses,tracker"

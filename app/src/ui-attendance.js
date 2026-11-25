@@ -12,21 +12,8 @@ export function install(ctx) {
   const today = () => iso(Date.now());
   const recOf = (code) => (S().attendance[code] = S().attendance[code] || { held: 0, missed: 0 });
   const minOf = (code) => Number(S().attendance[code]?.min) || 70;
-  const sessions = (code, sem) => {
-    const list = ctx.acal?.sessionsFor ? ctx.acal.sessionsFor(code, sem) : [];
-    const makes = (S().attendance[code]?.makeups || []).map((m, idx) => ({
-      key: `${m.date}|${m.start || "10:00"}`,
-      date: m.date,
-      start: m.start || "10:00",
-      end: m.end || "11:30",
-      room: m.room || "",
-      makeup: true,
-      lab: Boolean(m.lab),
-      off: "",
-      n: list.length + idx + 1
-    }));
-    return [...list, ...makes].sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
-  };
+  // Every class of the semester, make-up classes included (acal.sessionsFor merges and numbers them).
+  const sessions = (code, sem) => (ctx.acal?.sessionsFor ? ctx.acal.sessionsFor(code, sem) : []);
   const fmtD = (d, o = { weekday: "short", day: "numeric", month: "short" }) => new Date(d + "T00:00:00").toLocaleDateString("en-GB", o);
 
   /* Numbers for a course: from per-class marks when the semester's classes are known, else the old counters. */
@@ -89,7 +76,7 @@ export function install(ctx) {
       ${p.mode === "date" ? `<label class="field">Date<input class="input" type="date" id="att-date" value="${p.date}" min="${ss[0]?.date || ""}" max="${ss[ss.length - 1]?.date || ""}"></label>`
         : `<label class="field">Class<select class="select" id="att-n">${real.map((s) => `<option value="${s.n}" ${sel[0]?.n === s.n ? "selected" : ""}>Class ${s.n} · ${fmtD(s.date)}${s.makeup ? " · Make-up" : s.lab ? " · Lab" : ""}</option>`).join("")}</select></label>`}
       <div class="stack mt-s">${sel.map((s) => s.off ? `<div class="cg-off-banner"><span class="itile red">${icon("sun")}</span><div><b>${esc(ctx.acal.short(s.off))}</b><p class="small">Holiday: no ${esc(code)} class on ${fmtD(s.date)}.</p></div></div>`
-        : `<div class="att-row"><div class="min0"><b>Class ${s.n}${s.makeup ? " · Make-up Class" : s.lab ? " · Lab" : ""}</b><span class="xs">${fmtD(s.date, { weekday: "long", day: "numeric", month: "short" })} · ${ctx.fmt12(ctx.toMin(s.start))} · ${esc(s.room || "")}${s.date > today() ? " · upcoming" : ""}</span></div>
+        : `<div class="att-row"><div class="min0"><b>Class ${s.n}${s.makeup ? " · Make-up Class" : s.lab ? " · Lab" : ""}</b><span class="xs">${fmtD(s.date, { weekday: "long", day: "numeric", month: "short" })} · ${ctx.fmt12(ctx.toMin(s.start))} · ${esc(s.room || "")}${s.date > today() ? " · upcoming" : ""}</span>${s.makeup ? `<button class="btn sm ghost mt-s" data-mu-del="${esc(s.key)}" aria-label="Remove make-up class on ${fmtD(s.date)}">${icon("trash", "sm")} Remove make-up</button>` : ""}</div>
           <div class="att-pick lg" role="group" aria-label="Class ${s.n}">${[["p", "Present", "check"], ["a", "Absent", "x"], ["c", "Cancelled", "minus"]].map(([k, l, ic]) => `<button class="ap ${k}" data-amark="${esc(s.key)}|${k}" aria-pressed="${marks[s.key] === k}">${icon(ic, "sm")}<span>${l}</span></button>`).join("")}</div></div>`).join("")
         || `<p class="small muted">${offDay ? `${esc(ctx.acal.short(offDay))}: holiday.` : `No ${esc(code)} class on ${fmtD(p.date, { weekday: "long", day: "numeric", month: "short" })}.`}</p>`}</div></section>
 
@@ -101,8 +88,8 @@ export function install(ctx) {
 
     <section class="card mt"><div class="card-h"><h2>${icon("grid")} Class by class</h2><span class="xs">${real.length} classes</span></div>
       <div class="att-chips">${ss.map((s) => s.off ? `<span class="att-chip off" title="${esc(ctx.acal.short(s.off))}, ${fmtD(s.date)}">H</span>`
-        : `<button class="att-chip ${marks[s.key] || (s.date <= today() ? "todo" : "")}" data-achip="${s.n}" title="Class ${s.n}, ${fmtD(s.date)}: ${{ p: "present", a: "absent", c: "cancelled" }[marks[s.key]] || (s.date <= today() ? "not marked" : "upcoming")}">${s.n}</button>`).join("")}</div>
-      <div class="cg-legend mt-s"><span><i class="att-k p"></i>Present</span><span><i class="att-k a"></i>Absent</span><span><i class="att-k c"></i>Cancelled</span><span><i class="att-k todo"></i>Not marked</span><span><i class="att-k off"></i>Holiday</span></div></section>`;
+        : `<button class="att-chip ${marks[s.key] || (s.date <= today() ? "todo" : "")}" data-achip="${s.n}"${s.makeup ? ' data-mu="1"' : ""} title="Class ${s.n}${s.makeup ? " (make-up)" : ""}, ${fmtD(s.date)}: ${{ p: "present", a: "absent", c: "cancelled" }[marks[s.key]] || (s.date <= today() ? "not marked" : "upcoming")}">${s.n}</button>`).join("")}</div>
+      <div class="cg-legend mt-s"><span><i class="att-k p"></i>Present</span><span><i class="att-k a"></i>Absent</span><span><i class="att-k c"></i>Cancelled</span><span><i class="att-k todo"></i>Not marked</span><span><i class="att-k off"></i>Holiday</span>${ss.some((s) => s.makeup) ? '<span><i class="att-k mu"></i>Make-up</span>' : ""}</div></section>`;
   }
 
   function mount(el, code) {
@@ -115,30 +102,35 @@ export function install(ctx) {
     $("#att-min", el)?.addEventListener("change", (e) => { recOf(code).min = Number(e.target.value); ctx.save(); ctx.rerender(); });
     $$("[data-amark]", el).forEach((b) => b.addEventListener("click", () => { const [date, start, v] = b.dataset.amark.split("|"); mark(code, `${date}|${start}`, v); }));
     $$("[data-achip]", el).forEach((b) => b.addEventListener("click", () => { Object.assign(p(), { mode: "n", n: b.dataset.achip }); ctx.rerender(); }));
-    $("#att-add-makeup", el)?.addEventListener("click", () => openMakeupModal(code));
+    $("#att-add-makeup", el)?.addEventListener("click", () => openMakeupModal(code, p()));
+    $$("[data-mu-del]", el).forEach((b) => b.addEventListener("click", () => ctx.confirmModal("Remove this make-up class?", "Its attendance mark is removed too.", "Remove", () => {
+      const a = recOf(code), key = b.dataset.muDel;
+      a.makeups = (a.makeups || []).filter((m) => `${m.date}|${m.start}` !== key);
+      if (a.marks) delete a.marks[key];
+      syncCounts(code); ctx.save(); ctx.rerender(); ctx.toast("Make-up class removed", "info");
+    }, true)));
   }
-  function openMakeupModal(code) {
-    const a = recOf(code);
-    ctx.openModal(ctx.modalHead(`Add make-up class for ${code}`) + `<form id="att-mu-form" class="stack">
-      <p class="small muted">Faculty can take make-up classes on any day. Enter the date, time, and room to track attendance.</p>
+  /* A make-up class on any day (Friday, a holiday, an evening): it counts toward attendance, rings a class alarm and shows on Home. */
+  function openMakeupModal(code, pk) {
+    const a = recOf(code), usual = S().routine.find((r) => r.code === code && !r.lab) || {};
+    ctx.openModal(ctx.modalHead(`Add a make-up class: ${code}`) + `<form id="att-mu-form" class="stack">
+      <p class="small muted">Your faculty can take a make-up class on any day. Add it here to mark attendance and get a class alarm.</p>
       <label class="field">Date<input class="input" type="date" name="date" required value="${today()}"></label>
-      <div class="row"><label class="field grow">Start time<input class="input" type="time" name="start" value="10:00" required></label>
-      <label class="field grow">End time<input class="input" type="time" name="end" value="11:30" required></label></div>
-      <label class="field">Room (optional)<input class="input" name="room" placeholder="e.g. AB2-301"></label>
-      <label class="row small"><input type="checkbox" name="lab"> Lab session</label>
+      <div class="grid g2"><label class="field">Starts<input class="input" type="time" name="start" value="${usual.start || "10:10"}" required></label>
+      <label class="field">Ends<input class="input" type="time" name="end" value="${usual.end || "11:40"}" required></label></div>
+      <label class="field">Room (optional)<input class="input" name="room" maxlength="40" placeholder="${esc(usual.room || "e.g. AB2-301")}"></label>
+      <label class="row small"><input type="checkbox" class="check" name="lab"> It's a lab class</label>
       <button class="btn primary block">${icon("plus", "sm")} Add make-up class</button></form>`, (m) => {
       $("#att-mu-form", m).addEventListener("submit", (e) => {
         e.preventDefault();
-        const fd = new FormData(e.target);
-        const date = String(fd.get("date") || "").trim();
-        const start = String(fd.get("start") || "10:00").trim();
-        const end = String(fd.get("end") || "11:30").trim();
-        const room = String(fd.get("room") || "").trim();
-        const lab = fd.get("lab") === "on";
-        if (!date) return ctx.toast("Please select a date", "warn");
-        a.makeups = a.makeups || [];
-        a.makeups.push({ date, start, end, room, lab });
-        ctx.save(); ctx.closeModal(); ctx.toast("Make-up class added", "success"); ctx.rerender();
+        const fd = new FormData(e.target), date = String(fd.get("date") || ""), start = String(fd.get("start") || ""), end = String(fd.get("end") || "");
+        if (!/^\d{4}-\d\d-\d\d$/.test(date) || !/^\d\d:\d\d$/.test(start)) return ctx.toast("Pick a date and a start time", "warn");
+        if (end && end <= start) return ctx.toast("The class has to end after it starts", "warn", "Check the end time.");
+        if ((a.makeups || []).some((x) => x.date === date && x.start === start)) return ctx.toast("That make-up class is already added", "info");
+        a.makeups = [...(a.makeups || []), { id: ctx.uid(), date, start, end: end || start, room: String(fd.get("room") || "").trim().slice(0, 40), lab: fd.get("lab") === "on" }];
+        Object.assign(pk, { mode: "date", date });
+        ctx.save(); ctx.closeModal(); ctx.rerender();
+        ctx.toast("Make-up class added", "success", `${code} on ${fmtD(date)} at ${ctx.fmt12(ctx.toMin(start))}. Mark it after class.`);
       });
     });
   }

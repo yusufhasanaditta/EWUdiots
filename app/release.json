@@ -1,11 +1,12 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Spring-2027 faculty list & course schedule planner with credit limits (9-15) and standing detection",
-    "Add make-up classes on any date with attendance tracking",
-    "Fixed dropped courses triggering class attendance alarm popups",
-    "Automated 30-minute background tracker for courses, notices and announcements"
+    "Next semester: the whole Spring 2027 course list (831 courses) with search, department and Done/Doing filters",
+    "Pick courses within your 9–15 credit load, get clash-free routines and a heads-up if a planned course changes",
+    "Make-up classes: add one on any day; it counts for attendance, rings a class alarm and shows on Home",
+    "Dropped courses no longer ring class alarms, ask for attendance or raise attendance warnings",
+    "Courses and EWU notices refresh every 30 minutes; important notices now alert you on your phone"
   ],
-  "minVersion": "2.38.0",
+  "minVersion": "2.12.0",
   "extension": "1.8.0"
 }

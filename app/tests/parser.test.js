@@ -230,3 +230,13 @@ test("Degree Objective stops at the table cell", () => {
   const r = parsePortalText("Degree Objective:\tB.Sc. in Computer Science and Engineering\tAdvisor:\tDr. X Y(ABC)");
   assert.equal(r.profile.program, "B.Sc. in Computer Science and Engineering");
 });
+
+test("class schedule: a course dropped or withdrawn at EWU is left off the routine", () => {
+  const T = `Fall-2026
+Serial\tCourse\tSection\tCredits\tTiming\tRoom No.\tWithDraw Status\tDrop Status\tFaculty Initial\tFaculty Name\tFaculty Email
+1\tCSE999\t2\t3\tMW 8:30AM-10:00AM\tAB2-702\tNo\tNo\tABC\tMs. Test One\ttest.one@example.com
+2\tMAT999\t4\t3\tST 10:10AM-11:40AM\tAB1-201\tNo\tYes\tXYZ\tMr. Test Two\ttest.two@example.com
+3\tENG999\t1\t3\tTR 1:30PM-3:00PM\tFUB-301\tYes\tNo\tQRS\tDr. Test Three\ttest.three@example.com`;
+  const p = parsePortalText(T);
+  assert.deepEqual([...new Set(p.routine.map((r) => r.code))], ["CSE999"]);
+});

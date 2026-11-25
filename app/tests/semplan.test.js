@@ -70,3 +70,12 @@ test("long breaks: skipping one class day joins the weekend and Durga Puja", () 
   assert.ok(puja.why.includes("Durgapuja"));
   assert.equal(list[0], puja); // the best deal comes first
 });
+
+test("make-up classes join the semester's classes in order and are numbered with them", async () => {
+  const { withMakeups } = await import("../src/semplan.js");
+  const base = [{ key: "2026-10-04|10:10", date: "2026-10-04", start: "10:10", end: "11:40", n: 1, off: "" }, { key: "2026-10-06|10:10", date: "2026-10-06", start: "10:10", end: "11:40", n: 0, off: "Holiday" },
+    { key: "2026-10-11|10:10", date: "2026-10-11", start: "10:10", end: "11:40", n: 2, off: "" }];
+  const out = withMakeups(base, [{ id: "m1", date: "2026-10-09", start: "15:10", end: "16:40", room: "AB2-301" }, { id: "dup", date: "2026-10-04", start: "10:10" }]);
+  assert.deepEqual(out.map((s) => [s.date, s.n, Boolean(s.makeup)]), [["2026-10-04", 1, false], ["2026-10-06", 0, false], ["2026-10-09", 2, true], ["2026-10-11", 3, false]]);
+  assert.equal(out[2].room, "AB2-301");
+});

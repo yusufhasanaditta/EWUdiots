@@ -69,6 +69,9 @@ export async function sendLoginCode(idOrEmail) {
 export async function verifyLoginCode(email, token) { need(); return authOk(await sb.auth.verifyOtp({ email: emailFor(email), token: token.trim(), type: "email" })).user; }
 
 /* ---------- Messages from the team, and feedback to the team ---------- */
+/* Offered-course lists per semester, refreshed every 30 minutes from ewucoursetracker.live (public, read-only). */
+export async function offeredIndex() { if (!sb) return []; return ok(await sb.from("offered_lists").select("sem, updated_at, courses")) || []; }
+export async function offeredList(sem) { if (!sb) return null; return ok(await sb.from("offered_lists").select("data, updated_at").eq("sem", sem).maybeSingle()); }
 export async function fetchMessages() { if (!sb) return []; return ok(await sb.from("user_messages").select("id, title, body, link, created_at").order("created_at", { ascending: false }).limit(30)) || []; }
 export async function sendFeedback(kind, body, version) { need(); ok(await sb.from("feedback").insert({ kind, body: body.trim(), app_version: version })); }
 

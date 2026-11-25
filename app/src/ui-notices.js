@@ -38,10 +38,18 @@ export function install(ctx) {
     return loading;
   }
   const alerted = new Set();
+  /* Important for a student: exams, advising and registration, payments, holidays and class changes, results, drops,
+     scholarships, or a notice naming their own department. Those ring on the phone; the rest only get the "New" badge. */
+  const IMPORTANT = /exam|advis|registration|pre-?registration|payment|tuition|fee|deadline|holiday|closed|suspend|class(es)? (will|resume|off)|make-?up|result|grade|drop|withdraw|waiver|scholarship|convocation/i;
+  function important(n) {
+    const dept = String(S().profile?.department || "").toUpperCase();
+    return ["Exams", "Advising", "Payments", "Holidays", "Scholarships"].includes(n.cat) || IMPORTANT.test(n.title) || (/^[A-Z]{2,5}$/.test(dept) && new RegExp(`\\b${dept}\\b`).test(n.title));
+  }
   function alertNew(items) {
     const fresh = items.filter((n) => !alerted.has(n.id)); fresh.forEach((n) => alerted.add(n.id));
-    if (!fresh.length || !S().settings.notify || !("Notification" in window) || Notification.permission !== "granted") return;
-    try { new Notification(fresh.length === 1 ? "New EWU notice" : `${fresh.length} new EWU notices`, { body: fresh[0].title, icon: "/icons/icon-192.png" }); } catch { /* not allowed here */ }
+    const key = fresh.filter(important);
+    if (!key.length || !S().settings.notify) return;
+    ctx.native.notifyNow(key.length === 1 ? "Important EWU notice" : `${key.length} important EWU notices`, key[0].title, "#/notices");
   }
   const markSeen = (ids) => { const s = seen(); const add = ids.filter((id) => !s.ids.includes(id)); if (add.length) { s.ids = [...s.ids, ...add].slice(-400); ctx.save({ silent: true }); } };
 

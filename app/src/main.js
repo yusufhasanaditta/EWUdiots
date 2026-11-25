@@ -25,8 +25,10 @@ import "./v231.css";
 import "./v232.css";
 import "./v233.css";
 import "./v236.css";
+import "./v238.css";
 import { start as startDropdowns } from "./dropdown.js";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
+import { toPlanner, courseChanges } from "./offered.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";
 import * as cloud from "./cloud.js";
 import * as native from "./native.js";
@@ -92,6 +94,8 @@ S.study = Object.assign(studyDefaults(), S.study || {});
 const alarmDefaults = (st) => Object.assign({ on: true, offsets: [st.remindMin || 10], perCourse: {}, ring: true }, st.alarms || {});
 S.settings.alarms = alarmDefaults(S.settings);
 S.degree = cleanDegree(S.degree);
+// 2.38.0 copied the whole EWU course list (800+ courses) into the planner and the cloud backup; a portal page has far fewer.
+if (S.planner.offered && Object.keys(S.planner.offered).length > 300) { S.planner.offered = null; S.planner.offeredSem = ""; }
 if (S.profile && !S.onboarded) S.onboarded = true; // existing users skip the welcome flow
 let snap = snapshot(S); // what each part looked like at the last save/sync (src/syncmerge.js)
 let pushTimer = null;
@@ -107,37 +111,82 @@ function save({ silent = false } = {}) {
 const resetState = () => { const th = S.theme; S = blank(); S.theme = th; snap = snapshot(S); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* storage blocked */ } clearBlobs("id:"); idcard?.forget(); };
 const C = { user: null, faculty: null, sections: null, vault: null, votes: new Set(), syncing: false, directory: null };
 /* Official faculty directory, from EWU's public profile pages (scripts/scrape-faculty.mjs). Loaded on first use. */
-let dirP = null, offeredP = null;
+let dirP = null;
+/* Offered courses per semester (EWU's "faculty list"): the list shipped with the app (public/data/offered, built by
+   scripts/faculty-list.mjs) and, when newer, the live one the 30-minute job imports from ewucoursetracker.live.
+   They are big, so they stay in memory and never go into the saved state. catalog[sem] = { updated, live, courses, planner } */
+const catalog = {}, catalogP = {};
+let catalogIdx = null;
+const loadOfferedIndex = () => (catalogIdx = catalogIdx || Promise.all([
+  fetch("/data/offered/index.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+  cloud.offeredIndex().catch(() => [])
+]).then(([a, b]) => {
+  const m = new Map((a.semesters || []).map((x) => [x.sem, x]));
+  for (const r of b) m.set(r.sem, { ...m.get(r.sem), sem: r.sem, courses: r.courses, live: true });
+  return (C.offeredSems = [...m.values()].sort((x, y) => semesterKey(y.sem) - semesterKey(x.sem)));
+}));
+// Titles and credits from the student's own curriculum, grades and routine (the list itself has neither).
+function courseInfo(code) {
+  const c = (S.curriculum || []).find((x) => x.code === code), g = S.grades.find((x) => x.code === code && x.title), r = S.routine.find((x) => x.code === code && x.title);
+  return { title: c?.title || g?.title || r?.title || S.planner.offered?.[code]?.title || "", cr: Number(c?.cr) || 0 };
+}
+function loadOffered(sem) {
+  if (!sem) return Promise.resolve(null);
+  return (catalogP[sem] = catalogP[sem] || (async () => {
+    const [file, live] = await Promise.all([fetch(`/data/offered/${sem}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null), cloud.offeredList(sem).catch(() => null)]);
+    const useLive = live?.data?.courses?.length && (!file || new Date(live.data.updated) >= new Date(file.updated));
+    const list = useLive ? live.data : file;
+    if (!list?.courses?.length) { delete catalogP[sem]; return null; }
+    catalog[sem] = { updated: list.updated, live: Boolean(useLive), courses: list.courses,
+      planner: toPlanner(list.courses, (code) => courseInfo(code).title, (c) => courseInfo(c.code).cr || c.cr) };
+    facCache = null; watchPlanned(sem);
+    if (["planner", "plan", "combos", "home", "faculty"].includes(currentRoute)) rerender();
+    return catalog[sem];
+  })());
+}
+/* The semester the planner shows: the one picked, else next semester when its list is out, else the newest list. */
+async function plannerSem() {
+  const idx = await loadOfferedIndex(), P = S.planner;
+  if (!P.sem || !idx.some((x) => x.sem === P.sem)) P.sem = (idx.find((x) => x.sem === nextSemesterGuess()) || idx[0])?.sem || P.offeredSem || "";
+  return P.sem;
+}
+/* Every 30 minutes the lists are fetched again; a change to a course you planned (faculty, time, room, a section
+   added or removed) becomes a notification. Only the planned courses are remembered, to compare with. */
+function watchPlanned(sem) {
+  const P = S.planner, cat = catalog[sem];
+  if (!cat || P.sem !== sem || !P.courses.length) return;
+  const was = P.watch?.sem === sem ? P.watch.c || {} : {}, now = {};
+  const lines = [];
+  for (const code of P.courses) {
+    const c = cat.courses.find((x) => x.code === code);
+    if (!c) continue;
+    now[code] = c;
+    if (was[code]) for (const l of courseChanges(was[code], c)) lines.push(`${code} ${l}`);
+  }
+  P.watch = { sem, c: now };
+  if (lines.length) {
+    logEvent("Academic", "calcheck", "orange", `Changes in your ${sem} courses`, lines.slice(0, 4).join(" · "), "#/planner");
+    native.notifyNow(`Your ${sem} courses changed`, lines.slice(0, 3).join(" · "), "#/planner");
+  }
+  save({ silent: true });
+}
+setInterval(() => { if (document.visibilityState !== "visible") return; catalogIdx = null; for (const k of Object.keys(catalogP)) delete catalogP[k]; if (S.planner.sem) loadOffered(S.planner.sem); }, 30 * 60e3);
+/* Official faculty directory, from EWU's public profile pages (scripts/scrape-faculty.mjs), plus every teacher's initials
+   in the newest offered-course list (marked as teaching that semester, C.facultySem). Loaded on first use. */
 const loadDirectory = () => (dirP = dirP || Promise.all([
   fetch("/data/faculty.json").then((r) => (r.ok ? r.json() : { faculty: [] })).catch(() => ({ faculty: [] })),
-  fetch("/data/spring-2027-faculty.json").then((r) => (r.ok ? r.json() : { faculty: [] })).catch(() => ({ faculty: [] }))
-]).then(([j1, j2]) => {
+  loadOfferedIndex().then((idx) => (idx[0] ? loadOffered(idx[0].sem).then((c) => ({ sem: idx[0].sem, courses: c?.courses || [] })) : { courses: [] })).catch(() => ({ courses: [] }))
+]).then(([j1, list]) => {
   const map = new Map((j1.faculty || []).map((f) => [f.email?.toLowerCase() || f.name, f]));
-  (j2.faculty || []).forEach((f) => {
-    const existing = map.get(f.init) || [...map.values()].find((x) => x.name?.toLowerCase() === f.name?.toLowerCase());
-    if (existing) {
-      existing.init = existing.init || f.init;
-      existing.semesters = [...new Set([...(existing.semesters || []), "Spring-2027"])];
-      if (f.dept) existing.dept = existing.dept || f.dept;
-    } else {
-      map.set(f.init, { init: f.init, name: f.name || f.init, dept: f.dept || "", semesters: ["Spring-2027"], room: f.room || "" });
-    }
-  });
+  const byInit = new Map();
+  for (const c of list.courses) for (const s of c.sections) if (s.faculty && !/^TBAd*$/.test(s.faculty)) {
+    const t = byInit.get(s.faculty) || { init: s.faculty, courses: new Set(), depts: new Set() };
+    t.courses.add(c.code); t.depts.add(c.dept); byInit.set(s.faculty, t);
+  }
+  C.facultySem = list.sem || "";
+  C.listFaculty = [...byInit.values()].map((t) => ({ init: t.init, dept: [...t.depts][0] || "", courses: [...t.courses] }));
   C.directory = [...map.values()]; facCache = null; if (["faculty", "prof", "home"].includes(currentRoute)) rerender();
 }));
-const loadOffered = (sem = "Spring-2027") => (offeredP = offeredP || fetch(`/data/${sem.toLowerCase()}-offered.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null)
-  .then((j) => {
-    if (j?.courses) {
-      C.offeredSemesters = C.offeredSemesters || {};
-      C.offeredSemesters[j.semester || sem] = j.courses;
-      if (!S.planner.offered || !Object.keys(S.planner.offered).length) {
-        S.planner.offered = j.courses;
-        S.planner.offeredSem = j.semester || sem;
-      }
-      facCache = null;
-      if (["planner", "plan", "combos"].includes(currentRoute)) rerender();
-    }
-  }));
 // A faculty photo that fails to load falls back to the initials underneath it.
 addEventListener("error", (e) => { const t = e.target; if (t.tagName === "IMG" && t.closest(".face")) t.remove(); }, true);
 let study = null; // study-mode API, installed at boot (src/study.js)
@@ -401,7 +450,9 @@ function inbox() {
   });
   const p = nextPayment();
   if (p && daysUntil(p.due) <= 7) out.push({ id: `p${p.due}`, cat: "System", icon: "wallet", tone: daysUntil(p.due) <= 3 ? "red" : "orange", title: "Payment reminder", body: `${fmtMoney(p.amount)} due ${daysUntil(p.due) === 0 ? "today" : `in ${daysUntil(p.due)} days`} (${fmtDate(p.due)})${p.late ? "" : ". Late fee after that"}.`, at: new Date(new Date(p.due) - 7 * 864e5).toISOString(), href: "#/fees" });
-  Object.entries(S.attendance).forEach(([c, a]) => { if (a.held >= 4 && (a.held - a.missed) / a.held < 0.7) out.push({ id: `a${c}${a.held}`, cat: "Academic", icon: "alert", tone: "red", title: "You're below 70% attendance", body: `${c}: ${Math.round((100 * (a.held - a.missed)) / a.held)}%. Attend upcoming classes to stay eligible.`, at: new Date().toISOString(), href: `#/course?c=${encodeURIComponent(c)}&tab=attendance` }); });
+  // Only courses on this semester's routine: a dropped course's old record never raises a warning.
+  const onRoutine = new Set(activeRoutine().map((r) => r.code));
+  Object.entries(S.attendance).filter(([c]) => onRoutine.has(c)).forEach(([c, a]) => { if (a.held >= 4 && (a.held - a.missed) / a.held < 0.7) out.push({ id: `a${c}${a.held}`, cat: "Academic", icon: "alert", tone: "red", title: "You're below 70% attendance", body: `${c}: ${Math.round((100 * (a.held - a.missed)) / a.held)}%. Attend upcoming classes to stay eligible.`, at: new Date().toISOString(), href: `#/course?c=${encodeURIComponent(c)}&tab=attendance` }); });
   // Classes that ended today or yesterday without attendance marked.
   const gone = droppedCodes();
   if (acal?.ready()) for (const d of [0, 1]) {
@@ -474,7 +525,12 @@ function route({ animate = false } = {}) {
   let id = pages[r] ? r : r === "account" ? "profile" : "notfound";
   if (PAGE_FEATURE[id] && !content.feature(PAGE_FEATURE[id])) id = "off";
   if (content.data.settings.maintenance?.on && !maintBypass && !FULLSCREEN.has(id)) id = "maint";
-  if (!S.onboarded && !FULLSCREEN.has(id) && id !== "sync") id = "welcome";
+  // Club pages the admin panel opens (as=team) skip the student welcome; nothing about this device's setup is saved.
+  // Remembered for this tab only, so links inside the club pages (which drop the marker) keep working.
+  if (/[?&]as=team(&|$)/.test(location.hash)) { try { sessionStorage.setItem("ewud.staff", "1"); } catch { /* private mode */ } }
+  let staffTab = false; try { staffTab = sessionStorage.getItem("ewud.staff") === "1"; } catch { /* private mode */ }
+  const staffView = id.startsWith("club/") && staffTab;
+  if (!S.onboarded && !FULLSCREEN.has(id) && id !== "sync" && !staffView) id = "welcome";
   const changed = id !== currentRoute;
   currentRoute = id;
   const full = FULLSCREEN.has(id);
@@ -568,13 +624,23 @@ function facultyIndex() {
     const k = (o?.init && map.has(o.init) ? o.init : null) || (d.email && byEmail.get(d.email)) || (o?.init || "@" + d.url.split("/").pop().toUpperCase()), p = map.get(k) || {};
     map.set(k, { ...p, init: k, name: d.name, dept: d.dept, deptName: d.deptName, designation: d.designation, email: d.email || p.email, room: d.room ? `Room ${d.room}` : p.room, roomCode: d.room, ext: d.ext, photo: d.photo, degree: d.degree, bio: d.bio, url: d.url, official: true, source: p.source || "official" });
   });
+  // Teachers in the newest offered-course list (by initial): marked as teaching that semester, with their courses.
+  (C.listFaculty || []).forEach((t) => { const p = map.get(t.init) || { init: t.init, name: t.init, dept: t.dept, source: "list" };
+    map.set(t.init, { ...p, semesters: [...new Set([...(p.semesters || []), C.facultySem])], courses: t.courses }); });
   return map;
 }
 const facBy = (init) => facultyIndex().get(String(init || "").toUpperCase());
 const facName = (init) => { const f = facBy(init); return f?.name || init || ""; };
-const offered = () => S.planner.offered || (C.offeredSemesters?.["Spring-2027"]) || (S.demo ? DEMO.offered : {});
-const sectionBlocks = (code, s) => expand([{ code, sec: s.sec, days: s.days, start: s.start, end: s.end, id: code + s.sec, room: s.room }]
-  .concat(s.lab ? [{ code, sec: s.sec, days: s.lab.days, start: s.lab.start, end: s.lab.end, id: code + s.sec + "L", lab: true, room: s.lab.room || s.room }] : []));
+/* Courses offered in the planner's semester: the semester's list, with your own synced portal page on top (it has live seats). */
+const offered = () => {
+  const P = S.planner, cat = catalog[P.sem]?.planner, own = P.offered && Object.keys(P.offered).length && (!P.sem || P.offeredSem === P.sem) ? P.offered : null;
+  if (S.demo) return own || DEMO.offered; // the demo keeps its own small course list
+  return (cat && own ? { ...cat, ...own } : own || cat) || {};
+};
+// A section's weekly classes: every slot when the offered list has them (some sections meet on 3 different times), else theory + lab.
+const sectionRows = (code, s) => (s.slots?.length ? s.slots.map((x, i) => ({ code, sec: s.sec, days: x.days, start: x.start, end: x.end, id: code + s.sec + i, room: x.room, ...(x.lab ? { lab: true } : {}) }))
+  : [{ code, sec: s.sec, days: s.days, start: s.start, end: s.end, id: code + s.sec, room: s.room }].concat(s.lab ? [{ code, sec: s.sec, days: s.lab.days, start: s.lab.start, end: s.lab.end, id: code + s.sec + "L", lab: true, room: s.lab.room || s.room }] : []));
+const sectionBlocks = (code, s) => expand(sectionRows(code, s));
 /* Every known room and when it's occupied: campus-wide sections ∪ offered courses ∪ my routine. */
 const baseRoom = (r) => String(r || "").replace(/\s*\(.*\)$/, "").trim();
 function roomData() {
@@ -759,17 +825,10 @@ function onSignedIn(user) {
 }
 // Messages the team sent to everyone or to you (admin panel → Messages to users).
 async function loadMessages() {
-  try {
+  if (!C.user) return; try {
     const before = C.messages; C.messages = await cloud.fetchMessages();
-    // New team messages since the last check pop up on the phone (or unread broadcast).
-    if (before) {
-      const seen = new Set(before.map((m) => m.id));
-      C.messages.filter((m) => !seen.has(m.id)).slice(0, 3).forEach((m) => {
-        if (native.isNative) native.notifyNow(m.title, m.body || "", m.link || "#/notifications");
-      });
-    }
-    C.courseNotes = await people.courseNotices().catch(() => []);
-    if (["home", "notifications"].includes(currentRoute)) rerender();
+    // New team messages since the last check pop up on the phone (not on the first load).
+    if (before) { const seen = new Set(before.map((m) => m.id)); C.messages.filter((m) => !seen.has(m.id)).slice(0, 3).forEach((m) => native.notifyNow(m.title, m.body || "", m.link || "#/notifications")); } C.courseNotes = await people.courseNotices().catch(() => []); if (["home", "notifications"].includes(currentRoute)) rerender();
   } catch { /* offline */ }
 }
 async function restoreOrBackup(user) {
@@ -793,11 +852,11 @@ async function restoreOrBackup(user) {
 /* ───────────── Boot ───────────── */
 const ctx = {
   get S() { return S; }, resetState, pages, save, rerender, route: () => currentRoute, go, qparam, toast, openModal, closeModal, modalHead, confirmModal, modalOpen, busy,
-  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, loadOffered, get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, get events() { return events; }, get acal() { return acal; }, motion,
+  icon, esc, uid, $, $$, head, subHead, seg, art, swoosh, empty, bar, demoBanner, C, cloud, native, get study() { return study; }, loadDirectory, loadOffered, loadOfferedIndex, plannerSem, catalogOf: (sem) => catalog[sem], get campus() { return campus; }, get notices() { return notices; }, get community() { return community; }, get people() { return people; }, get events() { return events; }, get acal() { return acal; }, motion,
   // Feature-tile icon: an animated Kubai icon when there is one for this name, else the Phosphor icon.
   tileIcon: (ic, tone) => { const k = kubaiPlaceholder(ic, tone); return `<span class="itile ${tone}${k ? " ki" : ""}">${k || icon(ic)}</span>`; }, get attendance() { return attendanceUi; }, get charts() { return charts; }, get materials() { return materials; }, get sync() { return sync; }, content, FEATURES, countUp, get idcard() { return idcard; }, APP_VERSION, SITE, pushNow, pullNow, logEvent, PAGE_FEATURE, alarmsFor, upcomingAlarms, PAGES_SEARCH, ringAlarm, fmtBefore, scheduleReminders,
   afterSignIn: () => signInDone, LETTER, toMin, fmt12, fmtShort, dayIdx, expand, overlaps, toneFor, colorFor, HEX, TONES, gradePoint, cgpaOf, fmtMoney, fmtCountdown, daysUntil, fmtDate, firstName, initials, myAvatar, greeting,
-  nextClass, nextPayment, markAttendance, facultyIndex, facBy, facName, offered, sectionBlocks, roomData, freeRoomsAt, baseRoom, enableNotifications, taskLine, duePill, TASK_IC, inbox, loadDemo, onSignedIn,
+  nextClass, nextPayment, markAttendance, facultyIndex, facBy, facName, offered, sectionRows, sectionBlocks, activeRoutine, droppedCodes, roomData, freeRoomsAt, baseRoom, enableNotifications, taskLine, duePill, TASK_IC, inbox, loadDemo, onSignedIn,
   isDark, applyTheme, palette, roleLabel, navFor, nextSemesterGuess, DAY_NAMES, WEEK, SLOTS, GRADES, NON_GPA, DEMO, cleanDegree, parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey
 };
 materials = installMaterials(ctx);
@@ -851,35 +910,14 @@ addEventListener("appinstalled", () => { C.install = null; toast("EWUdiots insta
 const newer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
 const UPD_KEY = "ewudiots.updateSeen";
 let checkingUpdate = false;
-async function fetchVersionDoc() {
-  const sources = [
-    (native.isNative ? SITE : "") + "/version.json",
-    "https://raw.githubusercontent.com/yusufhasanaditta/EWUdiots/main/app/public/version.json",
-    "https://api.github.com/repos/yusufhasanaditta/EWUdiots/releases/latest"
-  ].filter(Boolean);
-  for (const src of sources) {
-    try {
-      const res = await fetch(src, { cache: "no-store" });
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (data.tag_name) {
-        const v = (data.tag_name || "").replace(/^app-v/, "").split("-")[0];
-        if (v) return { version: v, minVersion: v, notes: ["Spring-2027 faculty list & course planner", "Make-up class attendance tracking", "Dropped course alarm notification fix", "Automated 30-min course tracker"], apk: "https://github.com/yusufhasanaditta/EWUdiots/releases/latest/download/EWUdiots.apk" };
-      }
-      if (data.version) return data;
-    } catch { /* fallback */ }
-  }
-  return null;
-}
 async function checkUpdate() {
   if (checkingUpdate || !navigator.onLine) return;
   checkingUpdate = true;
   try {
-    const j = await fetchVersionDoc();
-    if (!j || !newer(j.version, APP_VERSION)) return;
+    const j = await (await fetch((native.isNative ? SITE : "") + "/version.json", { cache: "no-store" })).json();
+    if (!newer(j.version, APP_VERSION)) return;
     const required = newer(j.minVersion || "0", APP_VERSION);
-    const downloadUrl = PLAY ? PLAY_URL : (j.apk && j.apk.startsWith("https://")) ? j.apk : "https://github.com/yusufhasanaditta/EWUdiots/releases/latest/download/EWUdiots.apk";
-    C.update = { version: j.version, notes: (j.notes || []).slice(0, 6), required, url: downloadUrl };
+    C.update = { version: j.version, notes: (j.notes || []).slice(0, 6), required, url: PLAY ? PLAY_URL : native.isNative ? SITE + (j.apk || "/download/android") : "" };
     if (currentRoute === "home") rerender();
     showUpdate();
   } catch { /* offline or no version file (dev) */ }
@@ -887,9 +925,6 @@ async function checkUpdate() {
 }
 function showUpdate() {
   const u = C.update; if (!u) return;
-  if (native.isNative) {
-    native.notifyNow("Update available: EWUdiots " + u.version, (u.notes && u.notes[0]) || "Tap to install the new update.", u.url || "#/home");
-  }
   if (!native.isNative) {
     // Web: one quiet bar; a required update reloads as soon as nothing is being edited.
     // Only once per version, so a lagging cache can never cause a reload loop.

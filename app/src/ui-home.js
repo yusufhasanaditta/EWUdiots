@@ -19,14 +19,29 @@ export function install(ctx) {
     const { cgpa } = ctx.cgpaOf(St.grades);
     const shown = cgpa || p.cgpa || 0;
     const upcoming = St.tasks.filter((t) => !t.done && new Date(t.due) > now - 864e5).sort((a, b) => new Date(a.due) - new Date(b.due)).slice(0, 3);
-    const att = Object.entries(St.attendance).filter(([, a]) => a.held).map(([c, a]) => ({ c, pct: Math.round((100 * (a.held - a.missed)) / a.held) })).sort((a, b) => a.pct - b.pct);
+    const onRoutine = new Set(ctx.activeRoutine().map((r) => r.code)); // dropped courses don't count
+    const att = Object.entries(St.attendance).filter(([c, a]) => a.held && onRoutine.has(c)).map(([c, a]) => ({ c, pct: Math.round((100 * (a.held - a.missed)) / a.held) })).sort((a, b) => a.pct - b.pct);
     const avgAtt = att.length ? Math.round(att.reduce((s, x) => s + x.pct, 0) / att.length) : null;
     const low = att.find((a) => a.pct < 70) || att.find((a) => a.pct < 80);
     const courses = new Set(St.routine.map((r) => r.code)).size;
     const str = ctx.study.streak();
     const first = esc(ctx.firstName());
-    const TILES = [["routine", "calendar", "purple", "Routine", "View your classes"], ["planner", "listcheck", "green", "Spring-2027", "Faculty & advising"], ["faculty", "users", "purple", "Faculty", "Teacher list"], ["grades", "bars", "blue", "CGPA", "Track your progress"],
+    const TILES = [["routine", "calendar", "purple", "Routine", "View your classes"], ["planner", "listcheck", "green", "Next Semester", "Courses & faculty"], ["faculty", "users", "purple", "Faculty", "Teacher list"], ["grades", "bars", "blue", "CGPA", "Track your progress"],
       ["map", "map", "purple", "Campus Map", "Find any room"], ["vault", "vault", "yellow", "Vault", "Notes, past papers"], ["tasks", "clipboard", "red", "Deadlines", "Assignments & exams"], ["fees", "wallet", "orange", "Fees", "Payments & installments"]];
+    /* Next semester: the newest course list, what you've picked against the credit load, one tap into the planner. */
+    const semCard = (() => {
+      const idx = ctx.C.offeredSems;
+      if (!idx) { ctx.loadOfferedIndex().then(() => { if (ctx.route() === "home") ctx.rerender(); }); return ""; }
+      const P = St.planner, x = idx.find((s) => s.sem === P.sem) || idx.find((s) => s.sem === ctx.nextSemesterGuess()) || idx[0];
+      if (!x) return "";
+      if (P.courses.length && P.sem === x.sem && !ctx.catalogOf(x.sem)) ctx.loadOffered(x.sem); // credits come from the list
+      const L = { min: St.rules.minCredit || 9, max: St.rules.maxCredit || 15 }, mine = P.sem === x.sem ? P.courses : [];
+      const cr = mine.reduce((a, c) => a + (ctx.offered()[c]?.cr || 3), 0), okLoad = cr >= L.min && cr <= L.max;
+      return `<a class="card sem-next" href="#/planner"><span class="itile green">${icon("listcheck")}</span><div class="grow min0">
+        <b>${esc(x.sem.replace("-", " "))} course list is out</b>
+        <span class="xs">${x.courses ? `${x.courses} courses · ` : ""}every section, teacher, time and room</span>
+        ${mine.length ? `<div class="sn-load">${ctx.bar((100 * cr) / L.max, okLoad ? "green" : "amber")}<span class="xs"><b>${cr}</b> credits picked · take ${L.min}–${L.max}</span></div>` : `<span class="sn-cta">Plan ${L.min}–${L.max} credits ${icon("arrow", "sm")}</span>`}</div></a>`;
+    })();
     const prof = nc ? ctx.facName(nc.faculty) : "";
     const ncAt = nc ? (() => { const t = new Date(); t.setSeconds(0, 0); return t.getTime() + nc.mins * 6e4; })() : 0;
     const ncStart = nc ? (nc.live ? ncAt - (nc.e - nc.s) * 6e4 : ncAt) : 0;
@@ -52,10 +67,11 @@ export function install(ctx) {
     const desktop = `<div class="d-only">
       <section class="hero-banner"><span class="fluid" aria-hidden="true"><i></i><i></i><i></i></span><span class="date">${now.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })} ${icon("star", "sm")}</span>
         <h1><small>${ctx.greeting()},</small>${first}!</h1><p>Small steps. Big progress.</p></section>
-      <div class="mt"><a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Spring-2027 Advising & Faculty” · “Remind me 30 min before”</span></span>${icon("arrow")}</a></div>
-      <div class="dtiles mt">${[["routine", "calendar", "purple", "Routine", "View your classes"], ["planner", "listcheck", "green", "Spring-2027 Planner", "Faculty list & advising"], ["faculty", "users", "purple", "Faculty List", "Spring-2027 teachers"], ["map", "map", "blue", "Campus Map", "Rooms, routes & 3D walk"], ["grades", "bars", "purple", "CGPA", "Track your progress"],
+      <div class="mt"><a class="ask-entry" href="#/ask"><span class="ask-orb sm" aria-hidden="true">${icon("sparkle")}</span><span class="grow"><b>Ask EWUdiots</b><span>“Where is my next class?” · “Which sections of CSE207 are left?” · “Remind me 30 min before”</span></span>${icon("arrow")}</a></div>
+      <div class="dtiles mt">${[["routine", "calendar", "purple", "Routine", "View your classes"], ["planner", "listcheck", "green", "Next Semester", "Course list & advising"], ["faculty", "users", "purple", "Faculty", "Teachers & reviews"], ["map", "map", "blue", "Campus Map", "Rooms, routes & 3D walk"], ["grades", "bars", "purple", "CGPA", "Track your progress"],
         ["tasks", "clipboard", "red", "Deadlines", "Assignments & exams"], ["fees", "wallet", "orange", "Fees", "Payments & installments"], ["vault", "vault", "blue", "Study Library", "Notes, past papers"]]
         .map(([id, ic, tone, t, d]) => `<a class="dtile" data-kubai-trigger href="#/${id}">${ctx.tileIcon(ic, tone)}<div class="min0"><b>${t}</b><span>${d}</span></div></a>`).join("")}</div>
+      ${semCard ? `<div class="mt">${semCard}</div>` : ""}
       <div class="split mt">
         <section class="card"><div class="card-h"><h2>Today's Schedule</h2><a class="see" href="#/routine">View All</a></div>${navStrip ? `<div style="margin:-4px 0 12px">${navStrip}</div>` : ""}
           ${todays.length ? `<div class="sched">${todays.map((b) => { const live = b.s <= nowM && nowM < b.e; return `<a class="sitem ${b.e <= nowM ? "past" : ""}" href="#/course?c=${encodeURIComponent(b.code)}" style="--cc:${ctx.colorFor(b.code)}"><span class="itile sm ${ctx.toneFor(b.code)}">${icon("calendar")}</span><div class="grow min0"><span class="when">${ctx.fmt12(b.s)} – ${ctx.fmt12(b.e)}</span><b>${esc(b.code)}${b.title ? " - " + esc(b.title) : ""}${b.lab ? " (Lab)" : ""}</b><span class="xs">${esc(b.room || "TBA")}</span></div>${live ? '<span class="pill purple">Now</span>' : ""}</a>`; }).join("")}</div>`
@@ -92,6 +108,7 @@ export function install(ctx) {
         .map(([v, l, h]) => `<a href="${h}"><b class="num">${v}</b><span>${l}</span></a>`).join("")}</div>
       ${sec("school", "purple", "Right now", nc ? (nc.live ? "Class in progress" : "Your next class") : "", `${ncCard}${holidayStrip}${todayStrip}${navStrip}`)}
       ${sec("checksq", pend.length ? "orange" : "green", "Today's attendance", pend.length ? `${pend.length} class${pend.length === 1 ? "" : "es"} to mark · add a note on what you covered` : "All marked · tap the pen to note what you covered", pendCard)}
+      ${sec("listcheck", "green", "Next semester", "Pick your courses for advising", semCard)}
       ${sec("grid", "blue", "Quick access", "", `<div class="qgrid">${TILES.map(([id, ic, tone, t]) => `<a class="qtile" data-kubai-trigger href="#/${id}">${ctx.tileIcon(ic, tone)}${t}</a>`).join("")}</div>`)}
       ${sec("clipboard", "red", "Due soon", "", deadlines, `<a class="see" href="#/tasks">All</a>`)}
       ${sec("flame", "orange", "Your progress", "", `<div class="g2m">${streakCard}${attCard}</div>`)}

@@ -177,14 +177,20 @@ export function install(ctx) {
       return { c, bl, days: days.size, gaps, rating, early, lastEnd, seats, score: days.size * 60 + gaps * 0.5 - rating * 25 + early * 10 };
     }) };
   }
-  let pSort = "best", pDay = "all", pTime = "any", pQ = "", pDept = "all", pSem = "Spring-2027";
+  let pSort = "best", pDay = "all", pTime = "any", pQ = "", pDept = "", pShow = "all";
+  // The student's department: the profile's short name, else the code most of their courses start with (CSE101 → CSE).
+  const myDeptOf = (St) => { const d = String(St.profile?.department || "").toUpperCase(); if (/^[A-Z]{2,5}$/.test(d)) return d;
+    const n = {}; for (const c of [...St.routine, ...St.grades].map((x) => (x.code.match(/^[A-Z]+/) || [""])[0]).filter(Boolean)) n[c] = (n[c] || 0) + 1;
+    return Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0] || ""; };
+  const LOAD = () => ({ min: S().rules.minCredit || 9, max: S().rules.maxCredit || 15 });
+  const fmtUpd = (d) => (d ? new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
   const SORTS = { best: (a, b) => a.score - b.score, gaps: (a, b) => a.gaps - b.gaps || a.score - b.score, early: (a, b) => a.lastEnd - b.lastEnd || a.score - b.score, rating: (a, b) => b.rating - a.rating || a.score - b.score };
   const crOf = (code) => ctx.offered()[code]?.cr || 3;
-  const plannerNote = () => S().planner.offered ? "" : S().demo ? `<div class="alert purple" style="margin-bottom:12px"><span class="a-ic">${icon("info")}</span><div><b>Demo course list</b><p>Sync the portal's Offered Courses page to plan with real sections and seats.</p></div></div>`
-    : `<div class="card">${ctx.empty("icon:calcheck", "Loading offered courses…", "Fetching Spring-2027 offered courses and faculty list.", `<button class="btn primary" id="pl-reload-data">${icon("sync")} Load Courses</button>`)}</div>`;
+  const plannerNote = () => Object.keys(ctx.offered()).length && !S().demo ? "" : S().demo ? `<div class="alert purple" style="margin-bottom:12px"><span class="a-ic">${icon("info")}</span><div><b>Demo course list</b><p>Sync the portal's Offered Courses page to plan with real sections and seats.</p></div></div>`
+    : `<div class="card">${ctx.empty("icon:calcheck", "Loading offered courses…", "Getting the newest course list with every section, faculty, time and room.", `<button class="btn primary" id="pl-reload-data">${icon("sync")} Try again</button>`)}</div>`;
   pages.planner = () => {
-    ctx.loadOffered?.(pSem);
-    const St = S(), P = St.planner, O = ctx.offered();
+    ctx.plannerSem().then((sem) => ctx.loadOffered(sem));
+    const St = S(), P = St.planner, O = ctx.offered(), L = LOAD(), cat = ctx.catalogOf(P.sem), sems = ctx.C.offeredSems || [];
     const note = plannerNote();
     if (!Object.keys(O).length) return `${ctx.head("Advising Planner", "Find the best course combination for your next semester.", "", ctx.art("mascot-laptop", "Plan smart,<br>study happy!"))}${note}`;
     const rec = new Set(St.recommended.map((r) => r.code)), fac = ctx.facultyIndex();
@@ -193,13 +199,17 @@ export function install(ctx) {
     const dOK = (s) => pDay === "all" || ctx.dayIdx(s.days).includes(Number(pDay));
     const deptMatch = (c) => pDept === "all" || (c.match(/^[A-Z]+/)?.[0] === pDept);
     // Student courses done or currently doing (excluding dropped courses)
-    const passed = new Set((St.grades || []).filter((g) => g.g && g.g !== "F" && !["U", "I", "W"].includes(g.g)).map((g) => g.code));
-    const gone = new Set((St.dropped || []).map((d) => d.code));
+    const passed = new Set((St.grades || []).filter((g) => g.g && g.g !== "F" && !["U", "I", "W", "R"].includes(g.g)).map((g) => g.code));
+    const gone = new Set((St.dropped || []).filter((d) => d.sem === (St.routineSem || ctx.currentSemester())).map((d) => d.code));
     const doing = new Set((St.routine || []).map((r) => r.code).filter((c) => !gone.has(c)));
-    const myDept = St.profile?.department || "CSE";
+    const myDept = myDeptOf(St), mine = new Set((St.curriculum || []).map((c) => c.code));
+    // Without a synced curriculum, "Next for me" keeps to departments you already take courses from (CSE, MAT, ENG…).
+    const known = new Set([myDept, ...[...St.grades, ...St.routine].map((x) => (String(x.code).match(/^[A-Z]+/) || [""])[0])].filter(Boolean));
+    if (!pDept) pDept = "all"; // your department is first in the list; MAT, ENG and PHY courses stay visible
+    const showOK = (c) => pShow === "all" || (pShow === "done" ? passed.has(c) : pShow === "doing" ? doing.has(c) : !passed.has(c) && !doing.has(c) && (mine.size ? mine.has(c) : known.has(c.match(/^[A-Z]+/)?.[0])));
     const allDepts = ["all", ...new Set(Object.keys(O).map((c) => c.match(/^[A-Z]+/)?.[0]).filter(Boolean))].sort();
 
-    const codes = Object.keys(O).filter((c) => deptMatch(c) && (!q || c.includes(q.replace(/\s/g, "")) || (O[c].title || "").toUpperCase().includes(q) || O[c].sections.some((s) => (ctx.facName(s.faculty) || "").toUpperCase().includes(q))) && O[c].sections.some((s) => tOK(s) && dOK(s)))
+    const codes = Object.keys(O).filter((c) => deptMatch(c) && showOK(c) && (!q || c.includes(q.replace(/\s/g, "")) || (O[c].title || "").toUpperCase().includes(q) || O[c].sections.some((s) => (ctx.facName(s.faculty) || "").toUpperCase().includes(q))) && O[c].sections.some((s) => tOK(s) && dOK(s)))
       .sort((a, b) => (rec.has(b) - rec.has(a)) || a.localeCompare(b));
     const totalCr = P.courses.reduce((a, c) => a + crOf(c), 0);
     const { combos } = P.courses.length ? generateCombos() : { combos: [] };
@@ -210,26 +220,27 @@ export function install(ctx) {
       return `<article class="pcard" style="--cc:${ctx.colorFor(code)}"><div class="row nowrap top" style="gap:12px">
         <span class="fac" style="background:${ctx.colorFor(s.faculty || code)}" aria-hidden="true">${esc((s.faculty || code).slice(0, 3))}</span>
         <div class="grow min0"><div class="row between nowrap"><h3>${esc(code)}</h3><div class="row nowrap" style="gap:6px">${isDone ? '<span class="pill green">Completed</span>' : isDoing ? '<span class="pill purple">In Progress</span>' : rec.has(code) ? '<span class="pill green">Recommended</span>' : filled >= 0.8 ? `<span class="pill red">${icon("flame")} Popular</span>` : ""}<button class="bm" data-save="${esc(code)}" aria-pressed="${saved}" aria-label="${saved ? "Remove bookmark" : "Bookmark"} ${esc(code)}">${icon("bookmark")}</button></div></div>
-          <div class="t">${esc(c.title || "")}</div>${f?.rating ? `<div class="small" style="margin-top:2px"><span style="color:var(--yellow)">★</span> ${f.rating.toFixed(1)} <span class="muted">(${f.reviews || 0})</span></div>` : f?.name ? `<div class="xs">${esc(f.name)}</div>` : ""}</div></div>
+          <div class="t">${c.title && c.title !== code ? esc(c.title) : `${c.cr} credits${c.crGuess ? " (estimated)" : ""}`}</div>${f?.rating ? `<div class="small" style="margin-top:2px"><span style="color:var(--yellow)">★</span> ${f.rating.toFixed(1)} <span class="muted">(${f.reviews || 0})</span></div>` : f?.name ? `<div class="xs">${esc(f.name)}</div>` : ""}</div></div>
         <div class="meta"><span>${icon("calendar")} ${esc(ctx.dayIdx(s.days).map((d) => DS[d]).join(", "))} ${ctx.fmt12(s.start)} – ${ctx.fmt12(s.end)}</span><span>${icon("room")} ${esc(s.room || "TBA")}</span>${c.sections.length > 1 ? `<button class="btn sm ghost" data-secs="${esc(code)}" style="padding:0 6px">${c.sections.length} sections ${icon("chevD", "sm")}</button>` : ""}</div>
         <div class="seats">${s.capacity ? `${ctx.bar(100 * filled, filled >= 0.9 ? "red" : "green")}<span><b>${s.capacity - (s.seats ?? 0)}</b> / ${s.capacity} seats</span>` : `<span class="xs grow">${c.cr || 3} credits</span>`}
           <button class="btn sm ${added ? "outline" : "primary"}" data-course="${esc(code)}" aria-pressed="${added}">${icon(added ? "check" : "plus")} ${added ? "Added" : "Add"}</button></div>
-        <div class="secs" data-secs-of="${esc(code)}" hidden>${c.sections.map((x) => { const pin = P.pins[code] === x.sec; return `<div class="secrow ${pin ? "pinned" : ""}"><b>Sec ${esc(x.sec)}</b><span class="small">${esc(x.days)} ${ctx.fmt12(x.start)}${x.lab ? ` · Lab ${esc(x.lab.days)}` : ""} · ${esc(ctx.facName(x.faculty))}</span>${x.seats !== undefined ? `<span class="pill ${x.seats === 0 ? "red" : x.seats < 5 ? "amber" : "green"}">${x.seats} left</span>` : "<span></span>"}<button class="btn sm ${pin ? "primary" : "neutral"}" data-pin="${esc(code)}|${esc(x.sec)}" aria-pressed="${pin}">${pin ? "Pinned" : "Pin"}</button></div>`; }).join("")}</div></article>`;
+        <div class="secs" data-secs-of="${esc(code)}" hidden>${c.sections.map((x) => { const pin = P.pins[code] === x.sec; return `<div class="secrow ${pin ? "pinned" : ""}"><b>Sec ${esc(x.sec)}</b><span class="small">${(x.slots || [x].concat(x.lab ? [x.lab] : [])).map((y) => `${esc(y.days)} ${ctx.fmt12(y.start)}${y.lab ? " (lab)" : ""}`).join(", ")} · ${esc(ctx.facName(x.faculty))}${x.room ? ` · ${esc(ctx.baseRoom(x.room))}` : ""}</span>${x.seats !== undefined ? `<span class="pill ${x.seats === 0 ? "red" : x.seats < 5 ? "amber" : "green"}">${x.seats} left</span>` : "<span></span>"}<button class="btn sm ${pin ? "primary" : "neutral"}" data-pin="${esc(code)}|${esc(x.sec)}" aria-pressed="${pin}">${pin ? "Pinned" : "Pin"}</button></div>`; }).join("")}</div></article>`;
     };
-    const crCheck = totalCr < 9 ? `<span class="pill amber">Need ${9 - totalCr} more credits (min 9)</span>` : totalCr > 15 ? `<span class="pill red">${totalCr - 15} credits over limit (max 15)</span>` : `<span class="pill green">${totalCr} credits (9–15 OK)</span>`;
+    const crCheck = totalCr < L.min ? `<span class="pill amber">${totalCr} credits: add ${L.min - totalCr} more</span>` : totalCr > L.max ? `<span class="pill red">${totalCr} credits: ${totalCr - L.max} over</span>` : `<span class="pill green">${totalCr} credits</span>`;
     return `${ctx.head("Advising Planner", "Find the best course combination for your next semester.", "", ctx.art("mascot-laptop", "Plan smart,<br>study happy!"))}${note}
-      <div class="row nowrap" style="gap:8px;margin-bottom:8px">
-        <select class="select sm grow" id="p-sem" aria-label="Semester"><option value="Spring-2027" ${pSem === "Spring-2027" ? "selected" : ""}>Spring-2027 (Official)</option><option value="Fall-2026" ${pSem === "Fall-2026" ? "selected" : ""}>Fall-2026</option></select>
+      <div class="pl-filters">
+        <select class="select sm grow" id="p-sem" aria-label="Semester">${(sems.length ? sems : [{ sem: P.sem || P.offeredSem || "" }]).filter((x) => x.sem).map((x) => `<option value="${esc(x.sem)}" ${x.sem === P.sem ? "selected" : ""}>${esc(x.sem.replace("-", " "))}${x.sem === ctx.nextSemesterGuess() ? " (next)" : ""}</option>`).join("")}</select>
+        <select class="select sm grow" id="p-show" aria-label="Show">${[["all", "All courses"], ["next", "Next for me"], ["done", "Done"], ["doing", "Doing now"]].map(([v, l]) => `<option value="${v}" ${pShow === v ? "selected" : ""}>${l}</option>`).join("")}</select>
         <select class="select sm grow" id="p-dept" aria-label="Department"><option value="all">All Departments</option>${myDept ? `<option value="${myDept}" ${pDept === myDept ? "selected" : ""}>My Dept (${myDept})</option>` : ""}${allDepts.filter((d) => d !== "all" && d !== myDept).map((d) => `<option value="${d}" ${pDept === d ? "selected" : ""}>${d}</option>`).join("")}</select>
       </div>
       <div class="row nowrap" style="gap:8px"><div class="seg grow">${[["all", "All"], ...[0, 1, 2, 3, 4, 6].map((d) => [String(d), DS[d]])].map(([v, l]) => `<button data-pday="${v}" aria-selected="${pDay === v}">${l}</button>`).join("")}</div>
         <select class="select sm" id="p-time" aria-label="Time of day">${[["any", "Time"], ["morning", "Morning"], ["afternoon", "Afternoon"], ["evening", "Evening"]].map(([v, l]) => `<option value="${v}" ${pTime === v ? "selected" : ""}>${l}</option>`).join("")}</select>
         <button class="icon-btn" id="p-filter" aria-label="Filters">${icon("filter")}</button></div>
       <div class="searchbar mt">${icon("search")}<input class="input" id="p-q" type="search" placeholder="Search by course code, title or faculty…" value="${esc(pQ)}" aria-label="Search courses"></div>
-      <p class="xs mt-s">${esc(P.offeredSem || pSem)} · ${Object.keys(O).length} courses offered · Load requirement: 9–15 credits</p>
+      <p class="xs mt-s">${esc((P.sem || P.offeredSem || "").replace("-", " "))} · ${Object.keys(O).length} courses offered${cat ? ` · updated ${esc(fmtUpd(cat.updated))}${cat.live ? " from ewucoursetracker.live" : ""}` : ""} · take ${L.min}–${L.max} credits${myDept ? ` · done ${passed.size}, doing ${doing.size}` : ""}</p>
       <div class="grid g2 mt">${codes.slice(0, 60).map(card).join("") || `<div class="card full-row">${ctx.empty("icon:search", "No results found", "Try a different keyword or department filter.", `<button class="btn" id="p-clear">Clear Filters</button>`)}</div>`}</div>
       ${codes.length > 60 ? `<p class="xs mt-s">Showing 60 of ${codes.length}. Search to find more.</p>` : ""}
-      ${P.courses.length ? `<div class="sticky-cart"><div class="grow"><b>${P.courses.length} course${P.courses.length > 1 ? "s" : ""} · ${crCheck}</b><span>${combos.length ? `${combos.length >= 3000 ? "3000+" : combos.length} clash-free option${combos.length === 1 ? "" : "s"}` : "No clash-free option yet"}${totalCr < 9 ? " · below 9-credit minimum" : totalCr > 15 ? " · exceeds 15-credit maximum" : ""}</span></div><a class="btn white" href="#/plan">Review ${icon("arrow")}</a></div>` : ""}`;
+      ${P.courses.length ? `<div class="sticky-cart"><div class="grow"><b>${P.courses.length} course${P.courses.length > 1 ? "s" : ""} · ${crCheck}</b><span>${combos.length ? `${combos.length >= 3000 ? "3000+" : combos.length} clash-free option${combos.length === 1 ? "" : "s"}` : "No clash-free option yet"}${totalCr < L.min ? ` · minimum is ${L.min}` : totalCr > L.max ? ` · maximum is ${L.max}` : ""}</span></div><a class="btn white" href="#/plan">Review ${icon("arrow")}</a></div>` : ""}`;
   };
   pages.planner.mount = (el) => {
     const P = S().planner, upd = () => { ctx.save(); ctx.rerender(); };
@@ -237,8 +248,8 @@ export function install(ctx) {
       const c = b.dataset.course;
       const totalCr = P.courses.reduce((a, x) => a + crOf(x), 0);
       const willAdd = !P.courses.includes(c);
-      if (willAdd && totalCr + crOf(c) > 15) {
-        toast("Credit limit reached", "warn", `Adding ${c} would exceed the maximum 15 credits.`);
+      if (willAdd && totalCr + crOf(c) > LOAD().max) {
+        toast("Credit limit reached", "warn", `${c} would take you to ${totalCr + crOf(c)} credits. The most you can take is ${LOAD().max}.`);
         return;
       }
       P.courses = willAdd ? [...P.courses, c] : P.courses.filter((x) => x !== c);
@@ -250,13 +261,14 @@ export function install(ctx) {
     $$("[data-secs]", el).forEach((b) => b.addEventListener("click", () => { const box = $(`[data-secs-of="${CSS.escape(b.dataset.secs)}"]`, el); box.hidden = !box.hidden; }));
     $$("[data-pin]", el).forEach((b) => b.addEventListener("click", () => { const [c, s] = b.dataset.pin.split("|"); if (P.pins[c] === s) delete P.pins[c]; else { P.pins[c] = s; if (!P.courses.includes(c)) P.courses.push(c); } upd(); }));
     $$("[data-pday]", el).forEach((b) => b.addEventListener("click", () => { pDay = b.dataset.pday; ctx.rerender(); }));
-    $("#p-sem", el)?.addEventListener("change", (e) => { pSem = e.target.value; ctx.loadOffered?.(pSem); ctx.rerender(); });
+    $("#p-sem", el)?.addEventListener("change", (e) => { if (P.sem !== e.target.value) { P.sem = e.target.value; P.courses = []; P.pins = {}; } ctx.save(); ctx.loadOffered(P.sem); ctx.rerender(); });
+    $("#p-show", el)?.addEventListener("change", (e) => { pShow = e.target.value; ctx.rerender(); });
     $("#p-dept", el)?.addEventListener("change", (e) => { pDept = e.target.value; ctx.rerender(); });
-    $("#pl-reload-data", el)?.addEventListener("click", () => { ctx.loadOffered?.(pSem); ctx.rerender(); });
+    $("#pl-reload-data", el)?.addEventListener("click", () => { ctx.plannerSem().then((sem) => ctx.loadOffered(sem)); });
     const t = $("#p-time", el); t && t.addEventListener("change", () => { pTime = t.value; ctx.rerender(); });
     const q = $("#p-q", el); let tm;
     q && q.addEventListener("input", () => { clearTimeout(tm); tm = setTimeout(() => { pQ = q.value; ctx.rerender(); const n = $("#p-q"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 220); });
-    const cl = $("#p-clear", el); cl && cl.addEventListener("click", () => { pQ = ""; pDay = "all"; pTime = "any"; pDept = "all"; ctx.rerender(); });
+    const cl = $("#p-clear", el); cl && cl.addEventListener("click", () => { pQ = ""; pDay = "all"; pTime = "any"; pDept = "all"; pShow = "all"; ctx.rerender(); });
     const f = $("#p-filter", el); f && f.addEventListener("click", filterSheet);
   };
   function filterSheet() {
@@ -285,7 +297,7 @@ export function install(ctx) {
     const best = combos.slice().sort(SORTS.best)[0];
     const totalCr = P.courses.reduce((a, c) => a + crOf(c), 0);
     const pinnedBlocks = P.courses.flatMap((c) => { const s = O[c]?.sections.find((x) => x.sec === P.pins[c]); return s ? ctx.sectionBlocks(c, s) : []; });
-    return `${ctx.subHead("Selected Courses", `${esc(P.offeredSem || "Next semester")} · ${P.courses.length} Courses`, "#/planner", P.courses.length ? `<button class="btn ghost sm" id="pl-clear">Clear All</button>` : "")}
+    return `${ctx.subHead("Selected Courses", `${esc(P.sem || P.offeredSem || "Next semester")} · ${P.courses.length} Courses`, "#/planner", P.courses.length ? `<button class="btn ghost sm" id="pl-clear">Clear All</button>` : "")}
       <div style="max-width:860px;margin:0 auto">
       ${P.courses.length ? P.courses.map((c) => { const s = O[c]?.sections.find((x) => x.sec === P.pins[c]); return `<div class="selrow" style="--cc:${ctx.colorFor(c)}"><span class="grip">${icon("grip", "sm")}</span><span class="bar5"></span><div class="min0 row nowrap" style="gap:14px"><b style="min-width:76px">${esc(c)}</b><div class="min0"><b style="font-weight:500;display:block" class="ellipsis">${esc(O[c]?.title || "")}</b><span class="xs">${s ? `Sec ${esc(s.sec)} · ${esc(ctx.dayIdx(s.days).map((d) => DS[d]).join(", "))} ${ctx.fmt12(s.start)} – ${ctx.fmt12(s.end)} · ${esc(s.room || "")}` : `Any of ${O[c]?.sections.length || 0} sections · ${crOf(c)} credits`}</span></div></div><button class="btn sm icon-only ghost" data-rm="${esc(c)}" aria-label="Remove ${esc(c)}">${icon("trash")}</button></div>`; }).join("")
         : `<div class="card">${ctx.empty("icon:calcheck", "No courses selected", "Go back and add the courses you want next semester.", `<a class="btn primary" href="#/planner">Browse courses</a>`)}</div>`}
@@ -322,7 +334,7 @@ export function install(ctx) {
     const list = combos.slice().sort(SORTS[pSort]).slice(0, 8);
     const totalCr = P.courses.reduce((a, c) => a + crOf(c), 0);
     pickIdx = Math.min(pickIdx, list.length - 1);
-    return `${ctx.subHead("Best Combinations", `${esc(P.offeredSem || "Next semester")} · Based on your preferences`, "#/plan")}
+    return `${ctx.subHead("Best Combinations", `${esc(P.sem || P.offeredSem || "Next semester")} · Based on your preferences`, "#/plan")}
       <div style="max-width:860px;margin:0 auto">${ctx.seg([["best", "Recommended"], ["gaps", "Less Gaps"], ["early", "Early Finish"], ["rating", "Faculty Rating"]], pSort, "data-sort")}
       <div class="stack mt">${list.map((x, i) => `<article class="combo ${i === pickIdx ? "best" : ""}" data-pick="${i}" tabindex="0" role="radio" aria-checked="${i === pickIdx}" aria-label="Option ${i + 1}">
         <div class="row between"><div class="row"><span class="opt">Option ${i + 1}</span>${i === 0 ? `<span class="pill ${TAGS[pSort][1]}">${TAGS[pSort][0]}</span>` : ""}</div>${x.rating ? `<b style="font-size:18px">${x.rating.toFixed(1)} <span style="color:var(--success)">★</span></b>` : `<span class="pill">${x.days} days</span>`}</div>
@@ -351,11 +363,10 @@ export function install(ctx) {
   };
   function applyCombo(pick) {
     if (!pick) return;
-    const O = ctx.offered(), P = S().planner, sem = P.offeredSem || ctx.nextSemesterGuess();
+    const O = ctx.offered(), P = S().planner, sem = P.sem || P.offeredSem || ctx.nextSemesterGuess();
     confirmModal("Save as your routine?", `Your current routine (${S().routine.length} classes) will be replaced with this ${pick.c.length}-course plan for ${esc(sem)}. You can still edit it later.`, "Save Routine", () => {
       const St = S();
-      St.routine = pick.c.flatMap((o) => [{ id: uid(), code: o.code, title: O[o.code].title, sec: o.s.sec, days: o.s.days, start: o.s.start, end: o.s.end, room: o.s.room || "", faculty: o.s.faculty || "" }]
-        .concat(o.s.lab ? [{ id: uid(), code: o.code, title: O[o.code].title, sec: o.s.sec, days: o.s.lab.days, start: o.s.lab.start, end: o.s.lab.end, room: o.s.lab.room || o.s.room || "", faculty: o.s.faculty || "", lab: true }] : []));
+      St.routine = pick.c.flatMap((o) => ctx.sectionRows(o.code, o.s).map(({ id, ...r }) => ({ ...r, id: uid(), title: O[o.code].title, room: r.room || "", faculty: o.s.faculty || "" })));
       St.routineSem = sem;
       const firstPlan = !St.study.ev.planner; St.study.ev.planner = true;
       ctx.logEvent("Academic", "calcheck", "green", "Routine planned", `${pick.c.length} courses saved for ${sem}.`, "#/routine");

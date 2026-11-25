@@ -92,3 +92,13 @@ export function longBreaks(blocksByDay, from, to, rules, { maxSkip = 2, minDays 
   // Best first: most days off per skipped day, then soonest.
   return [...best.values()].sort((x, y) => y.days / y.skip.length - x.days / x.skip.length || x.from.localeCompare(y.from));
 }
+
+/* Make-up classes a faculty member adds on any day ({ id, date, start, end, room, lab }) join the semester's sessions:
+   sorted by date and time, then numbered again so class numbers stay in order. Holidays still get no number. */
+export function withMakeups(sessions = [], makeups = []) {
+  const extra = makeups.filter((m) => m?.date && m.start).map((m) => ({ key: `${m.date}|${m.start}`, date: m.date, start: m.start, end: m.end || m.start, room: m.room || "", lab: Boolean(m.lab), off: "", makeup: m.id || true, n: 0 }));
+  const have = new Set(sessions.map((s) => s.key));
+  let n = 0;
+  return [...sessions, ...extra.filter((m) => !have.has(m.key))].sort((a, b) => a.date.localeCompare(b.date) || String(a.start).localeCompare(String(b.start)))
+    .map((s) => ({ ...s, off: s.makeup ? "" : s.off, n: s.off && !s.makeup ? 0 : ++n }));
+}

@@ -5,7 +5,7 @@
    from EWU's final schedule by class days (ST, MW, TR, SR). Data: /api/calendar (src/acadcal.js), kept on the device.
    Day rules, sessions and breaks: src/semplan.js. */
 import { heatmapHtml } from "./charts.ts";
-import { dayRules, classRange, sessionsOf, longBreaks, addDays, iso, LETTER_DAY } from "./semplan.js";
+import { dayRules, classRange, sessionsOf, longBreaks, addDays, iso, LETTER_DAY, withMakeups } from "./semplan.js";
 
 const KEY = "ewudiots.acadcal";
 const LOOK = { holiday: ["sun", "red", "Holiday"], payment: ["wallet", "orange", "Payment"], exam: ["exam", "purple", "Exam"], deadline: ["alert", "blue", "Deadline"],
@@ -52,15 +52,19 @@ export function install(ctx) {
   }
   const rowsOf = (sem) => (sem === S().routineSem ? S().routine : S().history?.[sem] || []);
   /* Every class of one course in a semester (numbered; holidays listed but not counted). */
-  const sessionsFor = (code, sem = S().routineSem) => { const i = semInfo(sem); return sessionsOf(rowsOf(sem).filter((r) => r.code === code), i.range, i.rules); };
+  // Make-up classes (course page → Attendance) count as classes of the current semester.
+  const makeupsOf = (code, sem) => (sem === S().routineSem ? S().attendance[code]?.makeups || [] : []);
+  const sessionsFor = (code, sem = S().routineSem) => { const i = semInfo(sem); return withMakeups(sessionsOf(rowsOf(sem).filter((r) => r.code === code), i.range, i.rules), makeupsOf(code, sem)); };
   /* The routine blocks running on a given day (holidays, make-up days and the semester's dates applied). */
+  // Dropped courses are left out; make-up classes are added on their own day, even a holiday or a Friday.
   function classesOn(day) {
-    const i = semInfo();
+    const i = semInfo(), routine = ctx.activeRoutine();
+    const extra = routine.length ? [...new Set(routine.map((r) => r.code))].flatMap((code) => makeupsOf(code, S().routineSem).filter((m) => m.date === day && m.start)
+      .map((m) => ({ code, title: routine.find((r) => r.code === code)?.title || "", start: m.start, end: m.end || m.start, s: ctx.toMin(m.start), e: ctx.toMin(m.end || m.start), room: m.room || "", lab: Boolean(m.lab), makeup: true, day: new Date(day + "T00:00:00").getDay() }))) : [];
     // Outside the semester only when its dates are known (EWU calendar or the portal), never on a guess.
     const known = i.range.exact || Boolean(S().semDates?.[i.sem]);
-    if (!S().routine.length || isOff(day) || (known && (day < i.range.start || day > i.range.end))) return [];
-    const wd = rules().runs(day);
-    return ctx.expand(S().routine).filter((b) => b.day === wd).sort((a, b) => a.s - b.s);
+    const regular = !routine.length || isOff(day) || (known && (day < i.range.start || day > i.range.end)) ? [] : ctx.expand(routine).filter((b) => b.day === rules().runs(day));
+    return [...regular, ...extra].sort((a, b) => a.s - b.s);
   }
 
   /* Your final exam per course: the theory classes' day pattern (e.g. "MW") → that semester's final exam date. */

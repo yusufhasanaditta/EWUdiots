@@ -21,7 +21,7 @@ const server = await preview({ root: resolve("."), logLevel: "silent", preview: 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--no-sandbox"] });
 const phone = { width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
 const p = await browser.newPage(); await p.setViewport(phone);
-p.on("pageerror", (e) => errors.push(e.message));
+p.on("pageerror", (e) => errors.push(process.env.STACK ? e.stack : e.message)); // STACK=1 for where it came from
 p.on("console", (m) => { if (m.type() === "error" && !/fonts\.g|favicon|Failed to load resource/.test(m.text())) errors.push(m.text()); });
 p.on("dialog", (d) => d.dismiss());
 // Screen changes animate (View Transitions), so wait until the new screen is painted before reading it.

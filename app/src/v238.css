@@ -1,0 +1,16 @@
+/* v2.38: next-semester card on Home, make-up class marker in attendance. */
+.sem-next { display: flex; align-items: flex-start; gap: 12px; text-decoration: none; color: inherit; }
+.sem-next .grow { display: flex; flex-direction: column; gap: 4px; }
+.sem-next b { font-size: 15px; }
+.sem-next .sn-load { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.sem-next .sn-cta { margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; font-size: 13px; color: var(--success-t, var(--success)); }
+.sem-next { transition: transform 160ms ease-out; }
+.sem-next:active { transform: scale(0.98); }
+@media (prefers-reduced-motion: reduce) { .sem-next, .sem-next:active { transition: none; transform: none; } }
+.att-chip[data-mu] { box-shadow: inset 0 0 0 2px var(--accent, #7c3aed); }
+.att-k.mu { box-shadow: inset 0 0 0 2px var(--accent, #7c3aed); }
+.card.sem-next { display: flex; }
+/* Planner filters: semester on its own row on phones so names aren't cut off. */
+.pl-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.pl-filters #p-sem { grid-column: 1 / -1; }
+@media (min-width: 720px) { .pl-filters { grid-template-columns: 1.2fr 1fr 1fr; } .pl-filters #p-sem { grid-column: auto; } }

@@ -4,10 +4,13 @@ import { fetchNews } from "../src/news.js";
 import { fetchNotices } from "../src/notices.js";
 import { fetchNewsletters } from "../src/newsletters.js";
 import { fetchEvents } from "../src/events.js";
+import { fromSnapshot, groupRows } from "../src/offered.js";
+import { normSemester } from "../src/parser.js";
 import { db, hasService } from "./_db.js";
 import { timingSafeEqual } from "node:crypto";
 
 const now = () => new Date().toISOString();
+const TRACKER = "https://ewucoursetracker.live";
 const upsert = (rows) => db("/rest/v1/feed_items?on_conflict=id", { method: "POST", service: true, prefer: "resolution=merge-duplicates,return=minimal", body: rows });
 const JOBS = {
   // News and notices: only the fields that come from ewubd.edu are written, so an admin's hide / pin / new title stays.
@@ -30,6 +33,32 @@ const JOBS = {
         venue: e.venue, organizer: "East West University", link: e.url, image: e.image, status: "approved", source: "auto", created_by: null })) });
     return `${items.length} official events checked`;
   },
+  // Offered courses (every section, faculty, seats, time, room) from ewucoursetracker.live's public snapshots: the newest
+  // snapshot of each semester replaces that semester's list. Only that host, no redirects, ids checked before use.
+  async courses() {
+    const get = async (path) => { const r = await fetch(TRACKER + path, { redirect: "error", signal: AbortSignal.timeout(25e3), headers: { "user-agent": "EWUdiots/1.0 (+https://ewudiots.vercel.app)" } }); if (!r.ok) throw new Error(`${path}: ${r.status}`); return r.json(); };
+    const { snapshots = [] } = await get("/api/history");
+    const newest = new Map();
+    for (const s of snapshots) {
+      const sem = normSemester(s.semesterName || ""), id = String(s.id || s._id || "");
+      if (!sem || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) continue;
+      const at = new Date(s.timestamp || s.createdAt || 0).getTime();
+      if (!newest.has(sem) || at > newest.get(sem).at) newest.set(sem, { id, at });
+    }
+    if (!newest.size) return "no public snapshots on the tracker yet";
+    const have = new Map(((await db("/rest/v1/offered_lists?select=sem,snapshot_id", { service: true })) || []).map((r) => [r.sem, r.snapshot_id]));
+    const done = [];
+    for (const [sem, { id, at }] of newest) {
+      if (have.get(sem) === id) continue;
+      const snap = await get(`/api/snapshot/${encodeURIComponent(id)}`);
+      const courses = groupRows(fromSnapshot(Array.isArray(snap.courses) ? snap.courses : []));
+      if (!courses.length) continue;
+      const data = { sem, updated: new Date(at || Date.now()).toISOString(), source: "ewucoursetracker.live", courses };
+      await db("/rest/v1/offered_lists?on_conflict=sem", { method: "POST", service: true, prefer: "resolution=merge-duplicates,return=minimal", body: [{ sem, data, snapshot_id: id, courses: courses.length, updated_at: now() }] });
+      done.push(`${sem} (${courses.length} courses)`);
+    }
+    return done.length ? `updated ${done.join(", ")}` : "no new snapshots";
+  },
   // New newsletter issues appear in the admin panel (Alumni → Newsletter import) for an admin to pull stories from.
   async newsletters() {
     const list = await fetchNewsletters();
@@ -48,28 +77,17 @@ const JOBS = {
     await db(`/rest/v1/job_runs?started_at=lt.${ago(90)}`, { method: "DELETE", service: true, prefer: "return=minimal" });
     return "old trash and logs removed";
   },
-  // Poll https://ewucoursetracker.live/ for course and faculty updates
+  // ewucoursetracker.live's own announcement (its /api/notice): shown on the Notice Board when it changes.
   async tracker() {
-    try {
-      const res = await fetch("https://ewucoursetracker.live/api/announcements", { headers: { "User-Agent": "EWUdiots-Worker/2.37" } });
-      if (res.ok) {
-        const items = await res.json();
-        if (Array.isArray(items) && items.length) {
-          await upsert(items.map((it) => ({
-            id: `tracker:${it.id || it._id}`.slice(0, 200),
-            kind: "notice",
-            title: String(it.title || "Course Tracker Update").slice(0, 300),
-            url: it.url || "https://ewucoursetracker.live/",
-            date: it.date || now().slice(0, 10),
-            category: "Advising",
-            source: "ewucoursetracker",
-            fetched_at: now()
-          })));
-          return `${items.length} tracker updates refreshed`;
-        }
-      }
-    } catch { /* if tracker API is offline or returns html, keep going gracefully */ }
-    return "tracker polled successfully";
+    const r = await fetch(TRACKER + "/api/notice", { redirect: "error", signal: AbortSignal.timeout(15e3), headers: { "user-agent": "EWUdiots/1.0 (+https://ewudiots.vercel.app)" } });
+    if (!r.ok) throw new Error(`/api/notice: ${r.status}`);
+    const n = (await r.json())?.notice;
+    if (!n?.isActive || !n.message) return "no active tracker notice";
+    const id = String(n._id || n.id || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64), when = new Date(n.updatedAt || n.createdAt || Date.now());
+    if (!id || Number.isNaN(when.getTime())) return "tracker notice without an id or date";
+    const title = `ewucoursetracker.live: ${String(n.message).replace(/\s+/g, " ").trim()}`.slice(0, 300);
+    await upsert([{ id: `notice:tracker-${id}-${when.getTime()}`.slice(0, 200), kind: "notice", title, url: TRACKER + "/", pdf: "", date: when.toISOString().slice(0, 10), category: "", source: "auto", fetched_at: now() }]);
+    return "tracker notice saved";
   }
 };
 

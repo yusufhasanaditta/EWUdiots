@@ -305,6 +305,8 @@ export function parsePortalText(input, kind = "") {
     const seatsM = tail.match(/\b(\d{1,3})\s*\/\s*(\d{1,3})\b/);
     if (seatsM) tail = tail.replace(seatsM[0], " ");
     const tokens = tail.split(" ").filter(Boolean);
+    // Class Schedule columns "WithDraw Status" and "Drop Status": a course dropped at EWU (either is Yes) is not on the routine.
+    if (tokens.length >= 2 && tokens.slice(0, 2).every((t) => /^(yes|no)$/i.test(t)) && tokens.slice(0, 2).some((t) => /^yes$/i.test(t))) continue;
     const iIdx = tokens.findIndex((t) => /^[A-Z]{2,6}$/.test(t) && !NOT_INITIALS.has(t));
     const initial = iIdx >= 0 ? tokens[iIdx] : "";
     const facName = iIdx >= 0 ? tokens.slice(iIdx + 1).join(" ").replace(/\s+/g, " ").trim() : "";
