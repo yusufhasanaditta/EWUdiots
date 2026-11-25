@@ -6,6 +6,6 @@
     "Fixed dropped courses triggering class attendance alarm popups",
     "Automated 30-minute background tracker for courses, notices and announcements"
   ],
-  "minVersion": "2.12.0",
+  "minVersion": "2.38.0",
   "extension": "1.8.0"
 }

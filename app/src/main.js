@@ -759,10 +759,17 @@ function onSignedIn(user) {
 }
 // Messages the team sent to everyone or to you (admin panel → Messages to users).
 async function loadMessages() {
-  if (!C.user) return; try {
+  try {
     const before = C.messages; C.messages = await cloud.fetchMessages();
-    // New team messages since the last check pop up on the phone (not on the first load).
-    if (before) { const seen = new Set(before.map((m) => m.id)); C.messages.filter((m) => !seen.has(m.id)).slice(0, 3).forEach((m) => native.notifyNow(m.title, m.body || "", m.link || "#/notifications")); } C.courseNotes = await people.courseNotices().catch(() => []); if (["home", "notifications"].includes(currentRoute)) rerender();
+    // New team messages since the last check pop up on the phone (or unread broadcast).
+    if (before) {
+      const seen = new Set(before.map((m) => m.id));
+      C.messages.filter((m) => !seen.has(m.id)).slice(0, 3).forEach((m) => {
+        if (native.isNative) native.notifyNow(m.title, m.body || "", m.link || "#/notifications");
+      });
+    }
+    C.courseNotes = await people.courseNotices().catch(() => []);
+    if (["home", "notifications"].includes(currentRoute)) rerender();
   } catch { /* offline */ }
 }
 async function restoreOrBackup(user) {
@@ -844,14 +851,35 @@ addEventListener("appinstalled", () => { C.install = null; toast("EWUdiots insta
 const newer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
 const UPD_KEY = "ewudiots.updateSeen";
 let checkingUpdate = false;
+async function fetchVersionDoc() {
+  const sources = [
+    (native.isNative ? SITE : "") + "/version.json",
+    "https://raw.githubusercontent.com/yusufhasanaditta/EWUdiots/main/app/public/version.json",
+    "https://api.github.com/repos/yusufhasanaditta/EWUdiots/releases/latest"
+  ].filter(Boolean);
+  for (const src of sources) {
+    try {
+      const res = await fetch(src, { cache: "no-store" });
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data.tag_name) {
+        const v = (data.tag_name || "").replace(/^app-v/, "").split("-")[0];
+        if (v) return { version: v, minVersion: v, notes: ["Spring-2027 faculty list & course planner", "Make-up class attendance tracking", "Dropped course alarm notification fix", "Automated 30-min course tracker"], apk: "https://github.com/yusufhasanaditta/EWUdiots/releases/latest/download/EWUdiots.apk" };
+      }
+      if (data.version) return data;
+    } catch { /* fallback */ }
+  }
+  return null;
+}
 async function checkUpdate() {
   if (checkingUpdate || !navigator.onLine) return;
   checkingUpdate = true;
   try {
-    const j = await (await fetch((native.isNative ? SITE : "") + "/version.json", { cache: "no-store" })).json();
-    if (!newer(j.version, APP_VERSION)) return;
+    const j = await fetchVersionDoc();
+    if (!j || !newer(j.version, APP_VERSION)) return;
     const required = newer(j.minVersion || "0", APP_VERSION);
-    C.update = { version: j.version, notes: (j.notes || []).slice(0, 6), required, url: PLAY ? PLAY_URL : native.isNative ? SITE + (j.apk || "/download/android") : "" };
+    const downloadUrl = PLAY ? PLAY_URL : (j.apk && j.apk.startsWith("https://")) ? j.apk : "https://github.com/yusufhasanaditta/EWUdiots/releases/latest/download/EWUdiots.apk";
+    C.update = { version: j.version, notes: (j.notes || []).slice(0, 6), required, url: downloadUrl };
     if (currentRoute === "home") rerender();
     showUpdate();
   } catch { /* offline or no version file (dev) */ }
@@ -859,6 +887,9 @@ async function checkUpdate() {
 }
 function showUpdate() {
   const u = C.update; if (!u) return;
+  if (native.isNative) {
+    native.notifyNow("Update available: EWUdiots " + u.version, (u.notes && u.notes[0]) || "Tap to install the new update.", u.url || "#/home");
+  }
   if (!native.isNative) {
     // Web: one quiet bar; a required update reloads as soon as nothing is being edited.
     // Only once per version, so a lagging cache can never cause a reload loop.
