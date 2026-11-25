@@ -6,6 +6,7 @@ import { barsHtml } from "./charts.ts";
 import { finishedCount, degreeStatus, roadmap, nextSem, latestGrades } from "./degreeplan.js";
 import { createOutline } from "./ui-outline.js";
 import { install as installSemesters } from "./ui-semesters.js";
+import { firstSemOf } from "./curplan.ts";
 import { tideHtml } from "./tide.ts";
 
 export const studyDefaults = () => ({
@@ -501,13 +502,8 @@ export function install(ctx) {
   }
   /* 12-semester plan (4 years × Spring/Summer/Fall): semesters you've done (grades and synced classes), this one, then
      the road map from the curriculum. Any future semester can be edited by hand; "Auto-plan" fills the rest again. */
-  const TERMS = ["Spring", "Summer", "Fall"];
   // The first semester: the one in the student ID ("2026-2-…" = Summer 2026), or an earlier one if grades go back further.
-  function firstSem(St, rows) {
-    const m = String(St.profile?.id || "").match(/^(\d{4})-([123])-/);
-    const sems = [...(m ? [`${TERMS[Number(m[2]) - 1]}-${m[1]}`] : []), ...rows.map((r) => r.sem).filter((x) => x && x !== "Earlier")].sort((x, y) => ctx.semesterKey(x) - ctx.semesterKey(y));
-    return sems[0] || St.routineSem || ctx.currentSemester();
-  }
+  const firstSem = (St, rows) => firstSemOf(St.profile?.id, rows.map((r) => r.sem).filter((x) => x && x !== "Earlier"), St.routineSem || ctx.currentSemester());
   /* Semesters already finished: from the first one (student ID, else the earliest grade) up to, not including, now. */
   function doneSems(St, rows) {
     const cur = St.routineSem || ctx.currentSemester(), out = [];

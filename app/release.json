@@ -1,11 +1,11 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Next semester: the whole Spring 2027 course list (831 courses) with search, department and Done/Doing filters",
-    "Pick courses within your 9–15 credit load, get clash-free routines and a heads-up if a planned course changes",
-    "Make-up classes: add one on any day; it counts for attendance, rings a class alarm and shows on Home",
-    "Dropped courses no longer ring class alarms, ask for attendance or raise attendance warnings",
-    "Courses and EWU notices refresh every 30 minutes; important notices now alert you on your phone"
+    "Offices & Officers: the Proctor on duty today, Deans, Registrar and 34 offices with room, extension and email",
+    "Degree Progress shows EWU's official curriculum next to the courses you have completed",
+    "Updated plan: failed, withdrawn or dropped courses are placed again after their prerequisites",
+    "Edited plan: drag or tap a course to move it to another semester; done and current courses stay locked",
+    "Advising planner marks EWU's semester and prerequisites for each course, with an EWU suggests filter"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

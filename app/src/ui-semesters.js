@@ -18,22 +18,29 @@ export function install(ctx) {
 
   /* ── Official flowchart, kept on the device for a week ─────────────────── */
   let fc = null, fcLoading = "";
+  const fcFail = {}; // program key → when the last fetch failed or found no flowchart
   try { fc = JSON.parse(localStorage.getItem(FKEY) || "null"); } catch { fc = null; }
   function flowchart() {
     const St = S(), key = programKey(`${St.profile?.program || ""} ${St.profile?.department || ""}`);
     if (!key) return { none: true };
     if (fc?.key === key && Date.now() - fc.at < 7 * 864e5) return fc.data;
+    if (Date.now() - (fcFail[key] || 0) < 10 * 60e3) return fc?.key === key ? fc.data : { none: true };
     if (fcLoading !== key) {
       fcLoading = key;
       fetch(`${ctx.native.isNative ? ctx.SITE : ""}/api/flowchart?p=${encodeURIComponent(key)}`).then((r) => r.json()).then((j) => {
-        if (!j.semesters?.length && !j.image) return;
+        if (!j.semesters?.length && !j.image) throw new Error("no flowchart");
         fc = { key, at: Date.now(), data: j };
         try { localStorage.setItem(FKEY, JSON.stringify(fc)); } catch { /* storage full */ }
-        if (ctx.route() === "courses") ctx.rerender();
-      }).catch(() => {}).finally(() => { fcLoading = ""; });
+      }).catch(() => { fcFail[key] = Date.now(); }).finally(() => {
+        fcLoading = "";
+        const typing = document.activeElement?.matches?.("input, textarea, select");
+        if (!typing && ["courses", "degree", "planner"].includes(ctx.route())) ctx.rerender();
+      });
     }
     return fc?.key === key ? fc.data : { loading: true };
   }
+
+  ctx.flowchart = flowchart; // the degree page and the advising planner use it too
 
   /* ── Semester view ─────────────────────────────────────────────────────── */
   let sel = null; // index of the centred semester (kept across re-renders)

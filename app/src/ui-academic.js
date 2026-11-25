@@ -185,7 +185,7 @@ export function install(ctx) {
   const LOAD = () => ({ min: S().rules.minCredit || 9, max: S().rules.maxCredit || 15 });
   const fmtUpd = (d) => (d ? new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
   const SORTS = { best: (a, b) => a.score - b.score, gaps: (a, b) => a.gaps - b.gaps || a.score - b.score, early: (a, b) => a.lastEnd - b.lastEnd || a.score - b.score, rating: (a, b) => b.rating - a.rating || a.score - b.score };
-  const crOf = (code) => ctx.offered()[code]?.cr || 3;
+  const crOf = (code) => { const o = ctx.offered()[code]; return (o?.crGuess && ctx.curUi.infoOf(code)?.cr) || o?.cr || 3; };
   const plannerNote = () => Object.keys(ctx.offered()).length && !S().demo ? "" : S().demo ? `<div class="alert purple" style="margin-bottom:12px"><span class="a-ic">${icon("info")}</span><div><b>Demo course list</b><p>Sync the portal's Offered Courses page to plan with real sections and seats.</p></div></div>`
     : `<div class="card">${ctx.empty("icon:calcheck", "Loading offered courses…", "Getting the newest course list with every section, faculty, time and room.", `<button class="btn primary" id="pl-reload-data">${icon("sync")} Try again</button>`)}</div>`;
   pages.planner = () => {
@@ -194,6 +194,7 @@ export function install(ctx) {
     const note = plannerNote();
     if (!Object.keys(O).length) return `${ctx.head("Advising Planner", "Find the best course combination for your next semester.", "", ctx.art("mascot-laptop", "Plan smart,<br>study happy!"))}${note}`;
     const rec = new Set(St.recommended.map((r) => r.code)), fac = ctx.facultyIndex();
+    const cu = ctx.curUi.plannerInfo(P.sem); // EWU's curriculum: which semester it sets each course in, and our suggestion for this one
     const q = pQ.trim().toUpperCase();
     const tOK = (s) => pTime === "any" || (pTime === "morning" ? ctx.toMin(s.start) < 720 : pTime === "afternoon" ? ctx.toMin(s.start) >= 720 && ctx.toMin(s.start) < 1020 : ctx.toMin(s.start) >= 1020);
     const dOK = (s) => pDay === "all" || ctx.dayIdx(s.days).includes(Number(pDay));
@@ -206,23 +207,27 @@ export function install(ctx) {
     // Without a synced curriculum, "Next for me" keeps to departments you already take courses from (CSE, MAT, ENG…).
     const known = new Set([myDept, ...[...St.grades, ...St.routine].map((x) => (String(x.code).match(/^[A-Z]+/) || [""])[0])].filter(Boolean));
     if (!pDept) pDept = "all"; // your department is first in the list; MAT, ENG and PHY courses stay visible
-    const showOK = (c) => pShow === "all" || (pShow === "done" ? passed.has(c) : pShow === "doing" ? doing.has(c) : !passed.has(c) && !doing.has(c) && (mine.size ? mine.has(c) : known.has(c.match(/^[A-Z]+/)?.[0])));
+    const show = pShow === "ewu" && !cu.ok ? "next" : pShow; // the plan may still be loading: keep the choice
+    const showOK = (c) => show === "all" || (show === "ewu" ? cu.suggested.has(c) : show === "done" ? passed.has(c) : show === "doing" ? doing.has(c) : !passed.has(c) && !doing.has(c) && (mine.size ? mine.has(c) : known.has(c.match(/^[A-Z]+/)?.[0])));
     const allDepts = ["all", ...new Set(Object.keys(O).map((c) => c.match(/^[A-Z]+/)?.[0]).filter(Boolean))].sort();
 
     const codes = Object.keys(O).filter((c) => deptMatch(c) && showOK(c) && (!q || c.includes(q.replace(/\s/g, "")) || (O[c].title || "").toUpperCase().includes(q) || O[c].sections.some((s) => (ctx.facName(s.faculty) || "").toUpperCase().includes(q))) && O[c].sections.some((s) => tOK(s) && dOK(s)))
-      .sort((a, b) => (rec.has(b) - rec.has(a)) || a.localeCompare(b));
+      .sort((a, b) => (cu.suggested.has(b) - cu.suggested.has(a)) || (rec.has(b) - rec.has(a)) || a.localeCompare(b));
     const totalCr = P.courses.reduce((a, c) => a + crOf(c), 0);
     const { combos } = P.courses.length ? generateCombos() : { combos: [] };
     const card = (code) => {
       const c = O[code], s = c.sections.find((x) => tOK(x) && dOK(x)) || c.sections[0], f = fac.get(s.faculty), added = P.courses.includes(code), saved = (P.saved || []).includes(code);
       const filled = s.capacity ? (s.capacity - (s.seats ?? 0)) / s.capacity : 0;
-      const isDone = passed.has(code), isDoing = doing.has(code);
+      const isDone = passed.has(code), isDoing = doing.has(code), ei = cu.byCode.get(code), pre = ei ? ei.needs : [];
+      const ewu = ei ? `<div class="pl-ewu">${cu.suggested.has(code) && !isDone && !isDoing ? `<span class="pill green">${icon("sparkle", "sm")} Suggested for ${esc(String(P.sem || "").replace("-", " "))}</span>` : ""}
+          <span class="xs">${icon("school", "sm")} EWU semester ${ei.n}${ei.status === "retake" ? " · retake" : ei.status === "behind" ? " · catch up" : ""}</span>
+          ${pre.length ? `<span class="xs">Needs ${pre.map((p) => { const ok = passed.has(p) || doing.has(p); return `<b class="${ok ? "ok" : "no"}">${ok ? icon("check", "sm") : ""}${esc(p)}</b>`; }).join(" ")}</span>` : ""}</div>` : "";
       return `<article class="pcard" style="--cc:${ctx.colorFor(code)}"><div class="row nowrap top" style="gap:12px">
         <span class="fac" style="background:${ctx.colorFor(s.faculty || code)}" aria-hidden="true">${esc((s.faculty || code).slice(0, 3))}</span>
         <div class="grow min0"><div class="row between nowrap"><h3>${esc(code)}</h3><div class="row nowrap" style="gap:6px">${isDone ? '<span class="pill green">Completed</span>' : isDoing ? '<span class="pill purple">In Progress</span>' : rec.has(code) ? '<span class="pill green">Recommended</span>' : filled >= 0.8 ? `<span class="pill red">${icon("flame")} Popular</span>` : ""}<button class="bm" data-save="${esc(code)}" aria-pressed="${saved}" aria-label="${saved ? "Remove bookmark" : "Bookmark"} ${esc(code)}">${icon("bookmark")}</button></div></div>
-          <div class="t">${c.title && c.title !== code ? esc(c.title) : `${c.cr} credits${c.crGuess ? " (estimated)" : ""}`}</div>${f?.rating ? `<div class="small" style="margin-top:2px"><span style="color:var(--yellow)">★</span> ${f.rating.toFixed(1)} <span class="muted">(${f.reviews || 0})</span></div>` : f?.name ? `<div class="xs">${esc(f.name)}</div>` : ""}</div></div>
+          <div class="t">${c.title && c.title !== code ? esc(c.title) : ei?.title && ei.title !== code ? `${esc(ei.title)} · ${ei.cr} credits` : `${c.cr} credits${c.crGuess ? " (estimated)" : ""}`}</div>${f?.rating ? `<div class="small" style="margin-top:2px"><span style="color:var(--yellow)">★</span> ${f.rating.toFixed(1)} <span class="muted">(${f.reviews || 0})</span></div>` : f?.name ? `<div class="xs">${esc(f.name)}</div>` : ""}${ewu}</div></div>
         <div class="meta"><span>${icon("calendar")} ${esc(ctx.dayIdx(s.days).map((d) => DS[d]).join(", "))} ${ctx.fmt12(s.start)} – ${ctx.fmt12(s.end)}</span><span>${icon("room")} ${esc(s.room || "TBA")}</span>${c.sections.length > 1 ? `<button class="btn sm ghost" data-secs="${esc(code)}" style="padding:0 6px">${c.sections.length} sections ${icon("chevD", "sm")}</button>` : ""}</div>
-        <div class="seats">${s.capacity ? `${ctx.bar(100 * filled, filled >= 0.9 ? "red" : "green")}<span><b>${s.capacity - (s.seats ?? 0)}</b> / ${s.capacity} seats</span>` : `<span class="xs grow">${c.cr || 3} credits</span>`}
+        <div class="seats">${s.capacity ? `${ctx.bar(100 * filled, filled >= 0.9 ? "red" : "green")}<span><b>${s.capacity - (s.seats ?? 0)}</b> / ${s.capacity} seats</span>` : `<span class="xs grow">${crOf(code)} credits</span>`}
           <button class="btn sm ${added ? "outline" : "primary"}" data-course="${esc(code)}" aria-pressed="${added}">${icon(added ? "check" : "plus")} ${added ? "Added" : "Add"}</button></div>
         <div class="secs" data-secs-of="${esc(code)}" hidden>${c.sections.map((x) => { const pin = P.pins[code] === x.sec; return `<div class="secrow ${pin ? "pinned" : ""}"><b>Sec ${esc(x.sec)}</b><span class="small">${(x.slots || [x].concat(x.lab ? [x.lab] : [])).map((y) => `${esc(y.days)} ${ctx.fmt12(y.start)}${y.lab ? " (lab)" : ""}`).join(", ")} · ${esc(ctx.facName(x.faculty))}${x.room ? ` · ${esc(ctx.baseRoom(x.room))}` : ""}</span>${x.seats !== undefined ? `<span class="pill ${x.seats === 0 ? "red" : x.seats < 5 ? "amber" : "green"}">${x.seats} left</span>` : "<span></span>"}<button class="btn sm ${pin ? "primary" : "neutral"}" data-pin="${esc(code)}|${esc(x.sec)}" aria-pressed="${pin}">${pin ? "Pinned" : "Pin"}</button></div>`; }).join("")}</div></article>`;
     };
@@ -230,7 +235,7 @@ export function install(ctx) {
     return `${ctx.head("Advising Planner", "Find the best course combination for your next semester.", "", ctx.art("mascot-laptop", "Plan smart,<br>study happy!"))}${note}
       <div class="pl-filters">
         <select class="select sm grow" id="p-sem" aria-label="Semester">${(sems.length ? sems : [{ sem: P.sem || P.offeredSem || "" }]).filter((x) => x.sem).map((x) => `<option value="${esc(x.sem)}" ${x.sem === P.sem ? "selected" : ""}>${esc(x.sem.replace("-", " "))}${x.sem === ctx.nextSemesterGuess() ? " (next)" : ""}</option>`).join("")}</select>
-        <select class="select sm grow" id="p-show" aria-label="Show">${[["all", "All courses"], ["next", "Next for me"], ["done", "Done"], ["doing", "Doing now"]].map(([v, l]) => `<option value="${v}" ${pShow === v ? "selected" : ""}>${l}</option>`).join("")}</select>
+        <select class="select sm grow" id="p-show" aria-label="Show">${[["all", "All courses"], ...(cu.ok ? [["ewu", "EWU suggests"]] : []), ["next", "Next for me"], ["done", "Done"], ["doing", "Doing now"]].map(([v, l]) => `<option value="${v}" ${pShow === v ? "selected" : ""}>${l}</option>`).join("")}</select>
         <select class="select sm grow" id="p-dept" aria-label="Department"><option value="all">All Departments</option>${myDept ? `<option value="${myDept}" ${pDept === myDept ? "selected" : ""}>My Dept (${myDept})</option>` : ""}${allDepts.filter((d) => d !== "all" && d !== myDept).map((d) => `<option value="${d}" ${pDept === d ? "selected" : ""}>${d}</option>`).join("")}</select>
       </div>
       <div class="row nowrap" style="gap:8px"><div class="seg grow">${[["all", "All"], ...[0, 1, 2, 3, 4, 6].map((d) => [String(d), DS[d]])].map(([v, l]) => `<button data-pday="${v}" aria-selected="${pDay === v}">${l}</button>`).join("")}</div>
@@ -238,6 +243,7 @@ export function install(ctx) {
         <button class="icon-btn" id="p-filter" aria-label="Filters">${icon("filter")}</button></div>
       <div class="searchbar mt">${icon("search")}<input class="input" id="p-q" type="search" placeholder="Search by course code, title or faculty…" value="${esc(pQ)}" aria-label="Search courses"></div>
       <p class="xs mt-s">${esc((P.sem || P.offeredSem || "").replace("-", " "))} · ${Object.keys(O).length} courses offered${cat ? ` · updated ${esc(fmtUpd(cat.updated))}${cat.live ? " from ewucoursetracker.live" : ""}` : ""} · take ${L.min}–${L.max} credits${myDept ? ` · done ${passed.size}, doing ${doing.size}` : ""}</p>
+      ${show === "ewu" ? (() => { const miss = [...cu.suggested].filter((c) => !O[c] && !passed.has(c) && !doing.has(c)); return `<p class="xs mt-s">Courses your plan puts in ${esc(String(P.sem || "").replace("-", " "))}${miss.length ? `. Not offered this semester: <b>${miss.map(esc).join(", ")}</b>` : ""}. <a class="lnk" href="#/degree?tab=edited">Change your plan</a></p>`; })() : ""}
       <div class="grid g2 mt">${codes.slice(0, 60).map(card).join("") || `<div class="card full-row">${ctx.empty("icon:search", "No results found", "Try a different keyword or department filter.", `<button class="btn" id="p-clear">Clear Filters</button>`)}</div>`}</div>
       ${codes.length > 60 ? `<p class="xs mt-s">Showing 60 of ${codes.length}. Search to find more.</p>` : ""}
       ${P.courses.length ? `<div class="sticky-cart"><div class="grow"><b>${P.courses.length} course${P.courses.length > 1 ? "s" : ""} · ${crCheck}</b><span>${combos.length ? `${combos.length >= 3000 ? "3000+" : combos.length} clash-free option${combos.length === 1 ? "" : "s"}` : "No clash-free option yet"}${totalCr < L.min ? ` · minimum is ${L.min}` : totalCr > L.max ? ` · maximum is ${L.max}` : ""}</span></div><a class="btn white" href="#/plan">Review ${icon("arrow")}</a></div>` : ""}`;
@@ -448,7 +454,9 @@ export function install(ctx) {
 
   /* ═════════════ DEGREE PROGRESS ═════════════ */
   let dTab = "overview";
+  const CU_TABS = ["ewu", "updated", "edited"];
   pages.degree = () => {
+    const qt = ctx.qparam("tab"); if (qt) { if (["overview", "requirements", "completed", "remaining", ...CU_TABS].includes(qt)) dTab = qt; history.replaceState(null, "", "#/degree"); }
     const St = S(), { earned } = ctx.cgpaOf(St.grades);
     const total = St.profile?.creditsTotal || 140, done = Math.max(earned, St.profile?.creditsDone || 0);
     const inProg = St.routine.length ? [...new Map(St.routine.filter((r) => !r.lab).map((r) => [r.code, r])).keys()].filter((c) => !St.grades.some((g) => g.code === c && g.sem === St.routineSem)).length * 3 : 0;
@@ -467,13 +475,15 @@ export function install(ctx) {
       <section class="card mt">${building}</section>
       ${St.degree.some((d) => d.done > 0) ? `<section class="card mt"><div class="card-h"><h2>Credits done by area</h2><span class="pill">${St.degree.reduce((a, d) => a + d.done, 0)} credits</span></div>${pieHtml(St.degree.filter((d) => d.done > 0).map((d) => ({ label: d.category, value: d.done })), { center: String(St.degree.reduce((a, d) => a + d.done, 0)), sub: "done", aria: "Credits completed in each requirement area" })}</section>` : ""}
       <section class="card mt"><h2 style="margin-bottom:8px">Requirement Categories</h2>${degreeCats()}</section>`;
+    else if (dTab === "ewu") body = ctx.curUi.official();
+    else if (dTab === "updated" || dTab === "edited") body = ctx.curUi.plan(dTab);
     else if (dTab === "requirements") body = `<section class="card">${degreeCats()}</section><p class="xs mt-s">From your portal's Degree Review page. Re-sync after each semester.</p>`;
     else if (dTab === "completed") body = `<section class="card">${completed.length ? completed.map((g) => `<div class="lrow"><span class="itile sm green">${icon("check")}</span><div class="body"><b>${esc(g.code)}</b><span>${esc(g.title || "")} · ${esc(g.sem || "")}</span></div><span class="small num">${g.cr} cr</span><span class="pill purple">${esc(g.g)}</span></div>`).join("") : ctx.empty("icon:checkc", "Nothing completed yet", "Sync your Grade Report to list completed courses.")}</section>`;
     else body = `<section class="card">${St.degree.filter((d) => d.total > d.done).map((d) => `<div class="lrow"><span class="itile sm orange">${icon("clock")}</span><div class="body"><b>${esc(d.category)}</b><span>${d.done} of ${d.total} done</span></div><b class="num">${(d.total - d.done).toFixed(1).replace(/\.0$/, "")} left</b></div>`).join("") || ctx.empty("icon:cap", "All categories done", "Or sync your Degree Review to check.")}</section>
       ${St.recommended.length ? `<section class="card mt"><h3>Recommended next by the portal</h3><div class="row mt-s">${St.recommended.map((r) => `<span class="tag">${esc(r.code)} · ${r.cr} cr</span>`).join("")}</div></section>` : ""}`;
-    return `${ctx.subHead("Degree Progress", esc(St.profile?.program || ""), "#/grades")}<div style="max-width:760px;margin:0 auto">${ctx.seg([["overview", "Overview"], ["requirements", "Requirements"], ["completed", "Completed"], ["remaining", "Remaining"]], dTab, "data-dt")}<div class="mt">${body}</div></div>`;
+    return `${ctx.subHead("Degree Progress", esc(St.profile?.program || ""), "#/grades")}<div style="max-width:${CU_TABS.includes(dTab) ? 1180 : 760}px;margin:0 auto">${ctx.seg([["overview", "Overview"], ["ewu", "EWU curriculum"], ["updated", "Updated plan"], ["edited", "Edited plan"], ["requirements", "Requirements"], ["completed", "Completed"], ["remaining", "Remaining"]], dTab, "data-dt")}<div class="mt">${body}</div></div>`;
   };
-  pages.degree.mount = (el) => $$("[data-dt]", el).forEach((b) => b.addEventListener("click", () => { dTab = b.dataset.dt; ctx.rerender(); }));
+  pages.degree.mount = (el) => { $$("[data-dt]", el).forEach((b) => b.addEventListener("click", () => { dTab = b.dataset.dt; ctx.rerender(); })); if (CU_TABS.includes(dTab)) ctx.curUi.mount(el); };
 
   /* ═════════════ WHAT-IF CALCULATOR ═════════════ */
   let wTab = "semester", wRows = null;

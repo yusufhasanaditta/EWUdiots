@@ -1,0 +1,95 @@
+/* v2.39: Offices & officers, EWU curriculum / updated / edited plan (drag and drop), EWU markers in the planner. */
+
+/* ── Offices ─────────────────────────────────────────────── */
+.of-card { padding: 0; overflow: hidden; }
+.of-card > summary { list-style: none; display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; min-height: 56px; }
+.of-card > summary::-webkit-details-marker { display: none; }
+.of-card > summary b { display: block; }
+.of-card > summary .xs { display: block; }
+.of-card > summary .of-chev { transition: transform 200ms var(--ease); color: var(--text-3); }
+.of-card[open] > summary .of-chev { transform: rotate(180deg); }
+.of-card > :not(summary) { margin-left: 16px; margin-right: 16px; }
+.of-card > :last-child { margin-bottom: 14px; display: inline-flex; }
+.of-people { list-style: none; padding: 0; margin-top: 10px; margin-bottom: 10px; display: grid; gap: 2px; }
+.of-p { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--border); }
+.of-people .of-p:first-child { border-top: 0; }
+.of-p b { display: block; }
+.of-p .xs { display: block; }
+.of-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.of-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; max-width: 100%; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 12.5px; font-weight: 600; text-decoration: none; }
+a.of-chip:hover { background: var(--primary-l); color: var(--primary); }
+.of-chip .ellipsis { min-width: 0; }
+.of-duty { border-left: 4px solid var(--warning); }
+.of-duty .of-p { border-top: 0; padding-top: 0; }
+.of-week { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; }
+.of-week li { display: grid; grid-template-columns: 42px 1fr auto; gap: 8px; align-items: center; padding: 6px 8px; border-radius: var(--r8); font-size: 13px; }
+.of-week li.on { background: var(--warning-s); }
+@media (max-width: 560px) { .of-chip { min-height: 40px; } }
+
+/* ── Curriculum plans ───────────────────────────────────── */
+.cu-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+.cu-stats > div { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r12); padding: 10px 12px; min-width: 0; }
+.cu-stats b { display: block; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cu-stats span { font-size: 12px; color: var(--text-3); }
+.cu-stats .green b { color: var(--success-t); } .cu-stats .purple b { color: var(--primary); } .cu-stats .red b { color: var(--error-t); } .cu-stats .amber b { color: var(--warning-t); }
+.cu-legend { display: flex; flex-wrap: wrap; gap: 12px; color: var(--text-3); }
+.cu-legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; background: var(--surface-3); }
+.cu-legend .dot.green { background: var(--success); } .cu-legend .dot.purple { background: var(--primary); } .cu-legend .dot.red { background: var(--error); } .cu-legend .dot.amber { background: var(--warning); }
+.cu-bar { margin: 6px 0 0; gap: 8px; }
+.cu-bar p { margin: 0; }
+.cu-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); align-items: start; }
+@media (max-width: 560px) { .cu-grid { grid-template-columns: 1fr; } }
+.cu-sem { padding: 12px; transition: box-shadow 160ms var(--ease), transform 160ms var(--ease); }
+.cu-sem.st-done { background: var(--surface-2); }
+.cu-sem.st-now { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary) inset; }
+.cu-sem[data-drop] { border-style: dashed; }
+.cu-sem.over { box-shadow: 0 0 0 2px var(--primary), var(--glow); transform: translateY(-2px); }
+.cu-sh { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.cu-sh b { display: block; }
+.cu-sh .xs { display: block; }
+.cu-warn { color: var(--warning-t); margin: 0 0 8px; display: flex; gap: 6px; align-items: center; }
+.cu-empty { text-align: center; padding: 14px; color: var(--text-3); border-radius: var(--r8); background: var(--surface-2); margin: 0; }
+.cu-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.cu-c { position: relative; display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 12px; border-radius: var(--r12); background: var(--surface); border: 1px solid var(--border); min-height: 52px; overflow: hidden; }
+.cu-c::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--cc, var(--primary)); }
+.cu-c b { display: block; font-size: 14px; }
+.cu-c .cu-t, .cu-c .cu-why { display: block; }
+.cu-c .cu-why { color: var(--text-3); }
+.cu-c.s-retake .cu-why { color: var(--error-t); }
+.cu-c.s-behind .cu-why, .cu-c.warn .cu-why { color: var(--warning-t); }
+.cu-c.s-done { background: var(--success-s); border-color: transparent; }
+.cu-c.warn { border-color: var(--warning); }
+.cu-r { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.cu-grip { display: grid; place-items: center; width: 28px; align-self: stretch; margin: -8px 0 -8px -4px; color: var(--text-3); flex: none; }
+.cu-grip.lock { color: var(--success-t); }
+.cu-c[data-mv] { cursor: grab; touch-action: manipulation; user-select: none; -webkit-user-select: none; transition: transform 160ms var(--ease); }
+.cu-c[data-mv]:active { transform: scale(.98); }
+.cu-c[data-mv] .cu-grip { width: 40px; touch-action: none; cursor: grab; }
+.cu-c[data-mv]:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.cu-dragging { opacity: .35; }
+.cu-ghost { position: fixed; left: 0; top: 0; z-index: 1000; pointer-events: none; box-shadow: var(--sh-xl); cursor: grabbing; }
+.cu-moves { display: grid; gap: 8px; margin-top: 10px; }
+.cu-moves .btn { justify-content: space-between; min-height: 48px; }
+
+/* ── Planner: EWU curriculum markers ─────────────────────── */
+.pl-ewu { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 6px; }
+.pl-ewu .xs { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.pl-ewu b { font-weight: 600; padding: 1px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 2px; }
+.pl-ewu b.ok { background: var(--success-s); color: var(--success-t); }
+.pl-ewu b.no { background: var(--error-s); color: var(--error-t); }
+@media (prefers-reduced-motion: reduce) { .cu-sem, .cu-c[data-mv], .of-card > summary .of-chev { transition: none; } }
+
+/* Finished semesters in the plans: compact tags. */
+.cu-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.cu-tag { display: inline-flex; gap: 6px; align-items: center; padding: 6px 10px; border-radius: 999px; background: var(--success-s); color: var(--text); font-size: 13px; font-weight: 600; }
+.cu-tag b { color: var(--success-t); }
+@media (max-width: 560px) {
+  .cu-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .cu-stats > div { padding: 8px; }
+  .cu-stats b { font-size: 16px; }
+  .cu-stats span { font-size: 11px; display: block; line-height: 1.2; }
+  .cu-stats > div:last-child { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 8px; flex-direction: row-reverse; justify-content: flex-end; }
+}
+.cu-moves .btn { width: 100%; min-width: 0; gap: 10px; white-space: normal; text-align: left; }
+.cu-moves .btn .xs { color: inherit; opacity: .85; flex: none; }
+.cu-moves .btn .xs.over { color: var(--error-t); opacity: 1; }

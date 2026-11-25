@@ -26,6 +26,7 @@ import "./v232.css";
 import "./v233.css";
 import "./v236.css";
 import "./v238.css";
+import "./v239.css";
 import { start as startDropdowns } from "./dropdown.js";
 import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSemester, semesterKey } from "./parser.js";
 import { toPlanner, courseChanges } from "./offered.js";
@@ -39,6 +40,8 @@ import { install as installHome } from "./ui-home.js";
 import { install as installSync } from "./ui-sync.js";
 import { install as installAcademic } from "./ui-academic.js";
 import { install as installCampus } from "./ui-campus.js";
+import { install as installOffices } from "./ui-offices.js";
+import { install as installCurriculum } from "./ui-curriculum.js";
 import { install as installMap } from "./ui-map.js";
 import { install as installIdCard } from "./ui-idcard.js";
 import { install as installNotices } from "./ui-notices.js";
@@ -392,7 +395,7 @@ const roleKey = () => ({ faculty: "f", alumni: "a" }[S.role] || "s");
 const navFor = () => NAV.filter((n) => n.roles.includes(roleKey()) && (!n.feature || content.feature(n.feature)));
 // Pages an admin switched off (Settings → Features) are closed for everyone.
 const PAGE_FEATURE = { notices: "notices", news: "news", alumni: "alumni", map: "map", vault: "vault", file: "vault", idcard: "idcard", focus: "focus", cards: "focus", exams: "focus" };
-const SUB = { insights: "grades", scholarship: "grades", calendar: "routine", course: "courses", marks: "courses", degree: "grades", whatif: "grades", plan: "planner", combos: "planner", fee: "fees", prof: "faculty", file: "vault", cards: "focus", exams: "tasks", account: "more", profile: "more", notifications: "home", help: "more", about: "more", cover: "more", sync: "more", idcard: "more", alarms: "routine", ask: "ask", post: "blog", write: "blog" };
+const SUB = { offices: "more", insights: "grades", scholarship: "grades", calendar: "routine", course: "courses", marks: "courses", degree: "grades", whatif: "grades", plan: "planner", combos: "planner", fee: "fees", prof: "faculty", file: "vault", cards: "focus", exams: "tasks", account: "more", profile: "more", notifications: "home", help: "more", about: "more", cover: "more", sync: "more", idcard: "more", alarms: "routine", ask: "ask", post: "blog", write: "blog" };
 const prefersReduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 function renderNav(route) {
   const unread = inbox().filter((n) => !S.read[n.id]).length;
@@ -861,10 +864,12 @@ const ctx = {
 };
 materials = installMaterials(ctx);
 study = installStudy(ctx);
+ctx.curUi = installCurriculum(ctx);
 installHome(ctx);
 const sync = installSync(ctx);
 installAcademic(ctx);
 installCampus(ctx);
+installOffices(ctx);
 campus = installMap(ctx);
 idcard = installIdCard(ctx);
 notices = installNotices(ctx);
