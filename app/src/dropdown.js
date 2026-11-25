@@ -81,10 +81,15 @@ function show(sel, btn) {
   const outside = (e) => { if (!pop.contains(e.target) && e.target !== btn) close(); };
   setTimeout(() => document.addEventListener("pointerdown", outside), 0);
   const onScroll = (e) => { if (!sheet && !pop.contains(e.target)) close(); };
-  addEventListener("scroll", onScroll, true); addEventListener("resize", close);
+  // Phones fire resize when the keyboard opens or the address bar slides, which closed the sheet right after it
+  // opened. Only a real width change (rotation, window resize) closes it.
+  const w0 = innerWidth, onResize = () => { if (innerWidth !== w0) close(); };
+  addEventListener("scroll", onScroll, true); addEventListener("resize", onResize);
   btn.setAttribute("aria-expanded", "true");
-  open = { sel, btn, pop, back, cleanup: () => { document.removeEventListener("pointerdown", outside); removeEventListener("scroll", onScroll, true); removeEventListener("resize", close); } };
-  (q || list).focus({ preventScroll: true }); list.tabIndex = -1; if (!q) list.focus(); scrollTo();
+  open = { sel, btn, pop, back, cleanup: () => { document.removeEventListener("pointerdown", outside); removeEventListener("scroll", onScroll, true); removeEventListener("resize", onResize); } };
+  // On touch screens the search box waits for a tap, so the keyboard doesn't cover the list as it opens.
+  list.tabIndex = -1;
+  (q && !matchMedia("(pointer: coarse)").matches ? q : list).focus({ preventScroll: true }); scrollTo();
 }
 
 export function close() {

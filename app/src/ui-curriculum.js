@@ -2,7 +2,7 @@
    still owed, failed, withdrawn or dropped placed again) and the student's edited plan (drag a course, or tap it, to move
    it between future semesters; done and current courses are locked). Also ctx.curPlan() for the advising planner.
    Logic: curplan.ts. EWU's plan: the department flowchart (ui-semesters.js → /api/flowchart). */
-import { officialStatus, updatedPlan, editedPlan, checkPlan, moveItem, deriveOfficial, firstSemOf, semAt } from "./curplan.ts";
+import { officialStatus, updatedPlan, editedPlan, checkPlan, moveItem, deriveOfficial, firstSemOf, semAt, altCode } from "./curplan.ts";
 import { haptic } from "./gestures.ts";
 
 const ST = { done: ["Done", "green", "checkc"], now: ["Now", "purple", "clock"], retake: ["Retake", "red", "refund"], behind: ["Catch up", "amber", "alert"], later: ["Later", "", "calendar"] };
@@ -38,6 +38,8 @@ export function install(ctx) {
     // Each course code → its curriculum item (the part still owed for a repeated course like CSE400).
     const byCode = new Map();
     for (const i of items) if (i.code && (!byCode.has(i.code) || (byCode.get(i.code).status === "done" && i.status !== "done"))) byCode.set(i.code, i);
+    // The planner lists courses by this semester's codes (ENG7101); look them up under the plan's code too.
+    for (const [c, i] of [...byCode]) if (!byCode.has(altCode(c))) byCode.set(altCode(c), i);
     return { source, fc, firstSem, curSem, min, max, items, updated, edited, byCode, check: checkPlan(edited, { min, max }), name: fc.name };
   }
   ctx.curPlan = curPlan;
@@ -155,12 +157,13 @@ export function install(ctx) {
   }
 
   /* Credits and title from EWU's curriculum (the offered list only has an estimate). */
-  const infoOf = (code) => curPlan().byCode.get(code) || null;
+  const infoOf = (code) => { const m = curPlan().byCode; return m.get(code) || m.get(altCode(code)) || null; };
 
   /* For the advising planner: where EWU puts a course and whether the plan suggests it for `sem`. */
   function plannerInfo(sem) {
-    const P = curPlan(), suggested = new Set(P.edited.filter((s) => s.sem === sem).flatMap((s) => s.items.map((i) => i.code)).filter(Boolean));
-    return { ok: P.items.length > 0, byCode: P.byCode, suggested };
+    const P = curPlan(), planned = P.edited.filter((s) => s.sem === sem).flatMap((s) => s.items.map((i) => i.code)).filter(Boolean);
+    // `suggested` holds both codes of each course so the planner's ENG7101 matches the plan's ENG101.
+    return { ok: P.items.length > 0, byCode: P.byCode, planned, suggested: new Set(planned.flatMap((c) => [c, altCode(c)])) };
   }
 
   return { official, plan, mount, plannerInfo, infoOf };

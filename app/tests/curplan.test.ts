@@ -1,7 +1,7 @@
 // Curriculum plans: EWU's plan with the student's status, the rebuilt plan after a failed/dropped course, and edits.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { officialStatus, updatedPlan, editedPlan, checkPlan, moveItem, deriveOfficial, firstSemOf, semNo, semAt } from "../src/curplan.ts";
+import { officialStatus, updatedPlan, editedPlan, checkPlan, moveItem, deriveOfficial, firstSemOf, semNo, semAt, altCode } from "../src/curplan.ts";
 
 // A made-up 4-semester program.
 const official = [
@@ -72,4 +72,14 @@ test("credit limits per semester", () => {
 test("derived plan without a flowchart follows prerequisites", () => {
   const d = deriveOfficial([{ code: "A101", cr: 3 }, { code: "A102", cr: 3, prereq: ["A101"] }, { code: "A201", cr: 3, prereq: ["A102"] }, { code: "B101", cr: 3 }]);
   assert.deepEqual(d.map((s) => s.courses.map((c) => c.code)), [["A101", "B101"], ["A102"], ["A201"]]);
+});
+
+test("a course taken under its new code (ENG7101) counts as the plan's ENG101, not an elective", () => {
+  assert.equal(altCode("ENG7101"), "ENG101");
+  assert.equal(altCode("GEN226"), "GEN7226");
+  const items = officialStatus({ ...base, grades: [{ code: "ENG7101", sem: "Spring-2026", g: "A" }], current: ["MAT7101"] });
+  const by = Object.fromEntries(items.map((i) => [i.id, i]));
+  assert.equal(by.ENG101.status, "done");
+  assert.equal(by.MAT101.status, "now");
+  assert.ok(items.filter((i) => i.slot).every((i) => !i.filledBy));
 });

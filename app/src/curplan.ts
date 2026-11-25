@@ -27,6 +27,8 @@ const TERMS = ["Spring", "Summer", "Fall"];
 export const PASS = (g?: string): boolean => isPass(g);
 /** "CSE400#2" (the second part of a repeated course) → "CSE400". */
 export const baseCode = (id: string): string => id.replace(/#\d+$/, "");
+/** EWU's newer curriculum adds a 7 to the old codes (ENG101 → ENG7101, GEN226 → GEN7226): one course, two codes. */
+export const altCode = (c = ""): string => { const m = /^([A-Z]+)7(\d{3})$/.exec(c); return m ? m[1] + m[2] : c.replace(/^([A-Z]+)(\d{3})$/, (_, d: string, n: string) => `${d}7${n}`); };
 const semKey = (s = ""): number => { const m = String(s).match(/(Spring|Summer|Fall)[-\s]+(\d{4})/i); return m ? Number(m[2]) * 3 + TERMS.indexOf(m[1]) : 0; };
 export const nextSem = (s: string): string => { const k = semKey(s) + 1; return k > 1 ? `${TERMS[k % 3]}-${Math.floor(k / 3)}` : ""; };
 /** Semester number of `sem` counted from the student's first semester (first = 1). */
@@ -59,9 +61,12 @@ export function deriveOfficial(curriculum: Course[] = [], per = 15): OfficialSem
 }
 
 /** The official plan with this student's status for every course. */
-export function officialStatus({ official, grades = [], current = [], dropped = [], firstSem, curSem }: Input): Item[] {
-  const curNo = semNo(firstSem, curSem), cur = new Set(current), seen = new Map<string, number>();
+export function officialStatus({ official, grades: rawGrades = [], current: rawCurrent = [], dropped: rawDropped = [], firstSem, curSem }: Input): Item[] {
   const codes = new Set(official.flatMap((s) => s.courses.map((c) => c.code)).filter(Boolean));
+  // A course taken under its other code (ENG7101 for the plan's ENG101) counts as the plan's course.
+  const fix = (c: string): string => (codes.has(c) || !codes.has(altCode(c)) ? c : altCode(c));
+  const grades = rawGrades.map((g) => ({ ...g, code: fix(g.code) })), current = rawCurrent.map(fix), dropped = rawDropped.map((d) => ({ ...d, code: fix(d.code) }));
+  const curNo = semNo(firstSem, curSem), cur = new Set(current), seen = new Map<string, number>();
   // Every course's attempts in semester order, grouped once.
   const sorted = [...grades].sort((a, b) => semKey(a.sem) - semKey(b.sem)), rowsOf = new Map<string, Grade[]>();
   for (const g of sorted) { if (!rowsOf.has(g.code)) rowsOf.set(g.code, []); (rowsOf.get(g.code) as Grade[]).push(g); }

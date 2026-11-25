@@ -1,11 +1,8 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Offices & Officers: the Proctor on duty today, Deans, Registrar and 34 offices with room, extension and email",
-    "Degree Progress shows EWU's official curriculum next to the courses you have completed",
-    "Updated plan: failed, withdrawn or dropped courses are placed again after their prerequisites",
-    "Edited plan: drag or tap a course to move it to another semester; done and current courses stay locked",
-    "Advising planner marks EWU's semester and prerequisites for each course, with an EWU suggests filter"
+    "Degree Progress: ENG7101 and ENG101 (and other new 7xxx codes) now count as the same course",
+    "Advising planner: filter dropdowns no longer close right after you open them on phones"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

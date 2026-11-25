@@ -2,6 +2,7 @@
    what-if calculator, marks & attendance estimator, deadlines, fees. */
 import { pieHtml } from "./pie.ts";
 import { barsHtml } from "./charts.ts";
+import { altCode } from "./curplan.ts";
 
 export function install(ctx) {
   const { pages, icon, esc, uid, $, $$, toast, openModal, closeModal, modalHead, confirmModal } = ctx;
@@ -200,9 +201,11 @@ export function install(ctx) {
     const dOK = (s) => pDay === "all" || ctx.dayIdx(s.days).includes(Number(pDay));
     const deptMatch = (c) => pDept === "all" || (c.match(/^[A-Z]+/)?.[0] === pDept);
     // Student courses done or currently doing (excluding dropped courses)
-    const passed = new Set((St.grades || []).filter((g) => g.g && g.g !== "F" && !["U", "I", "W", "R"].includes(g.g)).map((g) => g.code));
+    // Each course under both its codes (ENG101 / ENG7101), so a pass under either one counts.
+    const both = (l) => l.flatMap((c) => [c, altCode(c)]);
+    const passed = new Set(both((St.grades || []).filter((g) => g.g && g.g !== "F" && !["U", "I", "W", "R"].includes(g.g)).map((g) => g.code)));
     const gone = new Set((St.dropped || []).filter((d) => d.sem === (St.routineSem || ctx.currentSemester())).map((d) => d.code));
-    const doing = new Set((St.routine || []).map((r) => r.code).filter((c) => !gone.has(c)));
+    const doing = new Set(both((St.routine || []).map((r) => r.code).filter((c) => !gone.has(c))));
     const myDept = myDeptOf(St), mine = new Set((St.curriculum || []).map((c) => c.code));
     // Without a synced curriculum, "Next for me" keeps to departments you already take courses from (CSE, MAT, ENG…).
     const known = new Set([myDept, ...[...St.grades, ...St.routine].map((x) => (String(x.code).match(/^[A-Z]+/) || [""])[0])].filter(Boolean));
@@ -243,7 +246,7 @@ export function install(ctx) {
         <button class="icon-btn" id="p-filter" aria-label="Filters">${icon("filter")}</button></div>
       <div class="searchbar mt">${icon("search")}<input class="input" id="p-q" type="search" placeholder="Search by course code, title or faculty…" value="${esc(pQ)}" aria-label="Search courses"></div>
       <p class="xs mt-s">${esc((P.sem || P.offeredSem || "").replace("-", " "))} · ${Object.keys(O).length} courses offered${cat ? ` · updated ${esc(fmtUpd(cat.updated))}${cat.live ? " from ewucoursetracker.live" : ""}` : ""} · take ${L.min}–${L.max} credits${myDept ? ` · done ${passed.size}, doing ${doing.size}` : ""}</p>
-      ${show === "ewu" ? (() => { const miss = [...cu.suggested].filter((c) => !O[c] && !passed.has(c) && !doing.has(c)); return `<p class="xs mt-s">Courses your plan puts in ${esc(String(P.sem || "").replace("-", " "))}${miss.length ? `. Not offered this semester: <b>${miss.map(esc).join(", ")}</b>` : ""}. <a class="lnk" href="#/degree?tab=edited">Change your plan</a></p>`; })() : ""}
+      ${show === "ewu" ? (() => { const miss = cu.planned.filter((c) => !O[c] && !O[altCode(c)] && !passed.has(c) && !doing.has(c)); return `<p class="xs mt-s">Courses your plan puts in ${esc(String(P.sem || "").replace("-", " "))}${miss.length ? `. Not offered this semester: <b>${miss.map(esc).join(", ")}</b>` : ""}. <a class="lnk" href="#/degree?tab=edited">Change your plan</a></p>`; })() : ""}
       <div class="grid g2 mt">${codes.slice(0, 60).map(card).join("") || `<div class="card full-row">${ctx.empty("icon:search", "No results found", "Try a different keyword or department filter.", `<button class="btn" id="p-clear">Clear Filters</button>`)}</div>`}</div>
       ${codes.length > 60 ? `<p class="xs mt-s">Showing 60 of ${codes.length}. Search to find more.</p>` : ""}
       ${P.courses.length ? `<div class="sticky-cart"><div class="grow"><b>${P.courses.length} course${P.courses.length > 1 ? "s" : ""} · ${crCheck}</b><span>${combos.length ? `${combos.length >= 3000 ? "3000+" : combos.length} clash-free option${combos.length === 1 ? "" : "s"}` : "No clash-free option yet"}${totalCr < L.min ? ` · minimum is ${L.min}` : totalCr > L.max ? ` · maximum is ${L.max}` : ""}</span></div><a class="btn white" href="#/plan">Review ${icon("arrow")}</a></div>` : ""}`;
