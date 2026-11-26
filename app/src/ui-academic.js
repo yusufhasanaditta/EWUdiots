@@ -179,6 +179,9 @@ export function install(ctx) {
     }) };
   }
   let pSort = "best", pDay = "all", pTime = "any", pQ = "", pDept = "", pShow = "all";
+  // The plan's courses for the chosen semester that are actually offered and still owed — set by the planner view,
+  // read by its mount so the "Build routines from my plan" button can fill the cart in one tap.
+  let planCodes = [];
   // The student's department: the profile's short name, else the code most of their courses start with (CSE101 → CSE).
   const myDeptOf = (St) => { const d = String(St.profile?.department || "").toUpperCase(); if (/^[A-Z]{2,5}$/.test(d)) return d;
     const n = {}; for (const c of [...St.routine, ...St.grades].map((x) => (x.code.match(/^[A-Z]+/) || [""])[0]).filter(Boolean)) n[c] = (n[c] || 0) + 1;
@@ -235,6 +238,8 @@ export function install(ctx) {
         <div class="secs" data-secs-of="${esc(code)}" hidden>${c.sections.map((x) => { const pin = P.pins[code] === x.sec; return `<div class="secrow ${pin ? "pinned" : ""}"><b>Sec ${esc(x.sec)}</b><span class="small">${(x.slots || [x].concat(x.lab ? [x.lab] : [])).map((y) => `${esc(y.days)} ${ctx.fmt12(y.start)}${y.lab ? " (lab)" : ""}`).join(", ")} · ${esc(ctx.facName(x.faculty))}${x.room ? ` · ${esc(ctx.baseRoom(x.room))}` : ""}</span>${x.seats !== undefined ? `<span class="pill ${x.seats === 0 ? "red" : x.seats < 5 ? "amber" : "green"}">${x.seats} left</span>` : "<span></span>"}<button class="btn sm ${pin ? "primary" : "neutral"}" data-pin="${esc(code)}|${esc(x.sec)}" aria-pressed="${pin}">${pin ? "Pinned" : "Pin"}</button></div>`; }).join("")}</div></article>`;
     };
     const crCheck = totalCr < L.min ? `<span class="pill amber">${totalCr} credits: add ${L.min - totalCr} more</span>` : totalCr > L.max ? `<span class="pill red">${totalCr} credits: ${totalCr - L.max} over</span>` : `<span class="pill green">${totalCr} credits</span>`;
+    // Your plan's courses for this semester, as offered codes, not yet done or in progress (ENG101 ↔ ENG7101).
+    planCodes = [...new Set((cu.planned || []).map((c) => (O[c] ? c : O[altCode(c)] ? altCode(c) : null)).filter(Boolean))].filter((c) => !passed.has(c) && !doing.has(c) && !P.courses.includes(c));
     return `${ctx.head("Advising Planner", "Find the best course combination for your next semester.", "", ctx.art("mascot-laptop", "Plan smart,<br>study happy!"))}${note}
       <div class="pl-filters">
         <select class="select sm grow" id="p-sem" aria-label="Semester">${(sems.length ? sems : [{ sem: P.sem || P.offeredSem || "" }]).filter((x) => x.sem).map((x) => `<option value="${esc(x.sem)}" ${x.sem === P.sem ? "selected" : ""}>${esc(x.sem.replace("-", " "))}${x.sem === ctx.nextSemesterGuess() ? " (next)" : ""}</option>`).join("")}</select>
@@ -247,6 +252,7 @@ export function install(ctx) {
       <div class="searchbar mt">${icon("search")}<input class="input" id="p-q" type="search" placeholder="Search by course code, title or faculty…" value="${esc(pQ)}" aria-label="Search courses"></div>
       <p class="xs mt-s">${esc((P.sem || P.offeredSem || "").replace("-", " "))} · ${Object.keys(O).length} courses offered${cat ? ` · updated ${esc(fmtUpd(cat.updated))}${cat.live ? " from ewucoursetracker.live" : ""}` : ""} · take ${L.min}–${L.max} credits${myDept ? ` · done ${passed.size}, doing ${doing.size}` : ""}</p>
       ${show === "ewu" ? (() => { const miss = cu.planned.filter((c) => !O[c] && !O[altCode(c)] && !passed.has(c) && !doing.has(c)); return `<p class="xs mt-s">Courses your plan puts in ${esc(String(P.sem || "").replace("-", " "))}${miss.length ? `. Not offered this semester: <b>${miss.map(esc).join(", ")}</b>` : ""}. <a class="lnk" href="#/degree?tab=edited">Change your plan</a></p>`; })() : ""}
+      ${cu.ok && (planCodes.length || P.courses.length) ? `<div class="pl-plan-cta mt"><div class="min0"><b>${icon("sparkle", "sm")} Routines from your degree plan</b><p class="xs">${planCodes.length ? `Add ${planCodes.length} course${planCodes.length > 1 ? "s" : ""} your plan puts in ${esc(String(P.sem || "").replace("-", " "))}, then see every clash-free routine.` : P.courses.length ? "All of this semester's planned courses are in your list. See every clash-free routine." : ""}</p></div><button class="btn primary" id="pl-from-plan">${planCodes.length ? `Build routines${P.courses.length ? " (add)" : ""}` : "See routines"} ${icon("arrow")}</button></div>` : ""}
       <div class="grid g2 mt">${codes.slice(0, 60).map(card).join("") || `<div class="card full-row">${ctx.empty("icon:search", "No results found", "Try a different keyword or department filter.", `<button class="btn" id="p-clear">Clear Filters</button>`)}</div>`}</div>
       ${codes.length > 60 ? `<p class="xs mt-s">Showing 60 of ${codes.length}. Search to find more.</p>` : ""}
       ${P.courses.length ? `<div class="sticky-cart"><div class="grow"><b>${P.courses.length} course${P.courses.length > 1 ? "s" : ""} · ${crCheck}</b><span>${combos.length ? `${combos.length >= 3000 ? "3000+" : combos.length} clash-free option${combos.length === 1 ? "" : "s"}` : "No clash-free option yet"}${totalCr < L.min ? ` · minimum is ${L.min}` : totalCr > L.max ? ` · maximum is ${L.max}` : ""}</span></div><a class="btn white" href="#/plan">Review ${icon("arrow")}</a></div>` : ""}`;
@@ -279,6 +285,14 @@ export function install(ctx) {
     q && q.addEventListener("input", () => { clearTimeout(tm); tm = setTimeout(() => { pQ = q.value; ctx.rerender(); const n = $("#p-q"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 220); });
     const cl = $("#p-clear", el); cl && cl.addEventListener("click", () => { pQ = ""; pDay = "all"; pTime = "any"; pDept = "all"; pShow = "all"; ctx.rerender(); });
     const f = $("#p-filter", el); f && f.addEventListener("click", filterSheet);
+    $("#pl-from-plan", el)?.addEventListener("click", () => {
+      // Add the plan's offered courses up to the credit limit, then show every clash-free routine.
+      const max = LOAD().max; let cr = P.courses.reduce((a, c) => a + crOf(c), 0);
+      for (const c of planCodes) { const cc = crOf(c); if (cr + cc <= max + 0.01) { P.courses.push(c); cr += cc; } }
+      ctx.save();
+      if (P.courses.length) ctx.go("#/combos");
+      else toast("Nothing to add yet", "info", "None of your plan's courses for this semester are in the list. Sync the offered courses, or change your plan.");
+    });
   };
   function filterSheet() {
     const F = S().planner.filters;

@@ -71,6 +71,13 @@ a.of-chip:hover { background: var(--primary-l); color: var(--primary); }
 .cu-moves { display: grid; gap: 8px; margin-top: 10px; }
 .cu-moves .btn { justify-content: space-between; min-height: 48px; }
 
+/* "Build routines from my plan" call-to-action in the planner. */
+.pl-plan-cta { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--r12); background: var(--primary-l); border: 1px solid var(--primary); }
+.pl-plan-cta b { display: flex; align-items: center; gap: 6px; color: var(--primary); }
+.pl-plan-cta p { margin: 2px 0 0; color: var(--text-2); }
+.pl-plan-cta .btn { flex: none; }
+@media (max-width: 560px) { .pl-plan-cta { flex-direction: column; align-items: stretch; } .pl-plan-cta .btn { width: 100%; justify-content: center; } }
+
 /* ── Planner: EWU curriculum markers ─────────────────────── */
 .pl-ewu { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 6px; }
 .pl-ewu .xs { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }

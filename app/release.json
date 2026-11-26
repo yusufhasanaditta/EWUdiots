@@ -1,8 +1,7 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Degree Progress: ENG7101 and ENG101 (and other new 7xxx codes) now count as the same course",
-    "Advising planner: filter dropdowns no longer close right after you open them on phones"
+    "Advising Planner: one tap builds every clash-free routine from your degree plan for that semester"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"
