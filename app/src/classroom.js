@@ -1,7 +1,8 @@
 /* Google Classroom import: which Classroom course is which EWU course, and Classroom posts → course materials and
    deadlines. Pure (the network calls are in ui-classroom.js): unit-tested in tests/classroom.test.js. */
 export const SCOPES = ["https://www.googleapis.com/auth/classroom.courses.readonly", "https://www.googleapis.com/auth/classroom.coursework.me.readonly",
-  "https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly", "https://www.googleapis.com/auth/classroom.topics.readonly"].join(" ");
+  "https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly", "https://www.googleapis.com/auth/classroom.topics.readonly",
+  "https://www.googleapis.com/auth/classroom.announcements.readonly"].join(" ");
 export const API = "https://classroom.googleapis.com/v1";
 
 /* "CSE106 Sec 3 (Fall 2026)", "CSE 106 – Discrete Math", "Discrete Mathematics [MAT 205]" → "CSE106". */
@@ -37,6 +38,18 @@ export function toMaterials({ course, code, topics = [], materials = [], work = 
       source: "classroom", faculty: info.faculty || "", section: String(info.sec || sectionOf(course)).slice(0, 6), semester: info.sem || "" };
   };
   return [...materials.map((m) => row(m, false)), ...work.map((w) => row(w, true))].filter((r) => r.link);
+}
+
+/* Teacher/TA announcements (Classroom posts with no title) → "Notice" rows for the course materials. An announcement
+   always has a permalink (alternateLink), so even a text-only notice gets a link back to the Classroom post. */
+export function toNotices({ course, code, announcements = [], info = {} }) {
+  return announcements.filter((a) => a.text || (a.materials || []).length).map((a) => {
+    const l = firstLink(a), text = String(a.text || l.title || "Announcement").replace(/\s+/g, " ").trim();
+    const title = ((text.split(/(?<=[.!?])\s|\n/)[0] || text).slice(0, 120)) || "Announcement";
+    return { ext_id: `gc:${course.id}:${a.id}`.slice(0, 123), course: code, type: "Notice", title,
+      topic: "Notices", description: text.slice(0, 1000), link: /^https:\/\//.test(l.url) ? l.url : "",
+      source: "classroom", faculty: info.faculty || "", section: String(info.sec || sectionOf(course)).slice(0, 6), semester: info.sem || "" };
+  }).filter((r) => r.link);
 }
 
 /* Assignments with a due date → the app's own Deadlines (tasks). */

@@ -2,7 +2,7 @@
    each Classroom course whose name has an EWU course code (CSE106…) is imported: materials and assignments go into
    that course's shared Materials (grouped by Classroom topic = a study path for every section and semester) and
    assignments with due dates go into Deadlines. The Google token stays in this page's memory only. */
-import { SCOPES, API, courseCodeOf, toMaterials, toTasks } from "./classroom.js";
+import { SCOPES, API, courseCodeOf, toMaterials, toNotices, toTasks } from "./classroom.js";
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 export function install(ctx) {
@@ -31,7 +31,7 @@ export function install(ctx) {
       const r = await fetch(`${API}${path}${path.includes("?") ? "&" : "?"}pageSize=100${page ? `&pageToken=${page}` : ""}`, { headers: { authorization: `Bearer ${await getToken()}` } });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw Object.assign(new Error(j.error?.message || `Classroom answered ${r.status}`), { status: r.status });
-      out.push(...(j.courses || j.topic || j.courseWorkMaterial || j.courseWork || [])); page = j.nextPageToken || "";
+      out.push(...(j.courses || j.topic || j.courseWorkMaterial || j.courseWork || j.announcements || [])); page = j.nextPageToken || "";
     } while (page && out.length < 1000);
     return out;
   };
@@ -43,9 +43,9 @@ export function install(ctx) {
     for (const { c, code } of courses) {
       onStep(code, "reading");
       try {
-        const [topics, materials, work] = await Promise.all([gget(`/courses/${c.id}/topics`).catch(() => []), gget(`/courses/${c.id}/courseWorkMaterials`).catch(() => []), gget(`/courses/${c.id}/courseWork`).catch(() => [])]);
+        const [topics, materials, work, announcements] = await Promise.all([gget(`/courses/${c.id}/topics`).catch(() => []), gget(`/courses/${c.id}/courseWorkMaterials`).catch(() => []), gget(`/courses/${c.id}/courseWork`).catch(() => []), gget(`/courses/${c.id}/announcements`).catch(() => [])]);
         const r = mine.get(code), info = { faculty: r?.faculty || "", sec: r?.sec || "", sem: S().routineSem || "" };
-        const rows = toMaterials({ course: c, code, topics, materials, work, info }), tasks = toTasks({ code, work });
+        const rows = [...toMaterials({ course: c, code, topics, materials, work, info }), ...toNotices({ course: c, code, announcements, info })], tasks = toTasks({ code, work });
         if (share && rows.length) await ctx.cloud.importMaterials(ctx.C.user.id, rows, { name: S().profile?.name || "", role: ctx.cloud.roleOf(ctx.C.user) || "student" });
         let added = 0;
         for (const t of tasks) if (!S().tasks.some((x) => x.id === t.id) && new Date(t.due) > Date.now() - 864e5) { S().tasks.push(t); added++; }
@@ -58,7 +58,7 @@ export function install(ctx) {
   }
 
   pages.classroom = () => {
-    const head = ctx.head("Google Classroom", "Bring your Classroom courses into EWUdiots: materials by topic, and assignments as deadlines.");
+    const head = ctx.head("Google Classroom", "Bring your Classroom courses into EWUdiots: materials by topic, teacher and TA notices, and assignments as deadlines.");
     const last = S().classroom, steps = run ? Object.entries(run) : [];
     const lastHtml = last?.courses?.length ? `<section class="card mt"><div class="card-h"><h2>Last import</h2><span class="xs">${ctx.fmtDate(last.at)}</span></div>${last.courses.map((c) => `<a class="lrow" href="#/course?c=${encodeURIComponent(c.code)}&tab=materials"><span class="itile ${c.failed ? "red" : "green"}">${icon(c.failed ? "alert" : "book")}</span><span class="body"><b>${esc(c.code)}</b><span>${esc(c.name)} · ${c.failed ? "Couldn't read this course" : `${c.materials} materials, ${c.tasks} new deadlines`}</span></span>${icon("chevR", "chev")}</a>`).join("")}</section>` : "";
     if (!CLIENT_ID) return `${head}<section class="card">${ctx.empty("icon:clock", "Google Classroom is almost ready", "The EWUdiots team is finishing the Google sign-in setup. Until then, share Classroom slides and notes from each course's Materials tab.")}</section>`;
@@ -66,7 +66,7 @@ export function install(ctx) {
     if (ctx.native.isNative) return `${head}<section class="card gc-card"><span class="gc-logo" aria-hidden="true">${icon("school")}</span><h3>Connect in your browser</h3><p class="small muted">Google doesn't allow its sign-in inside apps like this one. Open EWUdiots in your browser, sign in with the same account and connect there. Everything appears here on your phone.</p>
       <a class="btn primary lg block mt" href="${ctx.SITE}/app.html#/classroom" target="_blank" rel="noopener">${icon("external")} Open in browser</a></section>${lastHtml}`;
     return `${head}<section class="card gc-card"><span class="gc-logo" aria-hidden="true">${icon("school")}</span>
-      <h3>Connect Google Classroom</h3><p class="small muted">Sign in with your EWU Google account (${esc(ctx.C.user.email)}). EWUdiots only reads your courses, topics, materials and your own assignments. It never posts or changes anything.</p>
+      <h3>Connect Google Classroom</h3><p class="small muted">Sign in with your EWU Google account (${esc(ctx.C.user.email)}). EWUdiots only reads your courses, topics, materials, teacher and TA announcements and your own assignments. It never posts or changes anything.</p>
       ${steps.length ? `<div class="ps-steps mt">${steps.map(([code, v]) => `<div class="ps-step ${v}"><span class="ps-dot">${v === "done" ? icon("check", "sm") : v === "skipped" ? icon("minus", "sm") : '<i class="spin"></i>'}</span><b>${esc(code)}</b><span class="xs">${v === "done" ? "Imported" : v === "skipped" ? "Skipped" : "Reading…"}</span></div>`).join("")}</div>` : ""}
       <label class="row nowrap small mt" style="gap:8px;align-items:flex-start"><input type="checkbox" class="check" id="gc-share" checked> <span>Share material titles and links with other EWUdiots students in the same course, so every section and semester sees the study structure. Files stay in Google Drive with Classroom's own access.</span></label>
       <button class="btn primary lg block mt" id="gc-go">${icon("sync")} ${last ? "Import again" : "Connect and import"}</button></section>${lastHtml}`;

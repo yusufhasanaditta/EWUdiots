@@ -1,9 +1,7 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Offices & Officers now show each officer and worker’s photo",
-    "Faculty photos: your synced teachers now match their official EWU profile picture",
-    "Campus map: search a room to see whose office it is, with a tap through to their profile"
+    "Google Classroom now imports your teachers’ and TAs’ announcements as notices in each course"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"
