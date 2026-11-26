@@ -11,8 +11,11 @@ const ICON = { "Proctor's Office": "shield", "Dean's Office": "school", "Registr
 export function install(ctx) {
   const { pages, icon, esc, $, $$ } = ctx;
   let data = null, loading = null, tab = "student", q = "";
-  const load = () => loading || (loading = fetch("/data/offices.json").then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status)))).then((j) => { data = j; if (ctx.route() === "offices") ctx.rerender(); })
-    .catch(() => { loading = null; data = { offices: [], duty: [], failed: true }; if (ctx.route() === "offices") ctx.rerender(); }));
+  const wake = () => ["offices", "map"].includes(ctx.route()) && ctx.rerender();
+  const load = () => loading || (loading = fetch("/data/offices.json").then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status)))).then((j) => { data = j; wake(); })
+    .catch(() => { loading = null; data = { offices: [], duty: [], failed: true }; wake(); }));
+  // Shared with the campus map: every office person (with their office name), so a searched room can show whose office it is.
+  ctx.officeStaff = () => { if (!data && !loading) load(); return (data?.offices || []).flatMap((o) => o.people.map((p) => ({ name: p.name, roles: p.roles, room: p.room, ext: p.ext, email: p.email, photo: p.photo, office: o.name }))); };
 
   // Extensions dial through the main line: "tel:09666775577,256" waits for the call to connect, then dials 256.
   const tel = (ext) => { const e = String(ext || "").split(/[,/ ]/)[0].replace(/\D/g, ""); return e.length >= 3 && e.length <= 4 ? `tel:${MAIN_LINE},${e}` : e.length >= 10 ? `tel:${e}` : ""; };
@@ -26,7 +29,12 @@ export function install(ctx) {
       ${p.ext || p.phone ? chipL(t, "phone", p.ext ? `Ext ${esc(p.ext)}` : esc(p.phone), p.ext ? `Call extension ${p.ext}` : "") : ""}
       ${p.email ? chipL(`mailto:${esc(p.email)}`, "mail", `<span class="ellipsis">${esc(p.email)}</span>`, `Email ${p.name}`) : ""}</div>`;
   };
-  const person = (p) => `<li class="of-p"><span class="avatar sm" style="background:${ctx.colorFor(p.name)}" aria-hidden="true">${esc(ctx.initials(p.name.replace(/^(Professor|Prof\.|Dr\.|Mr\.|Ms\.|Mrs\.|Air Cdre \(Retd\))\s*/gi, "")))}</span>
+  // Initials, with the person's official photo on top when the office page had one (it falls back to the initials if it fails to load).
+  const avatar = (name, photo, cls = "sm") => `<span class="avatar face ${cls}" style="background:${ctx.colorFor(name)}" aria-hidden="true">${esc(ctx.initials(String(name).replace(/^(Professor|Prof\.|Dr\.|Mr\.|Ms\.|Mrs\.|Air Cdre \(Retd\))\s*/gi, "")))}${photo ? `<img src="${esc(photo)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</span>`;
+  const nn = (s) => String(s || "").toLowerCase().replace(/[.,]/g, " ").replace(/\b(dr|mr|mrs|ms|prof|professor|engr|md)\b/g, " ").replace(/\s+/g, " ").trim();
+  let photoByName = null; // every office person's photo, keyed by normalised name, for the duty roster (which has no photo of its own)
+  const photoFor = (name) => (photoByName = photoByName || new Map(data.offices.flatMap((o) => o.people).filter((p) => p.photo).map((p) => [nn(p.name), p.photo]))).get(nn(name)) || "";
+  const person = (p) => `<li class="of-p">${avatar(p.name, p.photo)}
       <div class="min0 grow"><b>${esc(p.name)}</b><span class="xs">${esc(p.roles.filter((r) => r.length < 90).slice(0, 2).join(" · "))}</span>${contact(p)}</div></li>`;
   const office = (o, open) => {
     const w = where(o);
@@ -48,7 +56,7 @@ export function install(ctx) {
     const d = onDuty(data.duty), proctor = data.offices.find((o) => o.name === "Proctor's Office")?.people[0];
     const who = d && !/proxy/i.test(d.name) ? d : null;
     return `<section class="card of-duty"><div class="card-h"><h2>${icon("shield", "sm")} Proctor on duty today</h2>${data.term ? `<span class="pill">${esc(data.term.replace("-", " "))}</span>` : ""}</div>
-      ${who ? `<div class="of-p"><span class="avatar" style="background:${ctx.colorFor(who.name)}" aria-hidden="true">${esc(ctx.initials(who.name.replace(/^(Dr\.|Ms\.|Mr\.)\s*/, "")))}</span><div class="min0 grow"><b>${esc(who.name)}</b><span class="xs">Assistant Proctor · ${esc(who.about)}</span>${contact({ ...who, phone: "" })}</div></div>`
+      ${who ? `<div class="of-p">${avatar(who.name, who.photo || photoFor(who.name), "")}<div class="min0 grow"><b>${esc(who.name)}</b><span class="xs">Assistant Proctor · ${esc(who.about)}</span>${contact({ ...who, phone: "" })}</div></div>`
         : `<p class="small">${d ? "Today the Proctor's Office covers duty (proxy)." : `No assistant proctor is rostered on ${DAYS[new Date().getDay()]}.`} For an emergency contact the Proctor's Office${proctor ? `: ${esc(proctor.name)}` : ""}.</p>${proctor ? contact(proctor) : ""}`}
       ${data.duty.length ? `<details class="mt-s"><summary class="xs lnk">Whole week's roster</summary><ul class="of-week">${data.duty.map((x) => `<li${x.day === new Date().getDay() ? ' class="on"' : ""}><b>${DAYS[x.day].slice(0, 3)}</b><span class="min0">${esc(/proxy/i.test(x.name) ? "Proctor's Office (proxy)" : x.name)}</span><span class="xs num">Rm ${esc(x.room)}</span></li>`).join("")}</ul></details>` : ""}</section>`;
   };

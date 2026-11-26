@@ -26,6 +26,15 @@ a.of-chip:hover { background: var(--primary-l); color: var(--primary); }
 .of-week li.on { background: var(--warning-s); }
 @media (max-width: 560px) { .of-chip { min-height: 40px; } }
 
+/* "Whose office this is" under a searched room on the campus map. */
+.rm-occ { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; display: grid; gap: 4px; }
+.rm-occ > b { color: var(--text-3); display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+.rm-occ-p { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r12); color: inherit; text-decoration: none; min-height: 52px; }
+.rm-occ-p:hover { background: var(--surface-2); }
+.rm-occ-p b { display: block; }
+.rm-occ-p .xs { display: block; color: var(--text-3); }
+.rm-occ-p .chev { color: var(--text-3); margin-left: auto; }
+
 /* ── Curriculum plans ───────────────────────────────────── */
 .cu-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
 .cu-stats > div { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r12); padding: 10px 12px; min-width: 0; }

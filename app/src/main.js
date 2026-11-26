@@ -188,7 +188,7 @@ const loadDirectory = () => (dirP = dirP || Promise.all([
   }
   C.facultySem = list.sem || "";
   C.listFaculty = [...byInit.values()].map((t) => ({ init: t.init, dept: [...t.depts][0] || "", courses: [...t.courses] }));
-  C.directory = [...map.values()]; facCache = null; if (["faculty", "prof", "home"].includes(currentRoute)) rerender();
+  C.directory = [...map.values()]; facCache = null; if (["faculty", "prof", "home", "map"].includes(currentRoute)) rerender();
 }));
 // A faculty photo that fails to load falls back to the initials underneath it.
 addEventListener("error", (e) => { const t = e.target; if (t.tagName === "IMG" && t.closest(".face")) t.remove(); }, true);
@@ -618,13 +618,18 @@ function facultyIndex() {
   if (S.demo) DEMO.faculty.forEach((f) => map.set(f.init, { ...f, source: "demo" }));
   (C.faculty || []).forEach((f) => map.set(f.init, { ...map.get(f.init), ...f, source: "cloud" }));
   Object.values(S.faculty).forEach((f) => { const p = map.get(f.init) || {}; map.set(f.init, { ...f, ...Object.fromEntries(Object.entries(p).filter(([, v]) => v)), source: p.source || "mine" }); });
-  // Official profiles: matched to a known initial by work email, otherwise keyed by their profile slug ("@HOSNEY.JAHAN").
+  // Official profiles: matched to a known initial by work email or full name (the synced schedule gives a teacher's
+  // name, the directory gives the photo), otherwise keyed by their profile slug ("@HOSNEY.JAHAN").
   const byEmail = new Map([...map.values()].filter((f) => f.email).map((f) => [f.email.toLowerCase(), f.init]));
+  // Drop titles and the common "Md" prefix so "Dr. Md. Kamrul Hasan" and "Kamrul Hasan" match; require the rest to be equal.
+  const normName = (s) => String(s || "").toLowerCase().replace(/[.,]/g, " ").replace(/\b(dr|mr|mrs|ms|prof|professor|engr|md)\b/g, " ").replace(/\s+/g, " ").trim();
+  const byName = new Map();
+  for (const f of map.values()) { const n = normName(f.name); if (n && f.init && !f.init.startsWith("@") && !byName.has(n)) byName.set(n, f.init); }
   const ov = new Map(content.data.faculty.map((o) => [o.slug, o]));
   (C.directory || []).forEach((d0) => {
     const o = ov.get(d0.url.split("/").pop()); if (o?.hidden) return;
     const d = o ? { ...d0, room: o.room || d0.room } : d0;
-    const k = (o?.init && map.has(o.init) ? o.init : null) || (d.email && byEmail.get(d.email)) || (o?.init || "@" + d.url.split("/").pop().toUpperCase()), p = map.get(k) || {};
+    const k = (o?.init && map.has(o.init) ? o.init : null) || (d.email && byEmail.get(d.email)) || byName.get(normName(d.name)) || (o?.init || "@" + d.url.split("/").pop().toUpperCase()), p = map.get(k) || {};
     map.set(k, { ...p, init: k, name: d.name, dept: d.dept, deptName: d.deptName, designation: d.designation, email: d.email || p.email, room: d.room ? `Room ${d.room}` : p.room, roomCode: d.room, ext: d.ext, photo: d.photo, degree: d.degree, bio: d.bio, url: d.url, official: true, source: p.source || "official" });
   });
   // Teachers in the newest offered-course list (by initial): marked as teaching that semester, with their courses.

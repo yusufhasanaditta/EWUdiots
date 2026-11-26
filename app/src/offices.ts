@@ -4,7 +4,7 @@
 
 /** An office: its ewubd.edu page, its name on the campus map, why a student goes there, and (in offices.json) its people. */
 export interface Office { path: string; name: string; map: string; help: string; group: string; dept?: string }
-export interface Person { name: string; roles: string[]; ext: string; room: string; email: string; phone: string }
+export interface Person { name: string; roles: string[]; ext: string; room: string; email: string; phone: string; photo: string }
 export interface OfficeData extends Office { people: Person[] }
 export interface Duty { day: number; name: string; about: string; ext: string; room: string; email: string }
 
@@ -39,13 +39,20 @@ const FIELD = /^(Ext|Extension|Room|Room No|Email|E-mail|Phone|Cell|Mobile|Tel|T
 
 /* An admin-office page → [{ name, roles: [lines], ext, room, email, phone }]. The people sit between the
    "Home/Office/…" breadcrumb and the "Admin Office" side menu; each person's block ends with its contact lines. */
+// A real staff photo on these pages lives under storage/app/media; skip logos, icons and theme art.
+const photoOf = (tag: string): string => { const m = tag.match(/src\s*=\s*["']([^"']+)["']/i); const u = m ? m[1] : ""; return /storage\/app\/media/i.test(u) && !/logo|icon|banner|\/themes\//i.test(u) ? u.replace(/&amp;/g, "&") : ""; };
+
 export function parseOfficePage(html: string): Person[] {
-  const lines = String(html).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<!--[\s\S]*?-->/g, "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "\n")
+  // Keep each <img> as a marker so a person can be paired with the photo just above their name, then drop other tags.
+  const lines = String(html).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<!--[\s\S]*?-->/g, "")
+    .replace(/<img\b[^>]*>/gi, (t) => { const p = photoOf(t); return p ? `\n\u0001${p}\n` : "\n"; })
+    .replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "\n")
     .split("\n").map(clean).filter((x) => x && x !== "/" && x !== "-->" && x !== "--" && x !== "-");
   const a = lines.findIndex((x) => /^Home\s*\/\s*Office\s*\//i.test(x)), b = lines.findIndex((x, i) => i > a && /^Admin Office$/i.test(x));
   if (a < 0) return [];
-  const out: Person[] = []; let cur: Person | null = null, contact = false;
+  const out: Person[] = []; let cur: Person | null = null, contact = false, pendingPhoto = "";
   for (const l of lines.slice(a + 1, b < 0 ? undefined : b)) {
+    if (l[0] === "\u0001") { pendingPhoto = l.slice(1); continue; } // a staff photo; belongs to the next person
     const f = l.match(FIELD);
     if (f) {
       if (!cur) continue;
@@ -57,7 +64,7 @@ export function parseOfficePage(html: string): Person[] {
       else cur.phone = v;
       continue;
     }
-    if (!cur || contact) { cur = { name: l, roles: [], ext: "", room: "", email: "", phone: "" }; out.push(cur); contact = false; }
+    if (!cur || contact) { cur = { name: l, roles: [], ext: "", room: "", email: "", phone: "", photo: pendingPhoto }; pendingPhoto = ""; out.push(cur); contact = false; }
     else if (cur.roles.length < 4) cur.roles.push(l);
   }
   return out.filter((p) => p.name.length < 80 && (p.ext || p.room || p.email || p.phone || p.roles.length));

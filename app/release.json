@@ -1,7 +1,9 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Advising Planner: one tap builds every clash-free routine from your degree plan for that semester"
+    "Offices & Officers now show each officer and worker’s photo",
+    "Faculty photos: your synced teachers now match their official EWU profile picture",
+    "Campus map: search a room to see whose office it is, with a tap through to their profile"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

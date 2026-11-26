@@ -4,15 +4,16 @@ import assert from "node:assert/strict";
 import { parseOfficePage, parseDuty, searchOffices, onDuty } from "../src/offices.ts";
 
 const page = `<nav>Home</nav><h2>Office of the Test</h2><p>Home/Office/Office of the Test</p>
-  <div><h4>Dr. Test Person</h4><p>Proctor, EWU</p><p>Associate Professor</p><p>/</p><!-- x --><p>Ext: 999</p><p>Room No: 123</p><p>Email: Test@ewubd.edu</p></div>
-  <div><h4>Sample Officer</h4><p>Senior Departmental Officer &amp; Helper</p><p>-->Ext: 111</p><p>Email: sample@ewubd.edu</p></div>
+  <div><img src="https://www.ewubd.edu/storage/app/media/officials/Test-Person.jpg"><h4>Dr. Test Person</h4><p>Proctor, EWU</p><p>Associate Professor</p><p>/</p><!-- x --><p>Ext: 999</p><p>Room No: 123</p><p>Email: Test@ewubd.edu</p></div>
+  <div><img src="/themes/east-west-university/assets/logo.png"><h4>Sample Officer</h4><p>Senior Departmental Officer &amp; Helper</p><p>-->Ext: 111</p><p>Email: sample@ewubd.edu</p></div>
   <aside><p>Admin Office</p><p>Office of The Registrar</p><p>Ext: 1</p></aside>`;
 
 test("an office page lists each person with role, extension, room and email", () => {
   const p = parseOfficePage(page);
   assert.equal(p.length, 2);
-  assert.deepEqual(p[0], { name: "Dr. Test Person", roles: ["Proctor, EWU", "Associate Professor"], ext: "999", room: "123", email: "test@ewubd.edu", phone: "" });
+  assert.deepEqual(p[0], { name: "Dr. Test Person", roles: ["Proctor, EWU", "Associate Professor"], ext: "999", room: "123", email: "test@ewubd.edu", phone: "", photo: "https://www.ewubd.edu/storage/app/media/officials/Test-Person.jpg" });
   assert.equal(p[1].roles[0], "Senior Departmental Officer & Helper");
+  assert.equal(p[1].photo, ""); // a logo/theme image is not a staff photo
   assert.equal(p[1].room, "");
   assert.deepEqual(parseOfficePage("<p>nothing here</p>"), []);
 });
@@ -31,7 +32,7 @@ test("the proctor duty roster reads each weekday", () => {
 });
 
 test("search finds offices by purpose and people by name or room", () => {
-  const P = (name: string, room: string, roles: string[] = []) => ({ name, roles, room, email: "", ext: "", phone: "" });
+  const P = (name: string, room: string, roles: string[] = []) => ({ name, roles, room, email: "", ext: "", phone: "", photo: "" });
   const O = { path: "", group: "student" };
   const offices = [{ ...O, name: "Proctor's Office", help: "Lost ID cards and discipline", map: "", people: [P("Dr. Test Person", "123", ["Proctor"]), P("Other", "9")] },
     { ...O, name: "Registrar's Office", help: "Transcripts", map: "", people: [P("Sample Officer", "456")] }];

@@ -72,7 +72,20 @@ export function install(ctx) {
       ${room ? `<div class="row mt-s" style="gap:6px">${confPill(room.conf)}<span class="xs grow">${esc(room.source || "")}</span></div>` : ""}
       <ol class="steps-nav">${r.steps.map((s) => `<li><span class="sn-ic">${icon(s.ic === "up" ? "up" : s.ic, "sm")}</span><span class="grow">${esc(s.text)}</span>${s.s ? `<span class="xs">${s.s < 60 ? s.s + " s" : Math.round(s.s / 60) + " min"}</span>` : ""}</li>`).join("")}</ol>
       <div class="row mt">${has3d() ? `<button class="btn primary grow" id="cm-tour">${icon("play")} Guided 3D walk</button>` : ""}<button class="btn outline grow" id="cm-share">${icon("share")} Share</button><button class="btn ghost" id="cm-clear" aria-label="Clear route">${icon("x")}</button></div>
-      ${room && room.conf !== "verified" && room.conf !== "user" ? `<button class="lnk mt-s" id="cm-fix">${icon("edit", "sm")} Know where ${esc(room.code)} really is? Fix it</button>` : ""}</section>`;
+      ${room && room.conf !== "verified" && room.conf !== "user" ? `<button class="lnk mt-s" id="cm-fix">${icon("edit", "sm")} Know where ${esc(room.code)} really is? Fix it</button>` : ""}
+      ${room ? roomPeople(room.code) : ""}</section>`;
+  }
+  // Faculty and office staff whose office is this room (matched on the room number), so a room search also finds the person.
+  const roomNum = (s) => (String(s || "").match(/\d{3,4}/) || [""])[0];
+  function roomPeople(code) {
+    const n = roomNum(code); if (!n) return "";
+    if (ctx.C.directory === null) ctx.loadDirectory(); // so a room search loads faculty offices too
+    const fac = [...ctx.facultyIndex().values()].filter((f) => f.official && f.photo && roomNum(f.roomCode) === n)
+      .map((f) => ({ name: f.name, sub: f.designation || f.deptName || "Faculty", photo: f.photo, go: `#/prof?i=${encodeURIComponent(f.init)}` }));
+    const staff = (ctx.officeStaff ? ctx.officeStaff() : []).filter((p) => roomNum(p.room) === n)
+      .map((p) => ({ name: p.name, sub: p.office, photo: p.photo, go: `#/offices?q=${encodeURIComponent(p.name)}` }));
+    const seen = new Set(), all = [...fac, ...staff].filter((x) => { const k = x.name.toLowerCase(); return seen.has(k) ? false : seen.add(k); }).slice(0, 8);
+    return all.length ? `<div class="rm-occ"><b class="xs">${icon("users", "sm")} Whose office this is</b>${all.map((x) => `<a class="rm-occ-p" href="${x.go}"><span class="avatar face sm" style="background:${ctx.colorFor(x.name)}">${esc(ctx.initials(x.name))}${x.photo ? `<img src="${esc(x.photo)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</span><span class="min0 grow"><b>${esc(x.name)}</b><span class="xs">${esc(x.sub || "")}</span></span>${icon("chevR", "chev")}</a>`).join("")}</div>` : "";
   }
   function blockPanel() {
     const b = blockById(V.focus); if (!b) return "";
