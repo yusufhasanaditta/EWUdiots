@@ -89,6 +89,36 @@ export async function sendQuickMessage(body) { need(); return ok(await sb.from("
 // Staff side: every student's quick-message thread (newest activity first), and a staff reply into one thread.
 export async function quickThreads() { if (!sb) return []; await sb.rpc("purge_quick_messages").catch(() => {}); return ok(await sb.from("quick_messages").select("id, user_id, from_staff, body, created_at").order("created_at", { ascending: false }).limit(500)) || []; }
 export async function replyQuick(userId, body) { need(); return ok(await sb.from("quick_messages").insert({ user_id: userId, from_staff: true, body: String(body).trim() }).select("id, user_id, from_staff, body, created_at").single()); }
+
+/* Course groups: one chat per course section per semester. syncCourseGroups adds the student to the groups for the
+   sections in their routine and removes them from this semester's groups they no longer take (dropped/withdrawn). */
+export async function syncCourseGroups(routine = [], semester = "") {
+  if (!sb || !semester) return;
+  const { data: { user } = {} } = await sb.auth.getUser();
+  if (!user) return;
+  const want = [...new Map(routine.filter((r) => r.code).map((r) => [`${r.code}|${r.sec || ""}`, { code: String(r.code).toUpperCase(), section: String(r.sec || "") }])).values()];
+  const keep = [];
+  for (const w of want) {
+    await sb.from("course_groups").upsert({ code: w.code, section: w.section, semester }, { onConflict: "code,section,semester", ignoreDuplicates: true });
+    const g = await sb.from("course_groups").select("id").eq("code", w.code).eq("section", w.section).eq("semester", semester).maybeSingle();
+    if (g.data) { keep.push(g.data.id); await sb.from("course_group_members").upsert({ group_id: g.data.id }, { onConflict: "group_id,user_id", ignoreDuplicates: true }); }
+  }
+  // Leave this semester's groups that are no longer in the routine (delete only removes my own rows, by RLS).
+  const mine = await sb.from("course_group_members").select("group_id, course_groups!inner(semester)").eq("course_groups.semester", semester);
+  const stale = (mine.data || []).map((m) => m.group_id).filter((id) => !keep.includes(id));
+  if (stale.length) await sb.from("course_group_members").delete().in("group_id", stale);
+}
+export async function courseGroup(code, section, semester) {
+  if (!sb) return null;
+  const g = await sb.from("course_groups").select("id").eq("code", String(code).toUpperCase()).eq("section", String(section || "")).eq("semester", semester).maybeSingle();
+  if (g.error || !g.data) return null;
+  const [count, msgs] = await Promise.all([
+    sb.from("course_group_members").select("user_id", { count: "exact", head: true }).eq("group_id", g.data.id),
+    sb.from("course_group_messages").select("id, user_id, body, created_at").eq("group_id", g.data.id).order("created_at", { ascending: true }).limit(200),
+  ]);
+  return { id: g.data.id, members: count.count || 0, messages: msgs.data || [] };
+}
+export async function sendCourseGroupMessage(groupId, body) { need(); return ok(await sb.from("course_group_messages").insert({ group_id: groupId, body: String(body).trim() }).select("id, user_id, body, created_at").single()); }
 export async function sendFeedback(kind, body, version) { need(); ok(await sb.from("feedback").insert({ kind, body: body.trim(), app_version: version })); }
 
 export async function currentUser() { if (!sb) return null; const { data } = await sb.auth.getUser(); return data.user || null; }

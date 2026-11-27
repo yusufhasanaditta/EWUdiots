@@ -250,6 +250,8 @@ export function install(ctx) {
     if (ctx.C.user) {
       ctx.cloud.contribute({ semester: St.routineSem, rows: p.routine, faculty: p.faculty }).catch(() => {});
       if (p.offered.length) ctx.cloud.contribute({ semester: St.planner.offeredSem, rows: p.offered }).catch(() => {});
+      // Keep the student's course-section groups in step with the freshly synced routine.
+      ctx.cloud.syncCourseGroups(St.routine, St.routineSem).catch(() => {});
     }
   }
 

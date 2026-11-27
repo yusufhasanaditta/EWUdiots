@@ -829,7 +829,8 @@ function onSignedIn(user) {
   const first = !C.user;
   C.user = user; C.faculty = null; C.sections = null; C.vault = null;
   if (!first) return signInDone;
-  return (signInDone = restoreOrBackup(user));
+  // Once this device's data is restored, line up the student's course-section groups with their routine.
+  return (signInDone = restoreOrBackup(user).then((r) => { cloud.syncCourseGroups(S.routine, S.routineSem).catch(() => {}); return r; }));
 }
 // Messages the team sent to everyone or to you (admin panel → Messages to users).
 async function loadMessages() {

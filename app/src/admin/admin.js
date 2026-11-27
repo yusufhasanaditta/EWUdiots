@@ -32,7 +32,7 @@ const ALL_SECTIONS = [
   ["posts", "Posts & announcements", "megaphone", "Content", "posts.write"], ["feed", "News & notices feed", "globe", "Content", "news.edit"], ["website", "Website & theme", "layers", "Content", "site.edit"],
   ["media", "Media library", "image", "Content", "media.write"], ["messages", "Messages to users", "mail", "Content", "messages.send"], ["banner", "Home banner", "bell", "Content", "site.edit"], ["features", "Features & maintenance", "sliders", "Content", "features.edit"],
   ["users", "Users", "user", "People", "users.view"], ["alumni", "Alumni waiting", "community", "People", "alumni.review"], ["alumdb", "All alumni & import", "cap", "People", "alumni.review"], ["faculty", "Faculty listings", "users", "People", "faculty.edit"],
-  ["events", "Events", "calendar", "Community", "events.review"], ["clubs", "Clubs", "community", "Community", "clubs.verify"], ["support", "Help desk", "chat", "Community", "support.manage"], ["quickmsg", "Quick messages", "send", "Community", "support.manage"], ["feedback", "Feedback inbox", "help", "Community", "feedback.handle"], ["library", "Study Library", "books", "Community", "reports.handle"], ["reports", "Reports", "flag", "Community", "reports.handle"], ["rooms", "Campus rooms", "map", "Campus", "rooms.edit"],
+  ["events", "Events", "calendar", "Community", "events.review"], ["clubs", "Clubs", "community", "Community", "clubs.verify"], ["coursegroups", "Class groups", "community", "Community", "support.manage"], ["support", "Help desk", "chat", "Community", "support.manage"], ["quickmsg", "Quick messages", "send", "Community", "support.manage"], ["feedback", "Feedback inbox", "help", "Community", "feedback.handle"], ["library", "Study Library", "books", "Community", "reports.handle"], ["reports", "Reports", "flag", "Community", "reports.handle"], ["rooms", "Campus rooms", "map", "Campus", "rooms.edit"],
   ["security", "Security centre", "lock", "System", "security.view"], ["jobs", "Scheduled jobs", "zap", "System", "jobs.run"], ["history", "Change history", "clock", "System"],
   ["roles", "Roles & permissions", "shield", "System"], ["admins", "Admins", "crown", "System"], ["activity", "Activity log", "list", "System"]
 ];
@@ -459,6 +459,21 @@ const VIEWS = {
       openModal("Student replies", replies.length ? `<div class="stack">${replies.map((r) => `<div class="card tight"><p>${esc(r.body)}</p><span class="xs muted">${ago(r.created_at)}</span></div>`).join("")}</div>` : '<p class="small muted">No replies yet.</p>');
     }));
     $$("[data-md]", el).forEach((b) => b.addEventListener("click", () => confirmAct("Delete this message?", "It disappears from everyone's notifications, with its replies.", "Delete", async () => { await act("Deleted message", b.dataset.md, () => api.remove("user_messages", { id: Number(b.dataset.md) || b.dataset.md })); VIEWS.messages(el); })));
+  },
+
+  async coursegroups(el) {
+    const groups = await api.list("course_groups", { order: "created_at", asc: false, limit: 500 }).catch(() => []);
+    const members = await api.list("course_group_members", { order: "joined_at", asc: false, limit: 5000 }).catch(() => []);
+    const byGroup = new Map(); for (const m of members) { if (!byGroup.has(m.group_id)) byGroup.set(m.group_id, []); byGroup.get(m.group_id).push(m); }
+    el.innerHTML = `<p class="xs muted">One chat per course section. Students join on portal sync and leave when they drop a course; remove anyone here.</p>
+      <section class="card mt tight">${groups.length ? groups.map((g) => `<div class="lrow"><span class="itile sm purple">${icon("community")}</span><span class="body"><b>${esc(g.code)}${g.section ? ` · Sec ${esc(g.section)}` : ""}</b><span>${esc(g.semester)} · ${(byGroup.get(g.id) || []).length} members</span></span><button class="btn sm ghost" data-cgv="${g.id}">Members</button><button class="btn sm ghost" data-cgd="${g.id}" aria-label="Delete group">${icon("trash")}</button></div>`).join("") : '<p class="small muted">No class groups yet.</p>'}</section>`;
+    $$("[data-cgd]", el).forEach((b) => b.addEventListener("click", () => confirmAct("Delete this class group?", "The group and all its messages are removed for everyone.", "Delete", async () => { await act("Deleted class group", b.dataset.cgd, () => api.remove("course_groups", { id: Number(b.dataset.cgd) })); VIEWS.coursegroups(el); })));
+    $$("[data-cgv]", el).forEach((b) => b.addEventListener("click", () => {
+      const list = byGroup.get(Number(b.dataset.cgv)) || [];
+      openModal("Members", list.length ? `<div class="stack">${list.map((m) => `<div class="lrow"><span class="itile sm purple">${icon("user")}</span><span class="body"><b>Student ${esc(String(m.user_id).slice(0, 8))}</b><span>joined ${ago(m.joined_at)}</span></span><button class="btn sm ghost" data-rm="${esc(m.user_id)}">Remove</button></div>`).join("")}</div>` : '<p class="small muted">No members.</p>', (mo) => {
+        $$("[data-rm]", mo).forEach((x) => x.addEventListener("click", async () => { await act("Removed from class group", x.dataset.rm.slice(0, 8), () => api.remove("course_group_members", { group_id: Number(b.dataset.cgv), user_id: x.dataset.rm })); closeModal(); VIEWS.coursegroups(el); }));
+      });
+    }));
   },
 
   async quickmsg(el) {

@@ -672,6 +672,13 @@ export function install(ctx) {
     else if (chTab === "outline") body = outline.panel(code, c);
     else if (chTab === "notes") body = `<section class="card stack"><div class="card-h" style="margin:0"><h2>${icon("edit")} Notes</h2><span class="xs" id="ch-saved">Saved on this device</span></div>
       <textarea class="input" id="ch-notes" rows="14" placeholder="Class notes, formulas, what the faculty said will be on the exam…" aria-label="Notes for ${esc(code)}">${esc(st().notes[code] || "")}</textarea></section>`;
+    else if (chTab === "group") body = ctx.C.user
+      ? `<section class="card"><div class="card-h"><h2>${icon("community")} Class group</h2><span class="xs" id="cg-count">Loading…</span></div>
+          <p class="xs muted">Everyone in ${esc(code)}${c.sec ? ` Section ${esc(c.sec)}` : ""} this semester. You're added when you sync the portal, and removed if you drop the course.</p>
+          <div class="msg-replies mt" id="cg-list"><div class="skel" style="height:80px"></div></div>
+          <form id="cg-form" class="mt"><label class="sr-only" for="cg-text">Message your class</label><textarea class="input" id="cg-text" rows="2" maxlength="4000" placeholder="Message your classmates…" required></textarea>
+          <button class="btn primary block mt" type="submit">${icon("send")} Send</button></form></section>`
+      : `<div class="card">${ctx.empty("icon:community", "Sign in to join your class group", "Your class group is shared with everyone taking this course section.", `<a class="btn primary" href="#/login?from=profile">${icon("user")} Sign in</a>`)}</div>`;
     else body = `${ctx.materials.panel(code, { faculty: c.faculty, sec: c.sec, sem })}
       <h3 class="mat-h">Your own links</h3><section class="card stack">
       ${links.map((l, i) => `<div class="lrow"><span class="itile sm green">${icon("link")}</span><a class="body" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener noreferrer"><b>${esc(l.title)}</b><span>${esc(l.url)}</span></a><button class="btn sm icon-only ghost" data-ldel="${i}" aria-label="Remove link">${icon("trash")}</button></div>`).join("") || '<p class="small muted">Add Google Classroom, a Drive folder, the course outline, a YouTube playlist…</p>'}
@@ -679,7 +686,7 @@ export function install(ctx) {
       <a class="btn outline" href="#/vault?q=${encodeURIComponent(code)}">${icon("vault")} Find ${esc(code)} notes in the Study Library</a></section>`;
     return `${ctx.subHead(esc(code), esc(c.title || ""), "#/courses", f?.email ? `<a class="icon-btn" href="mailto:${esc(f.email)}?subject=${encodeURIComponent(code + " Section " + (c.sec || ""))}" aria-label="Email faculty">${icon("mail")}</a>` : "")}
       <div style="max-width:900px;margin:0 auto"><section class="course-hero"><h1>${esc(code)}</h1><p>${esc(c.title || "")}</p><div class="row">${c.sec ? `<span>${icon("users", "sm")} Section ${esc(c.sec)}</span>` : ""}<span>${icon("calendar", "sm")} ${esc(sem || "")}</span>${f ? `<a href="#/prof?i=${encodeURIComponent(f.init)}" style="color:#fff">${icon("user", "sm")} ${esc(f.name || f.init)}</a>` : ""}</div></section>
-      <div class="mt">${ctx.seg([["overview", "Overview"], ["outline", "Outline"], ["materials", "Materials"], ...(c.past ? [] : [["marks", "Marks"]]), ["attendance", "Attendance"], ["notes", "Notes"]], chTab, "data-cht")}</div><div class="mt">${body}</div></div>`;
+      <div class="mt">${ctx.seg([["overview", "Overview"], ["outline", "Outline"], ["materials", "Materials"], ...(c.past ? [] : [["marks", "Marks"], ["group", "Group"]]), ["attendance", "Attendance"], ["notes", "Notes"]], chTab, "data-cht")}</div><div class="mt">${body}</div></div>`;
   };
   pages.course.mount = (el) => {
     const code = (ctx.qparam("c") || "").toUpperCase();
@@ -689,10 +696,29 @@ export function install(ctx) {
     let t; on("#ch-notes", "input", (e) => { clearTimeout(t); $("#ch-saved", el).textContent = "Saving…"; t = setTimeout(() => { st().notes[code] = e.target.value.slice(0, 20000); ctx.save(); checkBadges(); $("#ch-saved", el).textContent = "Saved on this device"; }, 600); });
     on("#ch-link", "submit", (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); if (!safeUrl(f.url)) return toast("Use a full link starting with https://", "error"); (st().links[code] = st().links[code] || []).push({ title: f.title.slice(0, 60), url: f.url }); ctx.save(); ctx.rerender(); });
     $$("[data-ldel]", el).forEach((b) => b.addEventListener("click", () => { st().links[code].splice(Number(b.dataset.ldel), 1); ctx.save(); ctx.rerender(); }));
+    if (chTab === "group" && ctx.C.user) mountGroup(el, code);
     if (chTab === "attendance") ctx.attendance.mount(el, code);
     if (chTab === "outline") outline.mount(el, code, myCourses().find((x) => x.code === code) || pastCourse(code));
     if (chTab === "materials") { const c = myCourses().find((x) => x.code === code) || pastCourse(code); if (c) ctx.materials.mountPanel(el, code, { faculty: c.faculty, sec: c.sec, sem: c.past ? c.sem : S().routineSem }); }
   };
+  // The class group tab: reconcile membership, then load the member count and messages, and wire sending.
+  async function mountGroup(el, code) {
+    const c = myCourses().find((x) => x.code === code); if (!c) return;
+    const sem = S().routineSem, uid = ctx.C.user?.id;
+    await ctx.cloud.syncCourseGroups(S().routine, sem).catch(() => {});
+    const g = await ctx.cloud.courseGroup(code, c.sec, sem).catch(() => null);
+    const list = $("#cg-list", el), count = $("#cg-count", el);
+    if (!g) { if (list) list.innerHTML = `<p class="xs muted">Your class group will appear after your next portal sync.</p>`; if (count) count.textContent = ""; return; }
+    const render = (msgs) => msgs.length ? msgs.map((m) => `<div class="msg-reply ${m.user_id === uid ? "mine" : "staff"}"><b class="xs">${m.user_id === uid ? "You" : "Classmate"}</b><p>${esc(m.body)}</p></div>`).join("") : `<p class="xs muted">No messages yet. Say hi to your class.</p>`;
+    if (count) count.textContent = `${g.members} member${g.members === 1 ? "" : "s"}`;
+    if (list) { list.innerHTML = render(g.messages); list.scrollTop = list.scrollHeight; }
+    $("#cg-form", el)?.addEventListener("submit", async (e) => {
+      e.preventDefault(); const t = $("#cg-text", el), body = t.value.trim(); if (!body) return;
+      const btn = e.target.querySelector("button"); ctx.busy(btn, true, "Sending…");
+      try { const row = await ctx.cloud.sendCourseGroupMessage(g.id, body); t.value = ""; ctx.busy(btn, false); g.messages.push(row); list.innerHTML = render(g.messages); list.scrollTop = list.scrollHeight; }
+      catch (x) { ctx.busy(btn, false); toast("Couldn't send", "error", x.message || "Try again in a moment."); }
+    });
+  }
 
   /* ───────── Achievements + semester card ───────── */
   let allBadges = false;

@@ -1,7 +1,7 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "New: send the team a quick private message from Help — the chat clears itself after 5 days"
+    "New: each course section has a class group chat — you join on portal sync and leave when you drop the course"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"
