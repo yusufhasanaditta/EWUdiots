@@ -82,6 +82,13 @@ export async function fetchMessages() {
 // A student's reply to a notification that invited replies (RLS keeps it private to them and to staff).
 export async function sendMessageReply(messageId, body) { need(); return ok(await sb.from("message_replies").insert({ message_id: messageId, body: String(body).trim() }).select("id, body, created_at, user_id").single()); }
 export async function fetchReplies(messageId) { if (!sb) return []; const r = await sb.from("message_replies").select("id, body, created_at, user_id").eq("message_id", messageId).order("created_at"); return r.error ? [] : (r.data || []); }
+
+/* Quick messages: a student's private 5-day chat with the team. Reads prune anything older than 5 days first. */
+export async function quickMessages() { if (!sb) return []; await sb.rpc("purge_quick_messages").catch(() => {}); const r = await sb.from("quick_messages").select("id, from_staff, body, created_at").order("created_at"); return r.error ? [] : (r.data || []); }
+export async function sendQuickMessage(body) { need(); return ok(await sb.from("quick_messages").insert({ body: String(body).trim() }).select("id, from_staff, body, created_at").single()); }
+// Staff side: every student's quick-message thread (newest activity first), and a staff reply into one thread.
+export async function quickThreads() { if (!sb) return []; await sb.rpc("purge_quick_messages").catch(() => {}); return ok(await sb.from("quick_messages").select("id, user_id, from_staff, body, created_at").order("created_at", { ascending: false }).limit(500)) || []; }
+export async function replyQuick(userId, body) { need(); return ok(await sb.from("quick_messages").insert({ user_id: userId, from_staff: true, body: String(body).trim() }).select("id, user_id, from_staff, body, created_at").single()); }
 export async function sendFeedback(kind, body, version) { need(); ok(await sb.from("feedback").insert({ kind, body: body.trim(), app_version: version })); }
 
 export async function currentUser() { if (!sb) return null; const { data } = await sb.auth.getUser(); return data.user || null; }

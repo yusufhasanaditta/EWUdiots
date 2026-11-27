@@ -469,18 +469,38 @@ export function install(ctx) {
   pages.help = () => `${ctx.subHead("Help &amp; Support", "", "#/more")}<div style="max-width:760px;margin:0 auto">
     <section class="card">${FAQ.map(([q, a]) => `<details class="lrow" style="display:block"><summary style="font-weight:600;padding:4px 0">${esc(q)}</summary><p class="small muted" style="margin-top:8px">${esc(a)}</p></details>`).join("")}</section>
     ${ctx.C.user ? `<a class="card mt row nowrap hd-cta" href="#/club/help"><span class="itile purple">${icon("chat")}</span><div class="grow"><b>Chat with the EWUdiots team</b><p class="small muted">Start a conversation and get replies right here, with a notification when we answer.</p></div>${icon("chevR")}</a>` : ""}
+    ${ctx.C.user ? `<button class="card mt row nowrap hd-cta" id="qm-open" style="width:100%;text-align:left"><span class="itile orange">${icon("send")}</span><div class="grow"><b>Quick message to the team</b><p class="small muted">A short private note. This chat clears itself after 5 days.</p></div>${icon("chevR")}</button>` : ""}
     ${ctx.C.user ? `<form class="card mt stack" id="fb-form"><div class="row nowrap"><span class="itile purple">${icon("mail")}</span><div class="grow"><b>Send feedback</b><p class="small muted">Report a bug, ask a question or request a feature. The EWUdiots team reads every message.</p></div></div>
       <div class="seg" role="radiogroup">${[["idea", "Idea"], ["bug", "Bug"], ["question", "Question"], ["other", "Other"]].map(([v, l], i) => `<label class="seg-radio"><input type="radio" name="kind" value="${v}" ${i ? "" : "checked"}><span>${l}</span></label>`).join("")}</div>
       <label class="field"><span class="sr-only">Message</span><textarea class="input" name="body" rows="4" minlength="3" maxlength="4000" required placeholder="Tell us what happened or what you'd like…"></textarea></label>
       <button class="btn primary">${icon("arrow")} Send to the team</button></form>`
       : `<section class="card mt row nowrap"><span class="itile purple">${icon("mail")}</span><div class="grow"><b>Still need help?</b><p class="small muted">Sign in to send feedback in the app, or email us.</p></div><a class="btn primary sm" href="mailto:civicframe01@gmail.com?subject=EWUdiots%20feedback">Contact</a></section>`}</div>`;
-  pages.help.mount = (el) => $("#fb-form", el)?.addEventListener("submit", async (e) => {
-    e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), b = e.target.querySelector("button.primary");
-    if (String(f.body).trim().length < 3) return toast("Write a little more first", "warn");
-    busy(b, true, "Sending…");
-    try { await ctx.cloud.sendFeedback(f.kind, String(f.body), ctx.APP_VERSION); e.target.reset(); toast("Thanks! The team got your message", "success"); } catch (err) { toast(err.message, "error"); }
-    busy(b, false);
-  });
+  pages.help.mount = (el) => {
+    $("#fb-form", el)?.addEventListener("submit", async (e) => {
+      e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), b = e.target.querySelector("button.primary");
+      if (String(f.body).trim().length < 3) return toast("Write a little more first", "warn");
+      busy(b, true, "Sending…");
+      try { await ctx.cloud.sendFeedback(f.kind, String(f.body), ctx.APP_VERSION); e.target.reset(); toast("Thanks! The team got your message", "success"); } catch (err) { toast(err.message, "error"); }
+      busy(b, false);
+    });
+    $("#qm-open", el)?.addEventListener("click", openQuickChat);
+  };
+  // A short private chat with the team that keeps only the last 5 days (quick_messages).
+  async function openQuickChat() {
+    const msgs = await ctx.cloud.quickMessages();
+    const bubbles = (list) => list.length ? list.map((m) => `<div class="msg-reply ${m.from_staff ? "staff" : "mine"}"><b class="xs">${m.from_staff ? "EWUdiots team" : "You"}</b><p>${esc(m.body)}</p></div>`).join("") : `<p class="xs muted">No messages yet. Say hello — this chat clears after 5 days.</p>`;
+    openModal(ctx.modalHead("Quick message to the team") + `<div class="msg-replies" id="qm-list">${bubbles(msgs)}</div>
+      <form id="qm-form" class="mt"><label class="sr-only" for="qm-text">Message</label><textarea class="input" id="qm-text" rows="3" maxlength="2000" placeholder="Write a short message…" required></textarea>
+      <button class="btn primary block mt" type="submit">${icon("send")} Send</button><p class="xs muted mt-s">Private to you and the team. Messages are deleted 5 days after they're sent.</p></form>`, (m) => {
+      const f = $("#qm-form", m);
+      f?.addEventListener("submit", async (e) => {
+        e.preventDefault(); const t = $("#qm-text", m), body = t.value.trim(); if (!body) return;
+        const btn = f.querySelector("button"); busy(btn, true, "Sending…");
+        try { const row = await ctx.cloud.sendQuickMessage(body); t.value = ""; busy(btn, false); msgs.push(row); $("#qm-list", m).innerHTML = bubbles(msgs); }
+        catch (x) { busy(btn, false); toast("Couldn't send", "error", x.message || "Try again in a moment."); }
+      });
+    });
+  }
   pages.about = () => `${ctx.subHead("About EWUdiots", "", "#/more")}<div style="max-width:760px;margin:0 auto">
     <section class="card" style="text-align:center"><div class="ob-word" style="padding:8px 0"><span class="w" style="font-size:38px">EWU<i>diots</i></span><p>Your Uni Life, In One App</p><span class="unoff">Unofficial · not affiliated with EWU</span></div>
       <p class="small muted mt">Version ${ctx.APP_VERSION}. Made by EWU students, for EWU students. EWUdiots is not affiliated with, endorsed by or connected to East West University. Always confirm important information on the official portal.</p>

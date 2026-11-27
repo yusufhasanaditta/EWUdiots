@@ -32,7 +32,7 @@ const ALL_SECTIONS = [
   ["posts", "Posts & announcements", "megaphone", "Content", "posts.write"], ["feed", "News & notices feed", "globe", "Content", "news.edit"], ["website", "Website & theme", "layers", "Content", "site.edit"],
   ["media", "Media library", "image", "Content", "media.write"], ["messages", "Messages to users", "mail", "Content", "messages.send"], ["banner", "Home banner", "bell", "Content", "site.edit"], ["features", "Features & maintenance", "sliders", "Content", "features.edit"],
   ["users", "Users", "user", "People", "users.view"], ["alumni", "Alumni waiting", "community", "People", "alumni.review"], ["alumdb", "All alumni & import", "cap", "People", "alumni.review"], ["faculty", "Faculty listings", "users", "People", "faculty.edit"],
-  ["events", "Events", "calendar", "Community", "events.review"], ["clubs", "Clubs", "community", "Community", "clubs.verify"], ["support", "Help desk", "chat", "Community", "support.manage"], ["feedback", "Feedback inbox", "help", "Community", "feedback.handle"], ["library", "Study Library", "books", "Community", "reports.handle"], ["reports", "Reports", "flag", "Community", "reports.handle"], ["rooms", "Campus rooms", "map", "Campus", "rooms.edit"],
+  ["events", "Events", "calendar", "Community", "events.review"], ["clubs", "Clubs", "community", "Community", "clubs.verify"], ["support", "Help desk", "chat", "Community", "support.manage"], ["quickmsg", "Quick messages", "send", "Community", "support.manage"], ["feedback", "Feedback inbox", "help", "Community", "feedback.handle"], ["library", "Study Library", "books", "Community", "reports.handle"], ["reports", "Reports", "flag", "Community", "reports.handle"], ["rooms", "Campus rooms", "map", "Campus", "rooms.edit"],
   ["security", "Security centre", "lock", "System", "security.view"], ["jobs", "Scheduled jobs", "zap", "System", "jobs.run"], ["history", "Change history", "clock", "System"],
   ["roles", "Roles & permissions", "shield", "System"], ["admins", "Admins", "crown", "System"], ["activity", "Activity log", "list", "System"]
 ];
@@ -459,6 +459,24 @@ const VIEWS = {
       openModal("Student replies", replies.length ? `<div class="stack">${replies.map((r) => `<div class="card tight"><p>${esc(r.body)}</p><span class="xs muted">${ago(r.created_at)}</span></div>`).join("")}</div>` : '<p class="small muted">No replies yet.</p>');
     }));
     $$("[data-md]", el).forEach((b) => b.addEventListener("click", () => confirmAct("Delete this message?", "It disappears from everyone's notifications, with its replies.", "Delete", async () => { await act("Deleted message", b.dataset.md, () => api.remove("user_messages", { id: Number(b.dataset.md) || b.dataset.md })); VIEWS.messages(el); })));
+  },
+
+  async quickmsg(el) {
+    await api.rpc?.("purge_quick_messages").catch(() => {});
+    const rows = await api.list("quick_messages", { order: "created_at", asc: false, limit: 500 }).catch(() => []);
+    const byUser = new Map();
+    for (const r of rows) { if (!byUser.has(r.user_id)) byUser.set(r.user_id, []); byUser.get(r.user_id).push(r); } // newest-first per user
+    const threads = [...byUser.values()].map((list) => ({ uid: list[0].user_id, list: list.slice().reverse(), last: list[0] }));
+    el.innerHTML = `<p class="xs muted">Short private messages from students. Each thread clears 5 days after its last message.</p>
+      <section class="card mt tight">${threads.length ? threads.map((t) => `<button class="lrow" data-qt="${esc(t.uid)}"><span class="itile sm ${t.last.from_staff ? "purple" : "orange"}">${icon("send")}</span><span class="body"><b>Student ${esc(t.uid.slice(0, 8))}</b><span>${esc((t.last.body || "").slice(0, 80))} · ${ago(t.last.created_at)}</span></span>${icon("chevR", "chev")}</button>`).join("") : '<p class="small muted">No quick messages.</p>'}</section>`;
+    $$("[data-qt]", el).forEach((b) => b.addEventListener("click", () => {
+      const t = threads.find((x) => x.uid === b.dataset.qt);
+      openModal("Quick chat", `<div class="stack" id="qt-list">${t.list.map((m) => `<div class="card tight"><b class="xs">${m.from_staff ? "Team" : "Student"}</b><p>${esc(m.body)}</p><span class="xs muted">${ago(m.created_at)}</span></div>`).join("")}</div>
+        <form id="qt-form" class="mt"><label class="sr-only" for="qt-text">Reply</label><textarea class="input" id="qt-text" name="body" rows="2" maxlength="2000" required placeholder="Reply…"></textarea><button class="btn primary mt">${icon("send")} Reply</button></form>`, (m) => {
+        $("#qt-form", m).addEventListener("submit", async (e) => { e.preventDefault(); const body = String(new FormData(e.target).get("body") || "").trim(); if (!body) return; const btn = e.target.querySelector("button"); busy(btn, true);
+          try { await act("Replied to a student", t.uid.slice(0, 8), () => api.insert("quick_messages", { user_id: t.uid, from_staff: true, body })); closeModal(); toast("Reply sent"); VIEWS.quickmsg(el); } catch (err) { busy(btn, false); toast(err.message, "error"); } });
+      });
+    }));
   },
 
   async feedback(el) {

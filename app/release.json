@@ -1,7 +1,7 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "You can now reply privately when the EWUdiots team turns on replies for a notification"
+    "New: send the team a quick private message from Help — the chat clears itself after 5 days"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"
