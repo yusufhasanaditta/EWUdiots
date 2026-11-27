@@ -119,6 +119,10 @@ export async function courseGroup(code, section, semester) {
   return { id: g.data.id, members: count.count || 0, messages: msgs.data || [] };
 }
 export async function sendCourseGroupMessage(groupId, body) { need(); return ok(await sb.from("course_group_messages").insert({ group_id: groupId, body: String(body).trim() }).select("id, user_id, body, created_at").single()); }
+
+/* Web push subscriptions for this signed-in user's devices (the server sends to them with the service key). */
+export async function savePush({ endpoint, keys, kind }) { if (!sb) return; try { await sb.from("push_subscriptions").upsert({ endpoint, keys: keys || {}, kind: kind || "web" }, { onConflict: "user_id,endpoint" }); } catch { /* best effort */ } }
+export async function deletePush(endpoint) { if (!sb) return; await sb.from("push_subscriptions").delete().eq("endpoint", endpoint); }
 export async function sendFeedback(kind, body, version) { need(); ok(await sb.from("feedback").insert({ kind, body: body.trim(), app_version: version })); }
 
 export async function currentUser() { if (!sb) return null; const { data } = await sb.auth.getUser(); return data.user || null; }

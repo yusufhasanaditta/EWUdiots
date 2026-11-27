@@ -32,6 +32,7 @@ import { parsePortalText, mergeParsed, offeredToPlanner, currentSemester, normSe
 import { toPlanner, courseChanges } from "./offered.js";
 import { GRADES, NON_GPA, DAY_NAMES, WEEK, SLOTS, DEMO } from "./data.js";
 import * as cloud from "./cloud.js";
+import { subscribePush } from "./push.js";
 import * as native from "./native.js";
 import { icon } from "./icons.js";
 import { clearBlobs } from "./blobstore.js";
@@ -674,6 +675,7 @@ function markAttendance(code, kind) {
 async function enableNotifications() {
   const ok = await native.askNotifications();
   S.settings.notify = ok; save();
+  if (ok && C.user && !native.isNative) subscribePush((s) => cloud.savePush(s)); // background push on web / installed PWA
   toast(ok ? "Reminders on" : "Notifications are blocked", ok ? "success" : "warn", ok ? `Class alarms ${S.settings.alarms.offsets.map(fmtBefore).join(" and ")} before, deadlines 1 day and 1 hour before.` : "Allow notifications in your browser or phone settings.");
   return ok;
 }
@@ -829,8 +831,8 @@ function onSignedIn(user) {
   const first = !C.user;
   C.user = user; C.faculty = null; C.sections = null; C.vault = null;
   if (!first) return signInDone;
-  // Once this device's data is restored, line up the student's course-section groups with their routine.
-  return (signInDone = restoreOrBackup(user).then((r) => { cloud.syncCourseGroups(S.routine, S.routineSem).catch(() => {}); return r; }));
+  // Once this device's data is restored, line up course-section groups and (if allowed) register for push.
+  return (signInDone = restoreOrBackup(user).then((r) => { cloud.syncCourseGroups(S.routine, S.routineSem).catch(() => {}); if (S.settings.notify && !native.isNative) subscribePush((s) => cloud.savePush(s)); return r; }));
 }
 // Messages the team sent to everyone or to you (admin panel → Messages to users).
 async function loadMessages() {
@@ -1027,6 +1029,8 @@ setInterval(() => { if (document.visibilityState === "visible") pullNow(); }, 60
 native.onPause(() => { save({ silent: true }); if (C.user && S.updatedAt > (S.syncedAt || 0)) pushNow(); });
 addEventListener("online", () => pullNow());
 if ("serviceWorker" in navigator && !native.isNative && import.meta.env.PROD) navigator.serviceWorker.register("/sw.js").catch(() => { });
+// Tapping a background push opens the app; the service worker tells us which page to show.
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { const h = String(e.data?.nav || "").split("#")[1]; if (h) location.hash = "#" + h; });
 
 /* Tap ripple on buttons (v220.css .fx-ripple): starts where the finger lands. Skipped with "reduce motion". */
 document.addEventListener("pointerdown", (e) => {

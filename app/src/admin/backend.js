@@ -24,6 +24,8 @@ export function supabaseBackend(user) {
     async remove(table, match) { let q = sb.from(table).delete(); Object.entries(match).forEach(([k, v]) => { q = q.eq(k, v); }); const rows = ok(await q.select()); if (!rows?.length) throw new Error("Nothing was removed (no permission, or it's already gone)."); return rows; },
     async log(action, target = "") { await sb.from("admin_log").insert({ email: user.email, action, target: String(target).slice(0, 200) }); },
     async rpc(fn, args = {}) { return ok(await sb.rpc(fn, args)); },
+    // Fire a background push for a message (best-effort; needs VAPID env on the server). Uses the admin's own token.
+    async pushMessage(payload) { try { const { data } = await sb.auth.getSession(); const tok = data?.session?.access_token; if (!tok) return; await fetch("/api/push", { method: "POST", headers: { authorization: `Bearer ${tok}`, "content-type": "application/json" }, body: JSON.stringify(payload) }); } catch { /* push is best-effort */ } },
     async sendReset(email) { const { error } = await sb.auth.resetPasswordForEmail(email); if (error) throw new Error(error.message); },
     // Media library: public "media" bucket (only admins with media.write can write, enforced by storage policies).
     async upload(path, blob) { ok(await sb.storage.from("media").upload(path, blob, { contentType: blob.type, upsert: true })); return sb.storage.from("media").getPublicUrl(path).data.publicUrl; },
@@ -111,6 +113,7 @@ export function demoBackend() {
     async upsert(table, row) { const k = KEYS[table] || "id", i = db[table].findIndex((r) => r[k] === row[k]); if (i >= 0) { rev(table, db[table][i]); Object.assign(db[table][i], row); } else db[table].push({ created_at: now(), ...row }); persist(); return [structuredClone(row)]; },
     async remove(table, m) { db[table].filter((r) => match(r, m)).forEach((r) => rev(table, r)); db[table] = db[table].filter((r) => !match(r, m)); persist(); },
     async log(action, target = "") { db.admin_log.push({ id: db._id++, email: "you@demo", action, target, created_at: now() }); persist(); },
+    async pushMessage() { /* no-op in the demo sandbox */ },
     async rpc(fn, args = {}) {
       if (fn === "admin_users") return structuredClone(db.users.filter((u) => !args.q || (u.email + u.name).toLowerCase().includes(args.q.toLowerCase())));
       if (fn === "admin_set_suspended") { const u = db.users.find((x) => x.id === args.uid); if (u) u.suspended = args.suspend; persist(); return null; }

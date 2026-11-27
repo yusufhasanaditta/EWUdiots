@@ -559,7 +559,9 @@ function messageForm(to = null) {
     <label class="row small" style="gap:8px"><input type="checkbox" class="check" name="allow_reply"> Let students reply privately (only staff see replies)</label>
     <div class="row"><span class="grow xs">${to ? esc(to.email) : "Every signed-in user sees it."}</span><button class="btn primary">${icon("mail")} Send</button></div></form>`, (m) => {
     $("#mf", m).addEventListener("submit", async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), b = e.target.querySelector("button.primary"); busy(b, true);
-      try { await act(to ? "Messaged user" : "Messaged everyone", to ? to.email : f.title, () => api.insert("user_messages", { user_id: to ? to.id : null, title: f.title.trim(), body: f.body.trim(), link: f.link.trim(), allow_reply: !!f.allow_reply })); closeModal(); toast("Message sent"); if (tab === "messages") redraw(); }
+      try { await act(to ? "Messaged user" : "Messaged everyone", to ? to.email : f.title, () => api.insert("user_messages", { user_id: to ? to.id : null, title: f.title.trim(), body: f.body.trim(), link: f.link.trim(), allow_reply: !!f.allow_reply }));
+        api.pushMessage?.({ title: f.title.trim(), body: f.body.trim(), url: f.link.trim() || "#/notifications", user_id: to ? to.id : null }); // background push (best-effort)
+        closeModal(); toast("Message sent"); if (tab === "messages") redraw(); }
       catch (err) { busy(b, false); toast(err.message, "error"); } });
   });
 }
