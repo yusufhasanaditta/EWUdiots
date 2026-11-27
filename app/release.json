@@ -1,7 +1,7 @@
 {
   "_comment": "Shown in the update prompts. Edit before each release. minVersion: apps older than this must update before they continue (use for security fixes); leave it at an old version normally.",
   "notes": [
-    "Google Classroom now imports your teachers’ and TAs’ announcements as notices in each course"
+    "You can now reply privately when the EWUdiots team turns on replies for a notification"
   ],
   "minVersion": "2.12.0",
   "extension": "1.8.0"

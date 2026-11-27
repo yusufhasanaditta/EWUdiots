@@ -80,6 +80,14 @@ a.of-chip:hover { background: var(--primary-l); color: var(--primary); }
 .cu-moves { display: grid; gap: 8px; margin-top: 10px; }
 .cu-moves .btn { justify-content: space-between; min-height: 48px; }
 
+/* Reply thread on a repliable notification. */
+.msg-replies { display: grid; gap: 8px; max-height: 320px; overflow-y: auto; }
+.msg-reply { padding: 8px 12px; border-radius: var(--r12); background: var(--surface-2); }
+.msg-reply.mine { background: var(--primary-l); margin-left: 24px; }
+.msg-reply.staff { margin-right: 24px; }
+.msg-reply b { color: var(--text-3); display: block; margin-bottom: 2px; }
+.msg-reply p { margin: 0; }
+
 /* "Build routines from my plan" call-to-action in the planner. */
 .pl-plan-cta { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--r12); background: var(--primary-l); border: 1px solid var(--primary); }
 .pl-plan-cta b { display: flex; align-items: center; gap: 6px; color: var(--primary); }

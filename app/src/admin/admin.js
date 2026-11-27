@@ -452,9 +452,13 @@ const VIEWS = {
   async messages(el) {
     const rows = await api.list("user_messages", { limit: 100 });
     el.innerHTML = `<div class="row"><button class="btn primary" id="nm">${icon("plus")} New message</button><span class="grow"></span><span class="xs">Messages appear in each student's Notifications, on every device.</span></div>
-      <section class="card mt tight">${rows.length ? rows.map((r) => `<div class="lrow"><span class="itile sm ${r.user_id ? "blue" : "purple"}">${icon(r.user_id ? "user" : "megaphone")}</span><span class="body"><b>${esc(r.title)}</b><span>${r.user_id ? "To one user" : "To everyone"} · ${ago(r.created_at)}${r.body ? ` · ${esc(r.body.slice(0, 80))}` : ""}</span></span><button class="btn sm ghost" data-md="${r.id}" aria-label="Delete">${icon("trash")}</button></div>`).join("") : '<p class="small muted">No messages sent yet.</p>'}</section>`;
+      <section class="card mt tight">${rows.length ? rows.map((r) => `<div class="lrow"><span class="itile sm ${r.user_id ? "blue" : "purple"}">${icon(r.user_id ? "user" : "megaphone")}</span><span class="body"><b>${esc(r.title)}${r.allow_reply ? ` <span class="pill sm">${icon("chat", "sm")} replies on</span>` : ""}</b><span>${r.user_id ? "To one user" : "To everyone"} · ${ago(r.created_at)}${r.body ? ` · ${esc(r.body.slice(0, 80))}` : ""}</span></span>${r.allow_reply ? `<button class="btn sm ghost" data-mr="${r.id}">${icon("chat")} Replies</button>` : ""}<button class="btn sm ghost" data-md="${r.id}" aria-label="Delete">${icon("trash")}</button></div>`).join("") : '<p class="small muted">No messages sent yet.</p>'}</section>`;
     $("#nm", el).addEventListener("click", () => messageForm());
-    $$("[data-md]", el).forEach((b) => b.addEventListener("click", () => confirmAct("Delete this message?", "It disappears from everyone's notifications.", "Delete", async () => { await act("Deleted message", b.dataset.md, () => api.remove("user_messages", { id: Number(b.dataset.md) || b.dataset.md })); VIEWS.messages(el); })));
+    $$("[data-mr]", el).forEach((b) => b.addEventListener("click", async () => {
+      const replies = await api.list("message_replies", { eq: { message_id: Number(b.dataset.mr) || b.dataset.mr }, order: "created_at", asc: true, limit: 200 }).catch(() => []);
+      openModal("Student replies", replies.length ? `<div class="stack">${replies.map((r) => `<div class="card tight"><p>${esc(r.body)}</p><span class="xs muted">${ago(r.created_at)}</span></div>`).join("")}</div>` : '<p class="small muted">No replies yet.</p>');
+    }));
+    $$("[data-md]", el).forEach((b) => b.addEventListener("click", () => confirmAct("Delete this message?", "It disappears from everyone's notifications, with its replies.", "Delete", async () => { await act("Deleted message", b.dataset.md, () => api.remove("user_messages", { id: Number(b.dataset.md) || b.dataset.md })); VIEWS.messages(el); })));
   },
 
   async feedback(el) {
@@ -519,9 +523,10 @@ function messageForm(to = null) {
     <label class="field">Title<input class="input" name="title" required minlength="2" maxlength="120" placeholder="${to ? "About your account" : "Advising opens Sunday"}"></label>
     <label class="field">Message<textarea class="input" name="body" rows="4" maxlength="2000"></textarea></label>
     <label class="field">Link (optional: app page like #/notices, or https://…)<input class="input" name="link" pattern="(#/.*|https://.+)?"></label>
+    <label class="row small" style="gap:8px"><input type="checkbox" class="check" name="allow_reply"> Let students reply privately (only staff see replies)</label>
     <div class="row"><span class="grow xs">${to ? esc(to.email) : "Every signed-in user sees it."}</span><button class="btn primary">${icon("mail")} Send</button></div></form>`, (m) => {
     $("#mf", m).addEventListener("submit", async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), b = e.target.querySelector("button.primary"); busy(b, true);
-      try { await act(to ? "Messaged user" : "Messaged everyone", to ? to.email : f.title, () => api.insert("user_messages", { user_id: to ? to.id : null, title: f.title.trim(), body: f.body.trim(), link: f.link.trim() })); closeModal(); toast("Message sent"); if (tab === "messages") redraw(); }
+      try { await act(to ? "Messaged user" : "Messaged everyone", to ? to.email : f.title, () => api.insert("user_messages", { user_id: to ? to.id : null, title: f.title.trim(), body: f.body.trim(), link: f.link.trim(), allow_reply: !!f.allow_reply })); closeModal(); toast("Message sent"); if (tab === "messages") redraw(); }
       catch (err) { busy(b, false); toast(err.message, "error"); } });
   });
 }

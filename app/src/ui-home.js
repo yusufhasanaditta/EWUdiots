@@ -193,16 +193,41 @@ export function install(ctx) {
     const ago = (at) => { const m = Math.round((Date.now() - new Date(at)) / 6e4); return m < 1 ? "now" : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
     return `${ctx.head("Notifications", "Deadlines, payments, attendance and sync updates.", all.some((n) => !S().read[n.id]) ? `<button class="btn ghost sm" id="n-read">${icon("check")} Mark all read</button>` : "")}
       ${ctx.seg(["All", "Academic", "Campus", "System"].map((x) => [x, x]), nTab, "data-nt")}
-      <section class="card mt">${list.length ? list.map((n) => `<a class="notif ${S().read[n.id] ? "" : "unread"}" href="${esc(n.href || "#/home")}" data-nid="${esc(n.id)}" style="color:inherit;text-decoration:none"><span class="itile ${n.tone}">${icon(n.icon)}</span><div class="min0"><b>${esc(n.title)}</b><p>${esc(n.body)}</p></div><span class="xs">${ago(n.at)}</span></a>`).join("")
+      <section class="card mt">${list.length ? list.map((n) => n.reply
+        ? `<button class="notif ${S().read[n.id] ? "" : "unread"}" data-nid="${esc(n.id)}" data-reply="${esc(n.id)}" style="color:inherit;text-align:left;width:100%"><span class="itile ${n.tone}">${icon(n.icon)}</span><div class="min0"><b>${esc(n.title)}</b><p>${esc(n.body)}</p><span class="xs lnk">${icon("chat", "sm")} Tap to reply</span></div><span class="xs">${ago(n.at)}</span></button>`
+        : `<a class="notif ${S().read[n.id] ? "" : "unread"}" href="${esc(n.href || "#/home")}" data-nid="${esc(n.id)}" style="color:inherit;text-decoration:none"><span class="itile ${n.tone}">${icon(n.icon)}</span><div class="min0"><b>${esc(n.title)}</b><p>${esc(n.body)}</p></div><span class="xs">${ago(n.at)}</span></a>`).join("")
         : ctx.empty("icon:bell", "You're all caught up", "New deadlines, payment reminders and sync updates will show up here.")}</section>
       ${!S().settings.notify ? `<div class="card mt tint-purple row nowrap"><span class="itile purple">${icon("bell")}</span><div class="grow"><b>Enable notifications?</b><p class="small muted">Get reminders for your classes, deadlines and payments.</p></div><button class="btn primary sm" id="n-allow">Allow</button></div>` : ""}`;
   };
   pages.notifications.mount = (el) => {
     $$("[data-nt]", el).forEach((b) => b.addEventListener("click", () => { nTab = b.dataset.nt; ctx.rerender(); }));
     $$("[data-nid]", el).forEach((a) => a.addEventListener("click", () => { S().read[a.dataset.nid] = 1; ctx.save({ silent: true }); }));
+    $$("[data-reply]", el).forEach((b) => b.addEventListener("click", () => openReply(ctx.inbox().find((n) => n.id === b.dataset.reply))));
     const r = $("#n-read", el); r && r.addEventListener("click", () => { ctx.inbox().forEach((n) => { S().read[n.id] = 1; }); ctx.save({ silent: true }); ctx.rerender(); });
     const a = $("#n-allow", el); a && a.addEventListener("click", async () => { await ctx.enableNotifications(); ctx.rerender(); });
   };
+
+  // A notification the admin marked repliable: show the message and the reply thread, and let the student add a reply.
+  async function openReply(n) {
+    if (!n) return;
+    const me = ctx.C.user;
+    const replies = me ? await ctx.cloud.fetchReplies(n.mid) : [];
+    const thread = (rs) => rs.length ? rs.map((r) => `<div class="msg-reply ${me && r.user_id === me.id ? "mine" : "staff"}"><b class="xs">${me && r.user_id === me.id ? "You" : "EWUdiots team"}</b><p>${esc(r.body)}</p></div>`).join("") : `<p class="xs muted">No replies yet. Write the first one.</p>`;
+    openModal(ctx.modalHead(n.title) + `<p class="small">${esc(n.body)}</p>
+      ${!me ? `<div class="alert mt"><span class="a-ic">${icon("user")}</span><div><b>Sign in to reply</b><p>Your reply is private to you and the EWUdiots team.</p></div></div>`
+        : `<div class="msg-replies mt" id="mr-list">${thread(replies)}</div>
+      <form id="mr-form" class="mt"><label class="sr-only" for="mr-text">Your reply</label><textarea class="input" id="mr-text" rows="3" maxlength="2000" placeholder="Write a reply…" required></textarea>
+      <button class="btn primary block mt" type="submit">${icon("send")} Send reply</button><p class="xs muted mt-s">Only the EWUdiots team can see your reply.</p></form>`}`, (m) => {
+      const f = $("#mr-form", m); if (!f) return;
+      f.addEventListener("submit", async (e) => {
+        e.preventDefault(); const t = $("#mr-text", m), body = t.value.trim(); if (!body) return;
+        const btn = f.querySelector("button"); busy(btn, true, "Sending…");
+        try { const row = await ctx.cloud.sendMessageReply(n.mid, body); t.value = ""; busy(btn, false);
+          $("#mr-list", m).innerHTML = thread([...replies, row]); replies.push(row); toast("Reply sent", "success", "The EWUdiots team will see it.");
+        } catch (x) { busy(btn, false); toast("Couldn't send your reply", "error", x.message || "Try again in a moment."); }
+      });
+    });
+  }
 
   /* ═════════════ MORE ═════════════ */
   pages.more = () => {

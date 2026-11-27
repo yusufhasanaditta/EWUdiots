@@ -467,7 +467,7 @@ function inbox() {
   if (due) out.push({ id: `c${new Date().toDateString()}`, cat: "Academic", icon: "cards", tone: "blue", title: `${due} flashcard${due === 1 ? "" : "s"} due today`, body: "A quick review keeps your streak alive.", at: new Date(new Date().setHours(8, 0, 0, 0)).toISOString(), href: "#/cards" });
   if (notices) out.push(...notices.inboxItems());
   (C.courseNotes || []).forEach((n) => out.push({ id: `cn${n.id}`, cat: "Academic", icon: "megaphone", tone: "orange", title: `${n.course}${n.section ? ` (Sec ${n.section})` : ""}: ${n.title}`, body: `${n.teacher_name}${n.body ? " · " + n.body.slice(0, 140) : ""}`, at: n.created_at, href: `#/course?c=${encodeURIComponent(n.course)}` }));
-  (C.messages || []).forEach((m) => out.push({ id: `m${m.id}`, cat: "Campus", icon: "megaphone", tone: "purple", title: m.title, body: m.body || "From the EWUdiots team", at: m.created_at, href: /^(#\/|https:\/\/)/.test(m.link) ? m.link : "#/notifications" }));
+  (C.messages || []).forEach((m) => out.push({ id: `m${m.id}`, cat: "Campus", icon: "megaphone", tone: "purple", title: m.title, body: m.body || "From the EWUdiots team", at: m.created_at, href: /^(#\/|https:\/\/)/.test(m.link) ? m.link : "#/notifications", reply: !!m.allow_reply, mid: m.id }));
   S.log.forEach((l) => out.push(l));
   return out.sort((a, b) => new Date(b.at) - new Date(a.at));
 }
